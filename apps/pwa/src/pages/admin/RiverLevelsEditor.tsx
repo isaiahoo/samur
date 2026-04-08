@@ -52,7 +52,7 @@ export function RiverLevelsEditor() {
       ) : (
         <div className="river-list">
           {levels.map((rl) => {
-            const pct = Math.round((rl.levelCm / rl.dangerLevelCm) * 100);
+            const pct = (rl.levelCm && rl.dangerLevelCm) ? Math.round((rl.levelCm / rl.dangerLevelCm) * 100) : 0;
             return (
               <div key={rl.id} className="river-card">
                 <div className="river-card-header">

@@ -137,8 +137,13 @@ export interface RiverLevel {
   stationName: string;
   lat: number;
   lng: number;
-  levelCm: number;
-  dangerLevelCm: number;
+  levelCm: number | null;
+  dangerLevelCm: number | null;
+  dischargeCubicM: number | null;
+  dischargeMean: number | null;
+  dischargeMax: number | null;
+  dataSource: string | null;
+  isForecast: boolean;
   trend: RiverTrend;
   measuredAt: string;
   createdAt: string;

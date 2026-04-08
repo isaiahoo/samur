@@ -283,31 +283,55 @@ function DetailPanel({
 
   if (type === "riverLevel") {
     const r = data as RiverLevel;
-    const pct = Math.round((r.levelCm / r.dangerLevelCm) * 100);
     const trendArrow = r.trend === "rising" ? "↑" : r.trend === "falling" ? "↓" : "→";
     const ageMs = Date.now() - new Date(r.measuredAt).getTime();
     const ageHours = ageMs / (1000 * 60 * 60);
-    const isStale = ageHours > 2;
+    const staleThreshold = r.dataSource === "open-meteo" ? 48 : 6;
+    const warnThreshold = r.dataSource === "open-meteo" ? 24 : 2;
+    const isStale = ageHours > warnThreshold;
+
+    const hasLevel = r.levelCm !== null && r.levelCm > 0;
+    const hasDischarge = r.dischargeCubicM !== null && r.dischargeCubicM > 0;
+
+    let pct = 0;
+    let barColor = "#3B82F6";
+    let levelText = "Нет данных";
+
+    if (hasLevel) {
+      const dangerCm = r.dangerLevelCm ?? 1;
+      pct = Math.round((r.levelCm! / dangerCm) * 100);
+      barColor = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F97316" : pct >= 60 ? "#F59E0B" : "#3B82F6";
+      levelText = `${trendArrow} Уровень: ${r.levelCm} см из ${r.dangerLevelCm} см (${pct}%)`;
+    } else if (hasDischarge) {
+      const refMax = r.dischargeMax ?? (r.dischargeMean ? r.dischargeMean * 3 : 1);
+      pct = Math.round((r.dischargeCubicM! / refMax) * 100);
+      barColor = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F97316" : pct >= 60 ? "#F59E0B" : "#3B82F6";
+      const pctMean = r.dischargeMean ? Math.round((r.dischargeCubicM! / r.dischargeMean) * 100) : null;
+      levelText = `${trendArrow} Расход: ${r.dischargeCubicM} м³/с${pctMean !== null ? ` (${pctMean}% от нормы)` : ""}`;
+    }
+
     return (
       <div className="detail-panel">
         <h3>{r.riverName} — {r.stationName}</h3>
         {isStale && (
           <p className="detail-stale">
-            {ageHours > 6 ? "⚠ Данные устарели" : "Данные не обновлялись"} ({Math.round(ageHours)}ч назад)
+            {ageHours > staleThreshold ? "⚠ Данные устарели" : "Данные не обновлялись"} ({Math.round(ageHours)}ч назад)
           </p>
         )}
-        <div className="river-level-bar">
-          <div
-            className="river-level-fill"
-            style={{
-              width: `${Math.min(pct, 100)}%`,
-              backgroundColor: pct >= 100 ? "#EF4444" : pct >= 80 ? "#F97316" : pct >= 60 ? "#F59E0B" : "#3B82F6",
-            }}
-          />
-        </div>
-        <p>{trendArrow} Уровень: {r.levelCm} см из {r.dangerLevelCm} см ({pct}%)</p>
+        {(hasLevel || hasDischarge) && (
+          <div className="river-level-bar">
+            <div className="river-level-fill" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }} />
+          </div>
+        )}
+        <p>{levelText}</p>
         <p>Тренд: {RIVER_TREND_LABELS[r.trend]}</p>
-        <RiverSparkline riverName={r.riverName} stationName={r.stationName} dangerLevelCm={r.dangerLevelCm} />
+        <RiverSparkline
+          riverName={r.riverName}
+          stationName={r.stationName}
+          dangerLevelCm={r.dangerLevelCm}
+          dischargeMax={r.dischargeMax}
+          mode={hasLevel ? "cm" : "discharge"}
+        />
         <p className="detail-meta">{formatRelativeTime(r.measuredAt)}</p>
       </div>
     );
@@ -320,72 +344,107 @@ function RiverSparkline({
   riverName,
   stationName,
   dangerLevelCm,
+  dischargeMax,
+  mode,
 }: {
   riverName: string;
   stationName: string;
-  dangerLevelCm: number;
+  dangerLevelCm: number | null;
+  dischargeMax: number | null;
+  mode: "cm" | "discharge";
 }) {
-  const [points, setPoints] = useState<Array<{ levelCm: number; measuredAt: string }>>([]);
+  const [points, setPoints] = useState<Array<{
+    levelCm: number | null;
+    dischargeCubicM: number | null;
+    isForecast: boolean;
+    measuredAt: string;
+  }>>([]);
 
   useEffect(() => {
     getRiverLevelHistory(riverName, stationName, 7)
       .then((res) => {
-        const data = (res.data ?? []) as Array<{ levelCm: number; measuredAt: string }>;
-        setPoints(data);
+        const data = res.data ?? [];
+        setPoints(data.map((d) => ({
+          levelCm: d.levelCm,
+          dischargeCubicM: d.dischargeCubicM,
+          isForecast: d.isForecast ?? false,
+          measuredAt: d.measuredAt,
+        })));
       })
       .catch(() => {});
   }, [riverName, stationName]);
 
-  if (points.length < 2) return null;
+  // Extract values based on mode
+  const values = points
+    .map((p) => mode === "cm" ? p.levelCm : p.dischargeCubicM)
+    .filter((v): v is number => v !== null && v > 0);
+
+  if (values.length < 2) return null;
 
   const W = 240;
   const H = 60;
   const pad = 4;
 
-  const levels = points.map((p) => p.levelCm);
-  const minY = Math.min(...levels) * 0.9;
-  const maxY = Math.max(...levels, dangerLevelCm) * 1.1;
+  const dangerVal = mode === "cm" ? (dangerLevelCm ?? 0) : (dischargeMax ?? 0);
+  const minY = Math.min(...values) * 0.9;
+  const maxY = Math.max(...values, dangerVal) * 1.1;
   const rangeY = maxY - minY || 1;
 
-  const polyPoints = points
-    .map((p, i) => {
-      const x = pad + (i / (points.length - 1)) * (W - 2 * pad);
-      const y = H - pad - ((p.levelCm - minY) / rangeY) * (H - 2 * pad);
-      return `${x},${y}`;
-    })
-    .join(" ");
+  // Build polyline from valid points
+  const validPoints = points
+    .map((p) => ({ value: mode === "cm" ? p.levelCm : p.dischargeCubicM, forecast: p.isForecast }))
+    .filter((v): v is { value: number; forecast: boolean } => v.value !== null && v.value > 0);
 
-  // Danger line Y position
-  const dangerY = H - pad - ((dangerLevelCm - minY) / rangeY) * (H - 2 * pad);
+  const observedPts: string[] = [];
+  const forecastPts: string[] = [];
+
+  validPoints.forEach((p, i) => {
+    const x = pad + (i / (validPoints.length - 1)) * (W - 2 * pad);
+    const y = H - pad - ((p.value - minY) / rangeY) * (H - 2 * pad);
+    const pt = `${x},${y}`;
+    if (p.forecast) {
+      if (forecastPts.length === 0 && observedPts.length > 0) {
+        forecastPts.push(observedPts[observedPts.length - 1]); // connect
+      }
+      forecastPts.push(pt);
+    } else {
+      observedPts.push(pt);
+    }
+  });
+
+  const dangerY = dangerVal > 0 ? H - pad - ((dangerVal - minY) / rangeY) * (H - 2 * pad) : -10;
+  const dangerLabel = mode === "cm" ? "опасный" : "макс.";
+  const valueLabel = mode === "cm" ? "уровень" : "расход";
 
   return (
     <div className="sparkline-container">
       <p className="sparkline-label">Последние 7 дней:</p>
       <svg width={W} height={H} className="sparkline-svg">
-        {/* Danger threshold line */}
-        <line
-          x1={pad}
-          y1={dangerY}
-          x2={W - pad}
-          y2={dangerY}
-          stroke="#EF4444"
-          strokeWidth="1"
-          strokeDasharray="4,3"
-          opacity="0.6"
-        />
-        {/* Level line */}
-        <polyline
-          points={polyPoints}
-          fill="none"
-          stroke="#3B82F6"
-          strokeWidth="2"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
+        {dangerVal > 0 && (
+          <line
+            x1={pad} y1={dangerY} x2={W - pad} y2={dangerY}
+            stroke="#EF4444" strokeWidth="1" strokeDasharray="4,3" opacity="0.6"
+          />
+        )}
+        {observedPts.length > 1 && (
+          <polyline
+            points={observedPts.join(" ")}
+            fill="none" stroke="#3B82F6" strokeWidth="2"
+            strokeLinejoin="round" strokeLinecap="round"
+          />
+        )}
+        {forecastPts.length > 1 && (
+          <polyline
+            points={forecastPts.join(" ")}
+            fill="none" stroke="#3B82F6" strokeWidth="1.5"
+            strokeLinejoin="round" strokeLinecap="round"
+            strokeDasharray="4,3" opacity="0.6"
+          />
+        )}
       </svg>
       <div className="sparkline-legend">
-        <span className="sparkline-legend-line" style={{ borderColor: "#EF4444" }} /> опасный
-        <span className="sparkline-legend-line" style={{ borderColor: "#3B82F6", marginLeft: 8 }} /> уровень
+        <span className="sparkline-legend-line" style={{ borderColor: "#EF4444" }} /> {dangerLabel}
+        <span className="sparkline-legend-line" style={{ borderColor: "#3B82F6", marginLeft: 8 }} /> {valueLabel}
       </div>
     </div>
   );

@@ -7,6 +7,8 @@ import { emitRiverLevelUpdated, emitAlertBroadcast } from "../lib/emitter.js";
 import type { RiverLevel, Alert } from "@samur/shared";
 import { DAGESTAN_GAUGES, stationKey } from "./gaugeStations.js";
 import type { GaugeStation } from "./gaugeStations.js";
+import { fetchDischargeForStations } from "./openMeteoClient.js";
+import type { DischargeReading } from "./openMeteoClient.js";
 
 const log = logger.child({ service: "river-scraper" });
 
@@ -18,9 +20,13 @@ const MAX_RETRIES = 2;
 // ── Scraping result ──────────────────────────────────────────────────────
 
 interface ScrapeResult {
-  levelCm: number;
+  levelCm: number | null;
+  dischargeCubicM: number | null;
+  dischargeMean: number | null;
+  dischargeMax: number | null;
   measuredAt: Date;
-  source: "allrivers" | "urovenvody";
+  source: "allrivers" | "urovenvody" | "open-meteo";
+  isForecast: boolean;
 }
 
 // ── HTTP fetch with timeout and retries ──────────────────────────────────
@@ -78,7 +84,7 @@ function parseAllRivers(html: string): ScrapeResult | null {
   if (
     html.includes("к сожалению, неизвестны") ||
     html.includes("к сожалению, не известны") ||
-    html.includes("данные.*отсутствуют") ||
+    /данные.*отсутствуют/.test(html) ||
     html.includes("нет данных")
   ) {
     // BUT check if there's still a stale operational reading on the page
@@ -94,7 +100,7 @@ function parseAllRivers(html: string): ScrapeResult | null {
       const levelCm = parseFloat(staleMatch[1].replace(",", "."));
       const measuredAt = parseRussianDate(dateMatch[1], dateMatch[2], dateMatch[3]);
       if (levelCm > 0 && levelCm < 5000 && measuredAt) {
-        return { levelCm, measuredAt, source: "allrivers" };
+        return { levelCm, dischargeCubicM: null, dischargeMean: null, dischargeMax: null, measuredAt, source: "allrivers", isForecast: false };
       }
     }
 
@@ -122,7 +128,7 @@ function parseAllRivers(html: string): ScrapeResult | null {
           ? parseRussianDate(dateMatch[1], dateMatch[2], dateMatch[3]) ?? new Date()
           : new Date();
 
-        return { levelCm, measuredAt, source: "allrivers" };
+        return { levelCm, dischargeCubicM: null, dischargeMean: null, dischargeMax: null, measuredAt, source: "allrivers", isForecast: false };
       }
     }
   }
@@ -170,7 +176,7 @@ function parseUrovenvody(html: string): ScrapeResult | null {
   if (currentMatch) {
     const levelCm = parseFloat(currentMatch[1].replace(",", "."));
     if (levelCm > 0 && levelCm < 5000) {
-      return { levelCm, measuredAt: new Date(), source: "urovenvody" };
+      return { levelCm, dischargeCubicM: null, dischargeMean: null, dischargeMax: null, measuredAt: new Date(), source: "urovenvody", isForecast: false };
     }
   }
 
@@ -180,14 +186,27 @@ function parseUrovenvody(html: string): ScrapeResult | null {
 // ── Trend calculation ────────────────────────────────────────────────────
 
 function calculateTrend(
-  currentLevel: number,
+  currentLevel: number | null,
   previousLevel: number | null,
+  currentDischarge: number | null = null,
+  previousDischarge: number | null = null,
 ): RiverTrend {
-  if (previousLevel === null) return "stable";
-  const diff = currentLevel - previousLevel;
-  const threshold = Math.max(previousLevel * 0.02, 2); // 2% or 2cm
-  if (diff > threshold) return "rising";
-  if (diff < -threshold) return "falling";
+  // Prefer cm-based trend if available
+  if (currentLevel !== null && previousLevel !== null) {
+    const diff = currentLevel - previousLevel;
+    const threshold = Math.max(previousLevel * 0.02, 2); // 2% or 2cm
+    if (diff > threshold) return "rising";
+    if (diff < -threshold) return "falling";
+    return "stable";
+  }
+  // Fall back to discharge-based trend
+  if (currentDischarge !== null && previousDischarge !== null) {
+    const diff = currentDischarge - previousDischarge;
+    const threshold = Math.max(previousDischarge * 0.05, 1); // 5% or 1 m³/s
+    if (diff > threshold) return "rising";
+    if (diff < -threshold) return "falling";
+    return "stable";
+  }
   return "stable";
 }
 
@@ -249,18 +268,48 @@ async function scrapeStation(station: GaugeStation): Promise<ScrapeResult | null
 
 async function checkAndTriggerAlert(
   station: GaugeStation,
-  levelCm: number,
+  result: ScrapeResult,
   previousLevel: number | null,
+  previousDischarge: number | null,
   trend: RiverTrend,
-): Promise<void> {
-  // Only trigger if crossing danger threshold upward
-  if (levelCm < station.dangerLevelCm) return;
-  if (previousLevel !== null && previousLevel >= station.dangerLevelCm) return; // already above
+): Promise<boolean> {
+  // Check cm-based danger
+  const levelCm = result.levelCm;
+  const discharge = result.dischargeCubicM;
+  const dischargeMax = result.dischargeMax ?? station.dangerDischarge;
 
-  const pct = Math.round((levelCm / station.dangerLevelCm) * 100);
+  let isDanger = false;
+  let alertBody: string[];
+
+  if (levelCm !== null && levelCm >= station.dangerLevelCm) {
+    // Only trigger if crossing threshold upward
+    if (previousLevel !== null && previousLevel >= station.dangerLevelCm) return false;
+    isDanger = true;
+    const pct = Math.round((levelCm / station.dangerLevelCm) * 100);
+    alertBody = [
+      `Станция: ${station.stationName}`,
+      `Уровень: ${levelCm} см (${pct}% от опасного)`,
+      `Опасный уровень: ${station.dangerLevelCm} см`,
+    ];
+  } else if (discharge !== null && dischargeMax !== null && discharge >= dischargeMax) {
+    // Only trigger if crossing threshold upward
+    if (previousDischarge !== null && previousDischarge >= dischargeMax) return false;
+    isDanger = true;
+    const pct = Math.round((discharge / dischargeMax) * 100);
+    alertBody = [
+      `Станция: ${station.stationName}`,
+      `Расход воды: ${discharge} м³/с (${pct}% от максимума)`,
+      `Исторический максимум: ${dischargeMax} м³/с`,
+    ];
+  }
+
+  if (!isDanger) return false;
+
+  const trendLabel = trend === "rising" ? "↑ растёт" : trend === "falling" ? "↓ падает" : "→ стабильный";
+  alertBody!.push(`Тренд: ${trendLabel}`, "", "Будьте готовы к эвакуации. Следите за обновлениями.");
 
   log.warn(
-    { river: station.riverName, station: station.stationName, levelCm, dangerLevelCm: station.dangerLevelCm },
+    { river: station.riverName, station: station.stationName, levelCm, discharge, dischargeMax },
     "DANGER THRESHOLD CROSSED — creating alert",
   );
 
@@ -281,29 +330,22 @@ async function checkAndTriggerAlert(
       });
     }
 
-    const trendLabel = trend === "rising" ? "↑ растёт" : trend === "falling" ? "↓ падает" : "→ стабильный";
-
     const alert = await prisma.alert.create({
       data: {
         authorId: systemUser.id,
         urgency: "critical",
         title: `⚠️ ${station.riverName}: уровень воды превысил опасную отметку`,
-        body: [
-          `Станция: ${station.stationName}`,
-          `Уровень: ${levelCm} см (${pct}% от опасного)`,
-          `Опасный уровень: ${station.dangerLevelCm} см`,
-          `Тренд: ${trendLabel}`,
-          "",
-          "Будьте готовы к эвакуации. Следите за обновлениями.",
-        ].join("\n"),
+        body: alertBody!.join("\n"),
         channels: ["pwa", "telegram", "sms", "meshtastic"],
       },
       include: { author: { select: { id: true, name: true, role: true } } },
     });
 
     emitAlertBroadcast(alert as unknown as Alert);
+    return true;
   } catch (err) {
     log.error({ err, station: station.stationName }, "Failed to create danger alert");
+    return false;
   }
 }
 
@@ -323,47 +365,104 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
 
   log.info({ stationCount: DAGESTAN_GAUGES.length }, "Starting river level scrape cycle");
 
+  // Step 1: HTML scrape all stations (allrivers → urovenvody)
+  const htmlResults = new Map<string, ScrapeResult>();
+
+  for (const station of DAGESTAN_GAUGES) {
+    const result = await scrapeStation(station);
+    if (result) {
+      htmlResults.set(stationKey(station.riverName, station.stationName), result);
+    }
+    // Polite delay between HTML requests
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+
+  // Step 2: Batch fetch Open-Meteo discharge for all calibrated stations
+  let dischargeData = new Map<string, DischargeReading[]>();
+  try {
+    dischargeData = await fetchDischargeForStations(DAGESTAN_GAUGES);
+  } catch (err) {
+    log.error({ err }, "Open-Meteo batch fetch failed");
+  }
+
+  // Step 3: Merge and store results
   for (const station of DAGESTAN_GAUGES) {
     stats.total++;
+    const key = stationKey(station.riverName, station.stationName);
 
     try {
-      const result = await scrapeStation(station);
+      const htmlResult = htmlResults.get(key) ?? null;
+      const readings = dischargeData.get(key) ?? [];
+      const today = new Date().toISOString().slice(0, 10);
+      const todayReading = readings
+        .filter((r) => !r.isForecast && r.date <= today)
+        .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
 
-      if (!result) {
+      // Merge: prefer HTML cm + Open-Meteo discharge together
+      const merged: ScrapeResult | null = htmlResult
+        ? {
+            ...htmlResult,
+            dischargeCubicM: todayReading?.discharge ?? null,
+            dischargeMean: todayReading?.dischargeMean ?? null,
+            dischargeMax: todayReading?.dischargeMax ?? null,
+          }
+        : todayReading
+          ? {
+              levelCm: null,
+              dischargeCubicM: todayReading.discharge,
+              dischargeMean: todayReading.dischargeMean,
+              dischargeMax: todayReading.dischargeMax,
+              measuredAt: new Date(todayReading.date + "T12:00:00Z"),
+              source: "open-meteo" as const,
+              isForecast: false,
+            }
+          : null;
+
+      if (!merged) {
         stats.failed++;
-        log.debug(
-          { river: station.riverName, station: station.stationName },
-          "No data available from any source",
-        );
+        log.debug({ river: station.riverName, station: station.stationName }, "No data from any source");
         continue;
       }
 
-      // Get previous reading for trend calculation
+      // Get previous reading for trend + dedup
       const previous = await prisma.riverLevel.findFirst({
         where: {
           riverName: station.riverName,
           stationName: station.stationName,
+          isForecast: false,
           deletedAt: null,
         },
         orderBy: { measuredAt: "desc" },
-        select: { levelCm: true, measuredAt: true },
+        select: { levelCm: true, dischargeCubicM: true, measuredAt: true },
       });
 
-      // Skip if we already have a reading within the last 30 minutes
-      // (avoid duplicate entries on rapid re-scrapes)
-      if (previous && previous.measuredAt.getTime() > Date.now() - 30 * 60 * 1000) {
-        const diff = Math.abs(result.levelCm - previous.levelCm);
-        if (diff < 1) {
-          log.debug(
-            { river: station.riverName, station: station.stationName },
-            "Skipping — recent reading unchanged",
-          );
+      // Dedup: skip if we already have a reading with the same measuredAt date/time
+      if (previous) {
+        const prevDate = previous.measuredAt.toISOString().slice(0, 10);
+        const mergedDate = merged.measuredAt.toISOString().slice(0, 10);
+        const isDaily = merged.source === "open-meteo";
+        const isRecent = previous.measuredAt.getTime() > Date.now() - 30 * 60 * 1000;
+
+        // For daily data: skip if same calendar day already stored
+        // For hourly data: skip if stored within last 30 min and value unchanged
+        const shouldSkip = isDaily
+          ? prevDate === mergedDate
+          : isRecent && (
+              (merged.levelCm !== null && previous.levelCm !== null && Math.abs(merged.levelCm - previous.levelCm) < 1) ||
+              (merged.dischargeCubicM !== null && previous.dischargeCubicM !== null && Math.abs(merged.dischargeCubicM - previous.dischargeCubicM) < 0.5)
+            );
+
+        if (shouldSkip) {
+          log.debug({ station: key, source: merged.source }, "Skipping — recent reading unchanged");
           stats.scraped++;
           continue;
         }
       }
 
-      const trend = calculateTrend(result.levelCm, previous?.levelCm ?? null);
+      const trend = calculateTrend(
+        merged.levelCm, previous?.levelCm ?? null,
+        merged.dischargeCubicM, previous?.dischargeCubicM ?? null,
+      );
 
       const level = await prisma.riverLevel.create({
         data: {
@@ -371,38 +470,63 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
           stationName: station.stationName,
           lat: station.lat,
           lng: station.lng,
-          levelCm: result.levelCm,
-          dangerLevelCm: station.dangerLevelCm,
+          levelCm: merged.levelCm,
+          dangerLevelCm: merged.levelCm !== null ? station.dangerLevelCm : null,
+          dischargeCubicM: merged.dischargeCubicM,
+          dischargeMean: merged.dischargeMean,
+          dischargeMax: merged.dischargeMax,
+          dataSource: merged.source,
+          isForecast: false,
           trend,
-          measuredAt: result.measuredAt,
+          measuredAt: merged.measuredAt,
         },
       });
 
       emitRiverLevelUpdated(level as unknown as RiverLevel);
 
       // Check danger threshold
-      await checkAndTriggerAlert(
-        station,
-        result.levelCm,
-        previous?.levelCm ?? null,
-        trend,
-      );
-
-      if (result.levelCm >= station.dangerLevelCm && (previous?.levelCm ?? 0) < station.dangerLevelCm) {
-        stats.alerts++;
-      }
+      const alertTriggered = await checkAndTriggerAlert(station, merged, previous?.levelCm ?? null, previous?.dischargeCubicM ?? null, trend);
+      if (alertTriggered) stats.alerts++;
 
       stats.scraped++;
+
+      // Step 4: Store forecast rows from Open-Meteo
+      const forecasts = readings.filter((r) => r.isForecast);
+      if (forecasts.length > 0) {
+        // Delete old forecasts for this station
+        await prisma.riverLevel.deleteMany({
+          where: {
+            riverName: station.riverName,
+            stationName: station.stationName,
+            isForecast: true,
+          },
+        });
+
+        for (const fc of forecasts) {
+          await prisma.riverLevel.create({
+            data: {
+              riverName: station.riverName,
+              stationName: station.stationName,
+              lat: station.lat,
+              lng: station.lng,
+              levelCm: null,
+              dangerLevelCm: null,
+              dischargeCubicM: fc.discharge,
+              dischargeMean: fc.dischargeMean,
+              dischargeMax: fc.dischargeMax,
+              dataSource: "open-meteo",
+              isForecast: true,
+              trend: "stable",
+              measuredAt: new Date(fc.date + "T12:00:00Z"),
+            },
+          });
+        }
+        log.debug({ station: key, count: forecasts.length }, "Stored forecast rows");
+      }
     } catch (err) {
       stats.failed++;
-      log.error(
-        { err, river: station.riverName, station: station.stationName },
-        "Error processing station",
-      );
+      log.error({ err, river: station.riverName, station: station.stationName }, "Error processing station");
     }
-
-    // Polite delay between requests to avoid hammering the source
-    await new Promise((r) => setTimeout(r, 1500));
   }
 
   stats.duration = Date.now() - start;
@@ -438,8 +562,10 @@ export async function seedGaugeStations(): Promise<number> {
           stationName: station.stationName,
           lat: station.lat,
           lng: station.lng,
-          levelCm: 0,
+          levelCm: null,
           dangerLevelCm: station.dangerLevelCm,
+          dataSource: null,
+          isForecast: false,
           trend: "stable",
           measuredAt: new Date(),
         },

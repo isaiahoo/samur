@@ -190,9 +190,19 @@ export function deleteRiverLevel(id: string) {
   return request<ApiResponse>(`/river-levels/${id}`, { method: "DELETE" });
 }
 
-export function getRiverLevelHistory(riverName: string, stationName: string, days = 7) {
-  const qs = new URLSearchParams({ days: String(days) }).toString();
-  return request<ApiResponse<Array<{ levelCm: number; dangerLevelCm: number; trend: string; measuredAt: string }>>>(
+export function getRiverLevelHistory(riverName: string, stationName: string, days = 7, includeForecast = true) {
+  const qs = new URLSearchParams({ days: String(days), includeForecast: String(includeForecast) }).toString();
+  return request<ApiResponse<Array<{
+    levelCm: number | null;
+    dangerLevelCm: number | null;
+    dischargeCubicM: number | null;
+    dischargeMean: number | null;
+    dischargeMax: number | null;
+    dataSource: string | null;
+    isForecast: boolean;
+    trend: string;
+    measuredAt: string;
+  }>>>(
     `/river-levels/history/${encodeURIComponent(riverName)}/${encodeURIComponent(stationName)}?${qs}`,
   );
 }

@@ -206,7 +206,7 @@ router.post(
       // ── Query: river levels ──
       if (parsed.action === "query_levels") {
         const levels = await prisma.riverLevel.findMany({
-          where: { deletedAt: null },
+          where: { deletedAt: null, isForecast: false },
           orderBy: { measuredAt: "desc" },
           distinct: ["riverName"],
           take: 5,
@@ -225,10 +225,15 @@ router.post(
           stable: "→",
           falling: "↓",
         };
-        const lines = levels.map(
-          (l) =>
-            `${l.riverName}: ${l.levelCm}см${trendArrow[l.trend] ?? ""}`
-        );
+        const lines = levels.map((l) => {
+          if (l.levelCm !== null && l.levelCm > 0) {
+            return `${l.riverName}: ${l.levelCm}см${trendArrow[l.trend] ?? ""}`;
+          }
+          if (l.dischargeCubicM !== null && l.dischargeCubicM > 0) {
+            return `${l.riverName}: ${l.dischargeCubicM}м3/с${trendArrow[l.trend] ?? ""}`;
+          }
+          return `${l.riverName}: нет данных`;
+        });
         res.json({
           success: true,
           data: { reply: smsReply(`Реки: ${lines.join(", ")}`) },
@@ -469,7 +474,7 @@ router.post(
         }
         // query_levels
         const levels = await prisma.riverLevel.findMany({
-          where: { deletedAt: null },
+          where: { deletedAt: null, isForecast: false },
           orderBy: { measuredAt: "desc" },
           distinct: ["riverName"],
           take: 5,
@@ -477,7 +482,11 @@ router.post(
         const reply =
           levels.length === 0
             ? "Нет данных"
-            : levels.map((l) => `${l.riverName}:${l.levelCm}см`).join(" ");
+            : levels.map((l) =>
+                l.levelCm ? `${l.riverName}:${l.levelCm}см` :
+                l.dischargeCubicM ? `${l.riverName}:${l.dischargeCubicM}м3/с` :
+                `${l.riverName}:?`
+              ).join(" ");
         res.json({ success: true, data: { type: "query", reply } });
         return;
       }

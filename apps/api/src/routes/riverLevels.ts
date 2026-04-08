@@ -36,9 +36,14 @@ router.get(
           SELECT DISTINCT ON (river_name, station_name)
             id, river_name as "riverName", station_name as "stationName",
             lat, lng, level_cm as "levelCm", danger_level_cm as "dangerLevelCm",
+            discharge_cubic_m as "dischargeCubicM",
+            discharge_mean as "dischargeMean",
+            discharge_max as "dischargeMax",
+            data_source as "dataSource",
+            is_forecast as "isForecast",
             trend, measured_at as "measuredAt", created_at as "createdAt"
           FROM river_levels
-          WHERE ${whereClause}
+          WHERE ${whereClause} AND is_forecast = false
           ORDER BY river_name, station_name, measured_at DESC
         `;
 
@@ -50,7 +55,7 @@ router.get(
         return;
       }
 
-      const where: Prisma.RiverLevelWhereInput = { deletedAt: null };
+      const where: Prisma.RiverLevelWhereInput = { deletedAt: null, isForecast: false };
       if (q.riverName) where.riverName = q.riverName;
       if (q.stationName) where.stationName = q.stationName;
 
@@ -93,6 +98,9 @@ router.get("/stations", (_req, res) => {
       dangerLevelCm: g.dangerLevelCm,
       hasAllrivers: !!g.allriversSlug,
       hasUrovenvody: !!g.urovenSlug,
+      hasOpenMeteo: !!g.openMeteoLat,
+      meanDischarge: g.meanDischarge,
+      dangerDischarge: g.dangerDischarge,
     })),
   });
 });
@@ -105,17 +113,25 @@ router.get("/history/:riverName/:stationName", async (req, res, next) => {
     const days = Math.min(Math.max(parseInt(req.query.days as string) || 7, 1), 30);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
+    const includeForecast = req.query.includeForecast === "true";
+
     const readings = await prisma.riverLevel.findMany({
       where: {
         riverName,
         stationName,
         deletedAt: null,
         measuredAt: { gte: since },
+        ...(!includeForecast && { isForecast: false }),
       },
       orderBy: { measuredAt: "asc" },
       select: {
         levelCm: true,
         dangerLevelCm: true,
+        dischargeCubicM: true,
+        dischargeMean: true,
+        dischargeMax: true,
+        dataSource: true,
+        isForecast: true,
         trend: true,
         measuredAt: true,
       },
@@ -167,7 +183,11 @@ router.post(
   validateBody(CreateRiverLevelSchema),
   async (req, res, next) => {
     try {
-      const { riverName, stationName, lat, lng, levelCm, dangerLevelCm, trend, measuredAt } = req.body;
+      const {
+        riverName, stationName, lat, lng, levelCm, dangerLevelCm,
+        dischargeCubicM, dischargeMean, dischargeMax, dataSource, isForecast,
+        trend, measuredAt,
+      } = req.body;
 
       const level = await prisma.riverLevel.create({
         data: {
@@ -175,8 +195,13 @@ router.post(
           stationName,
           lat,
           lng,
-          levelCm,
-          dangerLevelCm,
+          levelCm: levelCm ?? null,
+          dangerLevelCm: dangerLevelCm ?? null,
+          dischargeCubicM: dischargeCubicM ?? null,
+          dischargeMean: dischargeMean ?? null,
+          dischargeMax: dischargeMax ?? null,
+          dataSource: dataSource ?? null,
+          isForecast: isForecast ?? false,
           trend,
           measuredAt: new Date(measuredAt),
         },

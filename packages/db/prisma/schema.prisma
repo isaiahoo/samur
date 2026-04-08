@@ -242,22 +242,28 @@ model Shelter {
 }
 
 model RiverLevel {
-  id            String     @id @default(cuid())
-  riverName     String     @map("river_name")
-  stationName   String     @map("station_name")
-  lat           Float
-  lng           Float
-  location      Unsupported("geometry(Point, 4326)")?
-  levelCm       Float      @map("level_cm")
-  dangerLevelCm Float      @map("danger_level_cm")
-  trend         RiverTrend
-  measuredAt    DateTime   @map("measured_at")
-  createdAt     DateTime   @default(now()) @map("created_at")
-  deletedAt     DateTime?  @map("deleted_at")
+  id              String     @id @default(cuid())
+  riverName       String     @map("river_name")
+  stationName     String     @map("station_name")
+  lat             Float
+  lng             Float
+  location        Unsupported("geometry(Point, 4326)")?
+  levelCm         Float?     @map("level_cm")
+  dangerLevelCm   Float?     @map("danger_level_cm")
+  dischargeCubicM Float?     @map("discharge_cubic_m")
+  dischargeMean   Float?     @map("discharge_mean")
+  dischargeMax    Float?     @map("discharge_max")
+  dataSource      String?    @map("data_source")
+  isForecast      Boolean    @default(false) @map("is_forecast")
+  trend           RiverTrend
+  measuredAt      DateTime   @map("measured_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  deletedAt       DateTime?  @map("deleted_at")
 
   @@index([riverName, measuredAt])
   @@index([measuredAt])
   @@index([deletedAt])
+  @@index([riverName, stationName, isForecast, measuredAt])
   @@map("river_levels")
 }
 

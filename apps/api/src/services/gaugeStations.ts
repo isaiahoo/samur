@@ -26,6 +26,14 @@ export interface GaugeStation {
   urovenSlug: string | null;
   /** Roshydromet station ID (for future API integration) */
   roshydrometId: string | null;
+  /** Calibrated Open-Meteo latitude (5km grid-aligned) */
+  openMeteoLat: number | null;
+  /** Calibrated Open-Meteo longitude (5km grid-aligned) */
+  openMeteoLng: number | null;
+  /** Historical mean annual discharge in m³/s (fallback for % calculation) */
+  meanDischarge: number | null;
+  /** Approximate danger discharge in m³/s (fallback threshold) */
+  dangerDischarge: number | null;
 }
 
 export const DAGESTAN_GAUGES: GaugeStation[] = [
@@ -39,6 +47,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: "sulak-miatly",
     urovenSlug: null,
     roshydrometId: null,
+    openMeteoLat: null, // needs calibration
+    openMeteoLng: null,
+    meanDischarge: null,
+    dangerDischarge: null,
   },
   {
     riverName: "Сулак",
@@ -49,6 +61,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: "sulak-yazykovka",
     urovenSlug: null,
     roshydrometId: null,
+    openMeteoLat: 43.375, // calibrated 2026-04-08
+    openMeteoLng: 46.975,
+    meanDischarge: 150,
+    dangerDischarge: 500,
   },
   {
     riverName: "Сулак",
@@ -59,6 +75,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: "sulak-sulak",
     urovenSlug: null,
     roshydrometId: null,
+    openMeteoLat: null, // needs calibration
+    openMeteoLng: null,
+    meanDischarge: null,
+    dangerDischarge: null,
   },
 
   // ── Самур (Samur) ──────────────────────────────────────────────────────
@@ -71,6 +91,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: "samur-usuhchaj",
     urovenSlug: "usuhchaj",
     roshydrometId: "84344",
+    openMeteoLat: 41.425, // calibrated 2026-04-08
+    openMeteoLng: 47.925,
+    meanDischarge: 40,
+    dangerDischarge: 150,
   },
   {
     riverName: "Самур",
@@ -81,6 +105,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: "samur-ahty",
     urovenSlug: null,
     roshydrometId: null,
+    openMeteoLat: null, // needs calibration
+    openMeteoLng: null,
+    meanDischarge: null,
+    dangerDischarge: null,
   },
   {
     riverName: "Самур",
@@ -91,6 +119,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: "samur-luchek",
     urovenSlug: null,
     roshydrometId: null,
+    openMeteoLat: null, // needs calibration
+    openMeteoLng: null,
+    meanDischarge: null,
+    dangerDischarge: null,
   },
 
   // ── Терек (Terek) — Dagestan section ───────────────────────────────────
@@ -103,6 +135,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: "terek-hangash-yurt",
     urovenSlug: null,
     roshydrometId: null,
+    openMeteoLat: null, // needs calibration
+    openMeteoLng: null,
+    meanDischarge: null,
+    dangerDischarge: null,
   },
   {
     riverName: "Терек",
@@ -113,6 +149,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: "tepek-ruk-alikazgan",
     urovenSlug: "alikazgan",
     roshydrometId: "84822",
+    openMeteoLat: 43.475, // calibrated 2026-04-08
+    openMeteoLng: 46.325,
+    meanDischarge: 300,
+    dangerDischarge: 2000,
   },
   {
     riverName: "Терек",
@@ -123,6 +163,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: "terek-kargalinskiy-gidrouzel",
     urovenSlug: "kargalinskoe",
     roshydrometId: "84803",
+    openMeteoLat: null, // needs calibration
+    openMeteoLng: null,
+    meanDischarge: null,
+    dangerDischarge: null,
   },
 
   // ── Tributaries (Койсу rivers → form Сулак) ────────────────────────────
@@ -135,6 +179,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: null,
     urovenSlug: "krasnyj-most",
     roshydrometId: "84453",
+    openMeteoLat: null, // needs calibration
+    openMeteoLng: null,
+    meanDischarge: null,
+    dangerDischarge: null,
   },
   {
     riverName: "Андийское Койсу",
@@ -145,6 +193,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: null,
     urovenSlug: "chirkota",
     roshydrometId: "84302",
+    openMeteoLat: null, // needs calibration
+    openMeteoLng: null,
+    meanDischarge: null,
+    dangerDischarge: null,
   },
 ];
 

@@ -69,17 +69,29 @@ export function toSheltersGeoJSON(items: Shelter[]): FeatureCollection {
 export function toRiverLevelsGeoJSON(items: RiverLevel[]): FeatureCollection {
   return {
     type: "FeatureCollection",
-    features: items.map((r) =>
-      point(r.lng, r.lat, {
+    features: items.map((r) => {
+      // Compute danger ratio from cm or discharge
+      let dangerRatio = 0;
+      if (r.levelCm !== null && r.dangerLevelCm && r.dangerLevelCm > 0) {
+        dangerRatio = r.levelCm / r.dangerLevelCm;
+      } else if (r.dischargeCubicM !== null && r.dischargeMax && r.dischargeMax > 0) {
+        dangerRatio = r.dischargeCubicM / r.dischargeMax;
+      }
+
+      return point(r.lng, r.lat, {
         id: r.id,
         riverName: r.riverName,
         stationName: r.stationName,
         levelCm: r.levelCm,
         dangerLevelCm: r.dangerLevelCm,
-        dangerRatio: r.dangerLevelCm > 0 ? r.levelCm / r.dangerLevelCm : 0,
+        dischargeCubicM: r.dischargeCubicM,
+        dischargeMean: r.dischargeMean,
+        dischargeMax: r.dischargeMax,
+        dataSource: r.dataSource,
+        dangerRatio,
         trend: r.trend,
         measuredAt: r.measuredAt,
-      }),
-    ),
+      });
+    }),
   };
 }

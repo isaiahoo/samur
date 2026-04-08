@@ -26,11 +26,31 @@ export function registerLevelHandler(bot: TelegramBot): void {
       for (const lv of levels) {
         const trend = TREND_EMOJI[lv.trend] ?? "";
         const trendLabel = RIVER_TREND_LABELS[lv.trend] ?? lv.trend;
-        const ratio = lv.dangerLevelCm > 0 ? lv.levelCm / lv.dangerLevelCm : 0;
+
+        const hasLevel = lv.levelCm !== null && lv.levelCm !== undefined && lv.levelCm > 0;
+        const hasDischarge = lv.dischargeCubicM !== null && lv.dischargeCubicM !== undefined && lv.dischargeCubicM > 0;
+
+        let ratio = 0;
+        if (hasLevel && lv.dangerLevelCm && lv.dangerLevelCm > 0) {
+          ratio = lv.levelCm! / lv.dangerLevelCm;
+        } else if (hasDischarge && lv.dischargeMax && lv.dischargeMax > 0) {
+          ratio = lv.dischargeCubicM! / lv.dischargeMax;
+        }
         const danger = ratio >= 1 ? "🔴" : ratio >= 0.8 ? "🟡" : "🟢";
 
         text += `${danger} *${lv.riverName}* (${lv.stationName})\n`;
-        text += `   ${lv.levelCm} см / ${lv.dangerLevelCm} см ${trend} ${trendLabel}\n`;
+
+        if (hasLevel) {
+          text += `   ${lv.levelCm} см / ${lv.dangerLevelCm} см ${trend} ${trendLabel}\n`;
+        } else if (hasDischarge) {
+          const pctMean = lv.dischargeMean ? Math.round((lv.dischargeCubicM! / lv.dischargeMean) * 100) : null;
+          text += `   💧 ${lv.dischargeCubicM} м³/с`;
+          if (pctMean !== null) text += ` (${pctMean}% от нормы)`;
+          text += ` ${trend} ${trendLabel}\n`;
+        } else {
+          text += `   Нет данных\n`;
+        }
+
         text += `   📅 ${new Date(lv.measuredAt).toLocaleString("ru-RU")}\n\n`;
       }
 
