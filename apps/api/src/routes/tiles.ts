@@ -142,6 +142,41 @@ router.get("/style.json", async (req, res) => {
   }
 });
 
+// ── Offline style endpoint (PMTiles source for when network is down) ──────
+
+router.get("/offline-style.json", (_req, res) => {
+  const pmtilesUrl = "pmtiles:///api/v1/tiles/offline/dagestan.pmtiles";
+  res.set("Cache-Control", "public, max-age=86400");
+  res.json({
+    version: 8,
+    name: "Samur Offline",
+    sources: {
+      openmaptiles: {
+        type: "vector",
+        url: pmtilesUrl,
+        attribution: "",
+      },
+    },
+    glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
+    layers: [
+      { id: "background", type: "background", paint: { "background-color": "#f8f4f0" } },
+      { id: "water", type: "fill", source: "openmaptiles", "source-layer": "water", paint: { "fill-color": "#a0c8f0" } },
+      { id: "landcover-grass", type: "fill", source: "openmaptiles", "source-layer": "landcover", filter: ["==", "class", "grass"], paint: { "fill-color": "#d8e8c8", "fill-opacity": 0.6 } },
+      { id: "landcover-wood", type: "fill", source: "openmaptiles", "source-layer": "landcover", filter: ["==", "class", "wood"], paint: { "fill-color": "#b8d8a8", "fill-opacity": 0.5 } },
+      { id: "landuse-residential", type: "fill", source: "openmaptiles", "source-layer": "landuse", filter: ["==", "class", "residential"], paint: { "fill-color": "#ede7e3", "fill-opacity": 0.5 } },
+      { id: "building", type: "fill", source: "openmaptiles", "source-layer": "building", minzoom: 13, paint: { "fill-color": "#d9d0c9", "fill-opacity": 0.7, "fill-outline-color": "#c9c0b9" } },
+      { id: "road-minor", type: "line", source: "openmaptiles", "source-layer": "transportation", filter: ["all", ["==", "$type", "LineString"], ["in", "class", "minor", "service"]], paint: { "line-color": "#fff", "line-width": ["interpolate", ["linear"], ["zoom"], 12, 0.5, 18, 6] } },
+      { id: "road-secondary", type: "line", source: "openmaptiles", "source-layer": "transportation", filter: ["all", ["==", "$type", "LineString"], ["in", "class", "secondary", "tertiary"]], paint: { "line-color": "#fefce8", "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.5, 18, 10] } },
+      { id: "road-primary", type: "line", source: "openmaptiles", "source-layer": "transportation", filter: ["all", ["==", "$type", "LineString"], ["==", "class", "primary"]], paint: { "line-color": "#fef3c7", "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.5, 18, 14] } },
+      { id: "road-motorway", type: "line", source: "openmaptiles", "source-layer": "transportation", filter: ["all", ["==", "$type", "LineString"], ["in", "class", "motorway", "trunk"]], paint: { "line-color": "#fcd34d", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.5, 18, 16] } },
+      { id: "waterway", type: "line", source: "openmaptiles", "source-layer": "waterway", paint: { "line-color": "#a0c8f0", "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.5, 14, 3] } },
+      { id: "boundary-country", type: "line", source: "openmaptiles", "source-layer": "boundary", filter: ["==", "admin_level", 2], paint: { "line-color": "#9ca3af", "line-width": 1.5, "line-dasharray": [3, 2] } },
+      { id: "place-city", type: "symbol", source: "openmaptiles", "source-layer": "place", filter: ["in", "class", "city", "town"], layout: { "text-field": "{name}\n{name:latin}", "text-font": ["Open Sans Regular"], "text-size": ["interpolate", ["linear"], ["zoom"], 6, 10, 14, 18], "text-anchor": "center", "text-max-width": 8 }, paint: { "text-color": "#333", "text-halo-color": "#fff", "text-halo-width": 1.5 } },
+      { id: "place-village", type: "symbol", source: "openmaptiles", "source-layer": "place", filter: ["==", "class", "village"], minzoom: 10, layout: { "text-field": "{name}", "text-font": ["Open Sans Regular"], "text-size": 12, "text-anchor": "center", "text-max-width": 6 }, paint: { "text-color": "#555", "text-halo-color": "#fff", "text-halo-width": 1.2 } },
+    ],
+  });
+});
+
 // ── Tile proxy endpoint ────────────────────────────────────────────────────
 // Proxies vector tile requests to MapTiler or OpenFreeMap
 // API key stays server-side — never exposed to frontend

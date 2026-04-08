@@ -86,6 +86,7 @@ export function MapView({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const readyRef = useRef(false);
+  const offlineRef = useRef(false);
 
   // Store latest callbacks in refs to avoid re-initializing the map
   const onMarkerClickRef = useRef(onMarkerClick);
@@ -350,10 +351,51 @@ export function MapView({
       );
     });
 
+    // ── Offline ↔ Online style switching ───────────────────────────────────
+
+    const ONLINE_STYLE = "/api/v1/tiles/style.json";
+    const OFFLINE_STYLE = "/api/v1/tiles/offline-style.json";
+
+    function switchToOffline() {
+      if (offlineRef.current) return;
+      offlineRef.current = true;
+      // Fetch offline style (may come from service worker cache)
+      fetch(OFFLINE_STYLE)
+        .then((r) => r.json())
+        .then((style) => { map.setStyle(style); })
+        .catch(() => { /* no offline style available — map stays as-is */ });
+    }
+
+    function switchToOnline() {
+      if (!offlineRef.current) return;
+      offlineRef.current = false;
+      fetch(ONLINE_STYLE)
+        .then((r) => r.json())
+        .then((style) => { map.setStyle(style); })
+        .catch(() => { /* stay offline */ offlineRef.current = true; });
+    }
+
+    window.addEventListener("offline", switchToOffline);
+    window.addEventListener("online", switchToOnline);
+
+    // Also detect tile load failures as a signal to go offline
+    let tileErrors = 0;
+    map.on("error", (e) => {
+      if (e.error?.message?.includes("fetch") || e.error?.message?.includes("NetworkError")) {
+        tileErrors++;
+        if (tileErrors >= 3 && !offlineRef.current) switchToOffline();
+      }
+    });
+
+    // Check initial state
+    if (!navigator.onLine) switchToOffline();
+
     mapRef.current = map;
 
     return () => {
       readyRef.current = false;
+      window.removeEventListener("offline", switchToOffline);
+      window.removeEventListener("online", switchToOnline);
       map.remove();
       mapRef.current = null;
     };

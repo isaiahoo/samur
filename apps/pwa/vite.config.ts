@@ -25,6 +25,16 @@ export default defineConfig({
             },
           },
           {
+            // Offline style JSON — cache for quick offline access
+            urlPattern: /\/api\/v1\/tiles\/offline-style\.json$/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "offline-style",
+              expiration: { maxEntries: 1, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
             // API GET requests — network first with 3s timeout
             urlPattern: /\/api\/v1\/.*/i,
             handler: "NetworkFirst",
