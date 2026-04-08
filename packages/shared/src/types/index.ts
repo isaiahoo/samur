@@ -170,6 +170,21 @@ export interface DashboardStats {
   shelterCapacity: { total: number; occupied: number };
 }
 
+export type ChannelStatus = "online" | "degraded" | "offline";
+
+export interface ChannelHealth {
+  pwa: ChannelStatus;
+  telegram: ChannelStatus;
+  vk: ChannelStatus;
+  sms: ChannelStatus;
+  meshtastic: ChannelStatus;
+}
+
+export interface SmsBroadcastEntry {
+  phone: string;
+  message: string;
+}
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;

@@ -71,7 +71,7 @@ export default function MapPanel({ id, go }: Props) {
 
   return (
     <Panel id={id}>
-      <PanelHeader>ДагПомощь — Карта</PanelHeader>
+      <PanelHeader>Самур — Карта</PanelHeader>
       <div style={{ position: "relative", height: "calc(100vh - 96px)" }}>
         {loading && <ScreenSpinner />}
         <MapContainer

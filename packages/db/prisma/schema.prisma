@@ -260,3 +260,22 @@ model RiverLevel {
   @@index([deletedAt])
   @@map("river_levels")
 }
+
+model SmsBroadcastLog {
+  id      String   @id @default(cuid())
+  alertId String   @map("alert_id")
+  phone   String
+  sentAt  DateTime @default(now()) @map("sent_at")
+
+  @@unique([alertId, phone])
+  @@index([alertId])
+  @@map("sms_broadcast_log")
+}
+
+model ChannelHeartbeat {
+  channel   String   @id
+  lastSeen  DateTime @default(now()) @map("last_seen")
+  metadata  Json?
+
+  @@map("channel_heartbeats")
+}

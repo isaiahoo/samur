@@ -11,6 +11,8 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().default("http://localhost:5173"),
   VK_SECRET: z.string().default(""),
   VK_APP_ID: z.string().default(""),
+  WEBHOOK_API_KEY: z.string().default(""),
+  TG_BOT_TOKEN: z.string().default(""),
   LOG_LEVEL: z.string().default("debug"),
 });
 

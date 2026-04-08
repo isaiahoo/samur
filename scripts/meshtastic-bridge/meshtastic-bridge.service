@@ -1,0 +1,36 @@
+[Unit]
+Description=Samur Meshtastic Bridge
+Documentation=https://github.com/isaiahoo/samur
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=samur
+Group=samur
+WorkingDirectory=/opt/samur/meshtastic-bridge
+ExecStart=/opt/samur/meshtastic-bridge/venv/bin/python bridge.py /opt/samur/meshtastic-bridge/meshtastic-bridge.yaml
+Restart=always
+RestartSec=10
+
+# Environment (can also use EnvironmentFile)
+Environment=API_BASE_URL=http://localhost:3000
+Environment=WEBHOOK_API_KEY=
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/samur/meshtastic-bridge
+PrivateTmp=true
+
+# Allow access to USB serial devices
+SupplementaryGroups=dialout
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=meshtastic-bridge
+
+[Install]
+WantedBy=multi-user.target

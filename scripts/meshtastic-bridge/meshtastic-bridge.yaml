@@ -1,0 +1,41 @@
+# Meshtastic Bridge Configuration
+# Copy this file and adjust for your deployment
+
+api:
+  # Samur API base URL
+  base_url: "http://localhost:3000"
+  # Webhook API key (must match WEBHOOK_API_KEY in API .env)
+  api_key: ""
+  # HTTP request timeout in seconds
+  timeout: 10
+
+meshtastic:
+  # Connection type: serial | bluetooth | tcp
+  connection: "serial"
+  # Serial port (for USB-connected radios)
+  serial_port: "/dev/ttyUSB0"
+  # Bluetooth address (for BLE-connected radios)
+  bluetooth_address: ""
+  # TCP host (for network-connected radios)
+  tcp_host: "localhost"
+  # Meshtastic channel index to use (0 = primary)
+  channel_index: 0
+
+bridge:
+  # How often to broadcast river levels (seconds)
+  broadcast_interval: 1800  # 30 minutes
+  # How often to send heartbeat to API (seconds)
+  heartbeat_interval: 120   # 2 minutes
+  # Max retries for failed API calls
+  retry_max: 10
+  # Base delay for exponential backoff (seconds)
+  retry_base_delay: 5
+  # Log level: DEBUG | INFO | WARNING | ERROR
+  log_level: "INFO"
+
+geo:
+  # Dagestan coordinate bounds for GPS validation
+  dagestan_north: 44.3
+  dagestan_south: 41.1
+  dagestan_east: 48.6
+  dagestan_west: 45.0

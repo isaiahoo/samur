@@ -290,5 +290,13 @@ export type AlertQuery = z.infer<typeof AlertQuerySchema>;
 export type ShelterQuery = z.infer<typeof ShelterQuerySchema>;
 export type RiverLevelQuery = z.infer<typeof RiverLevelQuerySchema>;
 export type MapClusterQuery = z.infer<typeof MapClusterQuerySchema>;
+export const MeshtasticHeartbeatSchema = z.object({
+  node_id: z.string(),
+  uptime_seconds: z.number().optional(),
+  battery_level: z.number().optional(),
+  channel_utilization: z.number().optional(),
+});
+
 export type SmsWebhookInput = z.infer<typeof SmsWebhookSchema>;
 export type MeshtasticWebhookInput = z.infer<typeof MeshtasticWebhookSchema>;
+export type MeshtasticHeartbeatInput = z.infer<typeof MeshtasticHeartbeatSchema>;

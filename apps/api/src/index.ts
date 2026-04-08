@@ -23,6 +23,7 @@ import riverLevelsRouter from "./routes/riverLevels.js";
 import mapRouter from "./routes/map.js";
 import statsRouter from "./routes/stats.js";
 import webhooksRouter from "./routes/webhooks.js";
+import channelsRouter from "./routes/channels.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -76,6 +77,7 @@ app.use("/api/v1/river-levels", riverLevelsRouter);
 app.use("/api/v1/map", mapRouter);
 app.use("/api/v1/stats", statsRouter);
 app.use("/api/v1/webhook", webhooksRouter);
+app.use("/api/v1/channels", channelsRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

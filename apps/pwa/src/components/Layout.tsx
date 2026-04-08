@@ -14,7 +14,7 @@ export function Layout() {
   return (
     <div className="app-layout">
       <header className="app-header">
-        <h1 className="app-title">ДагПомощь</h1>
+        <h1 className="app-title">Самур</h1>
         {!online && <span className="offline-badge">Офлайн</span>}
       </header>
 
