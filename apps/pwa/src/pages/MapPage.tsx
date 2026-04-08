@@ -49,6 +49,15 @@ export function MapPage() {
 
   useSocketSubscription(position?.lat ?? null, position?.lng ?? null, 50000);
 
+  // River levels are a small fixed dataset — fetch once, update via WebSocket
+  const fetchRiverLevels = useCallback(async () => {
+    try {
+      const rlRes = await getRiverLevels({ latest: true });
+      if (rlRes?.data) setRiverLevels(rlRes.data as RiverLevel[]);
+    } catch { /* ignore — will retry on next hourly scrape via socket */ }
+  }, []);
+
+  // Bounds-dependent data — refetch on map move
   const fetchData = useCallback(async () => {
     try {
       const bounds = boundsRef.current;
@@ -60,22 +69,19 @@ export function MapPage() {
         params.west = bounds.west;
       }
 
-      const [incRes, hrRes, shRes, rlRes] = await Promise.all([
+      const [incRes, hrRes, shRes] = await Promise.all([
         getIncidents({ ...params, status: "unverified" }).catch(() => null),
         getHelpRequests({ ...params, status: "open" }).catch(() => null),
         getShelters({ limit: 100 }).catch(() => null),
-        getRiverLevels({ latest: true }).catch(() => null),
       ]);
 
       const incData = (incRes?.data ?? []) as Incident[];
       const hrData = (hrRes?.data ?? []) as HelpRequest[];
       const shData = (shRes?.data ?? []) as Shelter[];
-      const rlData = (rlRes?.data ?? []) as RiverLevel[];
 
       setIncidents(incData);
       setHelpRequests(hrData);
       setShelters(shData);
-      setRiverLevels(rlData);
 
       // Cache for offline
       await Promise.all([
@@ -96,11 +102,12 @@ export function MapPage() {
     }
   }, []);
 
-  // Initial data fetch
+  // Initial data fetch — river levels loaded once, rest refetched on map move
   useEffect(() => {
     fetchData();
+    fetchRiverLevels();
     return () => { if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current); };
-  }, [fetchData]);
+  }, [fetchData, fetchRiverLevels]);
 
   useEffect(() => {
     requestPosition();
