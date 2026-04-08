@@ -229,7 +229,7 @@ router.get("/:z/:x/:y.pbf", async (req, res) => {
 
     res.set("Content-Type", "application/x-protobuf");
     res.set("Cache-Control", "public, max-age=86400"); // 1 day
-    res.set("Content-Encoding", upstream.headers.get("content-encoding") ?? "");
+    // Note: do NOT forward Content-Encoding — Node fetch auto-decompresses
 
     const buffer = Buffer.from(await upstream.arrayBuffer());
     res.send(buffer);
