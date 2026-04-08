@@ -156,7 +156,7 @@ export async function fetchDischargeForStations(
 
     if (readings.length > 0) {
       result.set(key, readings);
-      const latest = readings.find((r) => !r.isForecast && r.date <= today);
+      const latest = readings.filter((r) => !r.isForecast && r.date <= today).at(-1);
       log.info(
         {
           station: key,
