@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import { Layout } from "./components/Layout.js";
 import { Spinner } from "./components/Spinner.js";
 
@@ -13,6 +14,7 @@ const AdminPage = lazy(() => import("./pages/admin/AdminPage.js").then((m) => ({
 
 export function App() {
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <Suspense fallback={<Spinner />}>
         <Routes>
@@ -27,5 +29,6 @@ export function App() {
         </Routes>
       </Suspense>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }

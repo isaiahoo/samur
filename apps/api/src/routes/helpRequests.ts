@@ -169,6 +169,14 @@ router.patch(
         throw new AppError(404, "NOT_FOUND", "Запрос помощи не найден");
       }
 
+      // Only author, claimer, or coordinator/admin can modify
+      const isOwner = existing.userId && existing.userId === req.user!.sub;
+      const isClaimer = existing.claimedBy && existing.claimedBy === req.user!.sub;
+      const isPrivileged = req.user!.role === "coordinator" || req.user!.role === "admin";
+      if (!isOwner && !isClaimer && !isPrivileged) {
+        throw new AppError(403, "FORBIDDEN", "Недостаточно прав для редактирования");
+      }
+
       const newStatus = req.body.status;
       if (newStatus && newStatus !== existing.status) {
         const error = getHelpRequestTransitionError(existing.status, newStatus);

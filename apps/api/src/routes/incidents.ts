@@ -146,6 +146,13 @@ router.patch(
         throw new AppError(404, "NOT_FOUND", "Инцидент не найден");
       }
 
+      // Only author or coordinator/admin can modify
+      const isOwner = existing.userId && existing.userId === req.user!.sub;
+      const isPrivileged = req.user!.role === "coordinator" || req.user!.role === "admin";
+      if (!isOwner && !isPrivileged) {
+        throw new AppError(403, "FORBIDDEN", "Недостаточно прав для редактирования");
+      }
+
       // Status transition validation
       if (req.body.status && req.body.status !== existing.status) {
         const error = getIncidentTransitionError(existing.status, req.body.status);

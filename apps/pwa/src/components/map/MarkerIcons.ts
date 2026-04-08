@@ -21,11 +21,3 @@ export const SHELTER_COLORS = {
   full: "#6B7280",
   closed: "#9CA3AF",
 } as const;
-
-export function getRiverColor(levelCm: number, dangerLevelCm: number): string {
-  const ratio = dangerLevelCm > 0 ? levelCm / dangerLevelCm : 0;
-  if (ratio >= 1) return "#EF4444";
-  if (ratio >= 0.8) return "#F97316";
-  if (ratio >= 0.6) return "#F59E0B";
-  return "#3B82F6";
-}
