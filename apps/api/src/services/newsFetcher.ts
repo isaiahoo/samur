@@ -155,9 +155,9 @@ async function fetchFeed(feed: NewsFeed): Promise<number> {
             publishedAt,
           },
           update: {
-            // Update title/summary in case the source corrected it
             title: item.title.trim(),
             summary,
+            imageUrl,
           },
         });
         stored++;
