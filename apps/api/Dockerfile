@@ -29,7 +29,7 @@ WORKDIR /app
 COPY --from=base /app/node_modules ./node_modules
 COPY --from=base /app/packages/db/dist ./packages/db/dist
 COPY --from=base /app/packages/db/package.json ./packages/db/
-COPY --from=base /app/packages/db/node_modules ./packages/db/node_modules
+COPY --from=base /app/packages/db/prisma ./packages/db/prisma
 COPY --from=base /app/packages/shared/dist ./packages/shared/dist
 COPY --from=base /app/packages/shared/package.json ./packages/shared/
 COPY --from=base /app/apps/api/dist ./apps/api/dist
