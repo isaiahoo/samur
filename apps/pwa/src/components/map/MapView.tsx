@@ -65,10 +65,41 @@ function shelterPopupHTML(p: Record<string, unknown>): string {
   return `<div class="popup-content"><strong>${p.name}</strong><span class="popup-status">${status}</span><p>${p.address}</p><p>Мест: ${p.currentOccupancy}/${p.capacity}</p>${amenities ? `<p>${amenities}</p>` : ""}</div>`;
 }
 
+function trendArrow(trend: string): string {
+  switch (trend) {
+    case "rising": return "↑";
+    case "falling": return "↓";
+    default: return "→";
+  }
+}
+
+function staleWarning(measuredAt: string): string {
+  const ageMs = Date.now() - new Date(measuredAt).getTime();
+  const ageHours = ageMs / (1000 * 60 * 60);
+  if (ageHours > 6) return `<div class="popup-stale">⚠ Данные устарели (${Math.round(ageHours)}ч назад)</div>`;
+  if (ageHours > 2) return `<div class="popup-stale-warn">Обновлено ${Math.round(ageHours)}ч назад</div>`;
+  return "";
+}
+
 function riverPopupHTML(p: Record<string, unknown>): string {
   const trend = RIVER_TREND_LABELS[p.trend as string] ?? p.trend;
+  const arrow = trendArrow(p.trend as string);
   const time = formatRelativeTime(p.measuredAt as string);
-  return `<div class="popup-content"><strong>${p.riverName} — ${p.stationName}</strong><p>Уровень: ${p.levelCm} см / ${p.dangerLevelCm} см (опасный)</p><p>Тренд: ${trend}</p><small>${time}</small></div>`;
+  const levelCm = Number(p.levelCm) || 0;
+  const dangerCm = Number(p.dangerLevelCm) || 1;
+  const pct = Math.round((levelCm / dangerCm) * 100);
+  const barColor = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F97316" : pct >= 60 ? "#F59E0B" : "#3B82F6";
+  const stale = staleWarning(p.measuredAt as string);
+
+  return `<div class="popup-content popup-river">
+    <strong>${p.riverName} — ${p.stationName}</strong>
+    ${stale}
+    <div class="popup-river-bar"><div style="width:${Math.min(pct, 100)}%;background:${barColor}"></div></div>
+    <p class="popup-river-level">${arrow} ${levelCm} / ${dangerCm} см (${pct}%)</p>
+    <p>Тренд: ${trend}</p>
+    <div class="popup-sparkline" data-river="${p.riverName}" data-station="${p.stationName}"></div>
+    <small>${time}</small>
+  </div>`;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────

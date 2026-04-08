@@ -8,6 +8,8 @@ import type { RiverLevel } from "@samur/shared";
 import { AppError } from "../middleware/error.js";
 import { emitRiverLevelUpdated } from "../lib/emitter.js";
 import { paramId } from "../lib/params.js";
+import { DAGESTAN_GAUGES } from "../services/gaugeStations.js";
+import { scrapeAllStations } from "../services/riverScraper.js";
 
 const router = Router();
 
@@ -151,6 +153,69 @@ router.delete(
       next(err);
     }
   }
+);
+
+// ── History: last N days for a station (for sparkline charts) ─────────────
+
+router.get("/history/:riverName/:stationName", async (req, res, next) => {
+  try {
+    const { riverName, stationName } = req.params;
+    const days = Math.min(Math.max(parseInt(req.query.days as string) || 7, 1), 30);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const readings = await prisma.riverLevel.findMany({
+      where: {
+        riverName,
+        stationName,
+        deletedAt: null,
+        measuredAt: { gte: since },
+      },
+      orderBy: { measuredAt: "asc" },
+      select: {
+        levelCm: true,
+        dangerLevelCm: true,
+        trend: true,
+        measuredAt: true,
+      },
+    });
+
+    res.json({ success: true, data: readings });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Gauge stations metadata ──────────────────────────────────────────────
+
+router.get("/stations", (_req, res) => {
+  res.json({
+    success: true,
+    data: DAGESTAN_GAUGES.map((g) => ({
+      riverName: g.riverName,
+      stationName: g.stationName,
+      lat: g.lat,
+      lng: g.lng,
+      dangerLevelCm: g.dangerLevelCm,
+      hasAllrivers: !!g.allriversSlug,
+      hasUrovenvody: !!g.urovenSlug,
+    })),
+  });
+});
+
+// ── Manual scrape trigger (admin only) ───────────────────────────────────
+
+router.post(
+  "/scrape",
+  requireAuth,
+  requireRole("admin"),
+  async (_req, res, next) => {
+    try {
+      const stats = await scrapeAllStations();
+      res.json({ success: true, data: stats });
+    } catch (err) {
+      next(err);
+    }
+  },
 );
 
 export default router;

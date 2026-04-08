@@ -15,7 +15,7 @@ import { MapView } from "../components/map/MapView.js";
 import { LayerToggle } from "../components/map/LayerToggle.js";
 import { ReportForm } from "../components/map/ReportForm.js";
 import { UrgencyBadge } from "../components/UrgencyBadge.js";
-import { getIncidents, getHelpRequests, getShelters, getRiverLevels } from "../services/api.js";
+import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory } from "../services/api.js";
 import { cacheItems, getCachedItems } from "../services/db.js";
 import { useSocketEvent, useSocketSubscription } from "../hooks/useSocket.js";
 import { useGeolocation } from "../hooks/useGeolocation.js";
@@ -284,24 +284,109 @@ function DetailPanel({
   if (type === "riverLevel") {
     const r = data as RiverLevel;
     const pct = Math.round((r.levelCm / r.dangerLevelCm) * 100);
+    const trendArrow = r.trend === "rising" ? "↑" : r.trend === "falling" ? "↓" : "→";
+    const ageMs = Date.now() - new Date(r.measuredAt).getTime();
+    const ageHours = ageMs / (1000 * 60 * 60);
+    const isStale = ageHours > 2;
     return (
       <div className="detail-panel">
         <h3>{r.riverName} — {r.stationName}</h3>
+        {isStale && (
+          <p className="detail-stale">
+            {ageHours > 6 ? "⚠ Данные устарели" : "Данные не обновлялись"} ({Math.round(ageHours)}ч назад)
+          </p>
+        )}
         <div className="river-level-bar">
           <div
             className="river-level-fill"
             style={{
               width: `${Math.min(pct, 100)}%`,
-              backgroundColor: pct >= 100 ? "#EF4444" : pct >= 80 ? "#F97316" : "#3B82F6",
+              backgroundColor: pct >= 100 ? "#EF4444" : pct >= 80 ? "#F97316" : pct >= 60 ? "#F59E0B" : "#3B82F6",
             }}
           />
         </div>
-        <p>Уровень: {r.levelCm} см из {r.dangerLevelCm} см ({pct}%)</p>
+        <p>{trendArrow} Уровень: {r.levelCm} см из {r.dangerLevelCm} см ({pct}%)</p>
         <p>Тренд: {RIVER_TREND_LABELS[r.trend]}</p>
+        <RiverSparkline riverName={r.riverName} stationName={r.stationName} dangerLevelCm={r.dangerLevelCm} />
         <p className="detail-meta">{formatRelativeTime(r.measuredAt)}</p>
       </div>
     );
   }
 
   return null;
+}
+
+function RiverSparkline({
+  riverName,
+  stationName,
+  dangerLevelCm,
+}: {
+  riverName: string;
+  stationName: string;
+  dangerLevelCm: number;
+}) {
+  const [points, setPoints] = useState<Array<{ levelCm: number; measuredAt: string }>>([]);
+
+  useEffect(() => {
+    getRiverLevelHistory(riverName, stationName, 7)
+      .then((res) => {
+        const data = (res.data ?? []) as Array<{ levelCm: number; measuredAt: string }>;
+        setPoints(data);
+      })
+      .catch(() => {});
+  }, [riverName, stationName]);
+
+  if (points.length < 2) return null;
+
+  const W = 240;
+  const H = 60;
+  const pad = 4;
+
+  const levels = points.map((p) => p.levelCm);
+  const minY = Math.min(...levels) * 0.9;
+  const maxY = Math.max(...levels, dangerLevelCm) * 1.1;
+  const rangeY = maxY - minY || 1;
+
+  const polyPoints = points
+    .map((p, i) => {
+      const x = pad + (i / (points.length - 1)) * (W - 2 * pad);
+      const y = H - pad - ((p.levelCm - minY) / rangeY) * (H - 2 * pad);
+      return `${x},${y}`;
+    })
+    .join(" ");
+
+  // Danger line Y position
+  const dangerY = H - pad - ((dangerLevelCm - minY) / rangeY) * (H - 2 * pad);
+
+  return (
+    <div className="sparkline-container">
+      <p className="sparkline-label">Последние 7 дней:</p>
+      <svg width={W} height={H} className="sparkline-svg">
+        {/* Danger threshold line */}
+        <line
+          x1={pad}
+          y1={dangerY}
+          x2={W - pad}
+          y2={dangerY}
+          stroke="#EF4444"
+          strokeWidth="1"
+          strokeDasharray="4,3"
+          opacity="0.6"
+        />
+        {/* Level line */}
+        <polyline
+          points={polyPoints}
+          fill="none"
+          stroke="#3B82F6"
+          strokeWidth="2"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+      </svg>
+      <div className="sparkline-legend">
+        <span className="sparkline-legend-line" style={{ borderColor: "#EF4444" }} /> опасный
+        <span className="sparkline-legend-line" style={{ borderColor: "#3B82F6", marginLeft: 8 }} /> уровень
+      </div>
+    </div>
+  );
 }

@@ -12,6 +12,7 @@ import { pinoRequestLogger, logger } from "./lib/logger.js";
 import { metricsMiddleware } from "./lib/metrics.js";
 import { notFoundHandler, errorHandler } from "./middleware/error.js";
 import { initSocketIO } from "./socket.js";
+import { startScheduler, stopScheduler } from "./services/scheduler.js";
 
 import healthRouter from "./routes/health.js";
 import authRouter from "./routes/auth.js";
@@ -97,10 +98,16 @@ server.listen(config.PORT, () => {
     port: config.PORT,
     env: config.NODE_ENV,
   }, "Samur API running");
+
+  // Start river level scraping scheduler
+  startScheduler().catch((err) => {
+    logger.error({ err }, "Failed to start river scraper scheduler");
+  });
 });
 
 function shutdown(signal: string) {
   logger.info({ signal }, "Shutting down...");
+  stopScheduler();
   server.close(() => {
     redisClient?.disconnect();
     process.exit(0);
