@@ -42,6 +42,7 @@ async function fetchAndRewriteStyle(baseUrl: string): Promise<Record<string, unk
 }
 
 // Rewrite MapTiler URLs to go through our proxy (keeps API key server-side)
+// and switch labels from English to Russian
 function rewriteUrls(style: Record<string, unknown>, baseUrl: string): Record<string, unknown> {
   const proxyTileUrl = `${baseUrl}/api/v1/tiles/{z}/{x}/{y}.pbf`;
 
@@ -50,9 +51,9 @@ function rewriteUrls(style: Record<string, unknown>, baseUrl: string): Record<st
   if (sources) {
     for (const src of Object.values(sources)) {
       if (src.url && typeof src.url === "string" && src.url.includes("maptiler.com")) {
+        // Resolve tiles.json into inline tile URL so we control maxzoom
         delete src.url;
         src.tiles = [proxyTileUrl];
-        src.maxzoom = src.maxzoom ?? 14;
       } else if (src.tiles && Array.isArray(src.tiles)) {
         src.tiles = src.tiles.map((t: string) =>
           t.includes("maptiler.com") ? proxyTileUrl : t,
@@ -61,10 +62,36 @@ function rewriteUrls(style: Record<string, unknown>, baseUrl: string): Record<st
     }
   }
 
-  // Glyphs and sprite can stay as MapTiler URLs (they include the key in the
-  // fetched style, and fonts/sprites are not sensitive — no need to proxy)
+  // Rewrite labels from English to Russian
+  rewriteLabelsToRussian(style);
 
   return style;
+}
+
+// Recursively replace "name:en" → "name:ru" in all text-field expressions
+// so map labels appear in Russian (Cyrillic) instead of Latin
+function rewriteLabelsToRussian(obj: unknown): void {
+  if (typeof obj === "string") return;
+  if (Array.isArray(obj)) {
+    for (let i = 0; i < obj.length; i++) {
+      if (typeof obj[i] === "string") {
+        obj[i] = obj[i].replace(/name:en/g, "name:ru").replace(/\{name:en\}/g, "{name:ru}");
+      } else {
+        rewriteLabelsToRussian(obj[i]);
+      }
+    }
+    return;
+  }
+  if (obj && typeof obj === "object") {
+    const rec = obj as Record<string, unknown>;
+    for (const key of Object.keys(rec)) {
+      if (typeof rec[key] === "string") {
+        rec[key] = (rec[key] as string).replace(/name:en/g, "name:ru").replace(/\{name:en\}/g, "{name:ru}");
+      } else {
+        rewriteLabelsToRussian(rec[key]);
+      }
+    }
+  }
 }
 
 // Minimal fallback style for OpenFreeMap (no MapTiler key)
