@@ -198,6 +198,64 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     meanDischarge: 80,
     dangerDischarge: 400,
   },
+
+  // ── Derbent district rivers ────────────────────────────────────────────
+  {
+    riverName: "Уллучай",
+    stationName: "Каякент",
+    lat: 42.35,
+    lng: 48.05,
+    dangerLevelCm: 250,
+    allriversSlug: null,
+    urovenSlug: null,
+    roshydrometId: null,
+    openMeteoLat: 42.325, // calibrated 2026-04-09: 155 m³/s
+    openMeteoLng: 48.125,
+    meanDischarge: 41,
+    dangerDischarge: 200,
+  },
+  {
+    riverName: "Рубас",
+    stationName: "Дербент",
+    lat: 42.06,
+    lng: 48.29,
+    dangerLevelCm: 200,
+    allriversSlug: null,
+    urovenSlug: null,
+    roshydrometId: null,
+    openMeteoLat: 41.975, // calibrated 2026-04-09: 113 m³/s
+    openMeteoLng: 48.375,
+    meanDischarge: 24,
+    dangerDischarge: 100,
+  },
+  {
+    riverName: "Гюльгеричай",
+    stationName: "Магарамкент",
+    lat: 41.60,
+    lng: 48.16,
+    dangerLevelCm: 200,
+    allriversSlug: null,
+    urovenSlug: null,
+    roshydrometId: null,
+    openMeteoLat: 41.875, // calibrated 2026-04-09: 71 m³/s
+    openMeteoLng: 48.175,
+    meanDischarge: 19,
+    dangerDischarge: 80,
+  },
+  {
+    riverName: "Самур",
+    stationName: "Устье (дельта)",
+    lat: 41.80,
+    lng: 48.55,
+    dangerLevelCm: 300,
+    allriversSlug: null,
+    urovenSlug: null,
+    roshydrometId: null,
+    openMeteoLat: 41.775, // calibrated 2026-04-09: 190 m³/s (delta/lower course)
+    openMeteoLng: 48.325,
+    meanDischarge: 196,
+    dangerDischarge: 500,
+  },
 ];
 
 /** Get a station key for deduplication (riverName + stationName) */
