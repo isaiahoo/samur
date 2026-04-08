@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useEffect, useRef, useCallback, memo } from "react";
+import { useEffect, useRef, useState, useCallback, memo } from "react";
 import maplibregl from "maplibre-gl";
 import type { GeoJSONSource } from "maplibre-gl";
 import { Protocol } from "pmtiles";
@@ -148,7 +148,7 @@ export const MapView = memo(function MapView({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
-  const readyRef = useRef(false);
+  const [mapReady, setMapReady] = useState(false);
   const offlineRef = useRef(false);
 
   // Store latest callbacks in refs to avoid re-initializing the map
@@ -351,7 +351,7 @@ export const MapView = memo(function MapView({
         },
       });
 
-      readyRef.current = true;
+      setMapReady(true);
     });
 
     // ── Click handlers ───────────────────────────────────────────────────
@@ -456,7 +456,7 @@ export const MapView = memo(function MapView({
     mapRef.current = map;
 
     return () => {
-      readyRef.current = false;
+      setMapReady(false);
       window.removeEventListener("offline", switchToOffline);
       window.removeEventListener("online", switchToOnline);
       map.remove();
@@ -469,11 +469,11 @@ export const MapView = memo(function MapView({
   const updateSource = useCallback(
     (sourceId: string, data: GeoJSON.FeatureCollection) => {
       const map = mapRef.current;
-      if (!map || !readyRef.current) return;
+      if (!map || !mapReady) return;
       const src = map.getSource(sourceId) as GeoJSONSource | undefined;
       src?.setData(data);
     },
-    [],
+    [mapReady],
   );
 
   useEffect(() => updateSource("incidents", toIncidentsGeoJSON(incidents)), [incidents, updateSource]);
@@ -485,7 +485,7 @@ export const MapView = memo(function MapView({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !readyRef.current) return;
+    if (!map || !mapReady) return;
 
     const layerGroups: Record<string, string[]> = {
       incidents: ["incidents-clusters", "incidents-cluster-count", "incidents-unclustered"],
@@ -502,7 +502,7 @@ export const MapView = memo(function MapView({
         }
       }
     }
-  }, [layers]);
+  }, [layers, mapReady]);
 
   return <div ref={containerRef} className="map-container" />;
 });
