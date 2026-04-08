@@ -276,7 +276,8 @@ async function checkAndTriggerAlert(
   // Check cm-based danger
   const levelCm = result.levelCm;
   const discharge = result.dischargeCubicM;
-  const dischargeMax = result.dischargeMax ?? station.dangerDischarge;
+  // Use station's configured danger threshold, NOT Open-Meteo's per-day historical max
+  const dangerDischarge = station.dangerDischarge;
 
   let isDanger = false;
   let alertBody: string[];
@@ -291,15 +292,15 @@ async function checkAndTriggerAlert(
       `Уровень: ${levelCm} см (${pct}% от опасного)`,
       `Опасный уровень: ${station.dangerLevelCm} см`,
     ];
-  } else if (discharge !== null && dischargeMax !== null && discharge >= dischargeMax) {
+  } else if (discharge !== null && dangerDischarge !== null && discharge >= dangerDischarge) {
     // Only trigger if crossing threshold upward
-    if (previousDischarge !== null && previousDischarge >= dischargeMax) return false;
+    if (previousDischarge !== null && previousDischarge >= dangerDischarge) return false;
     isDanger = true;
-    const pct = Math.round((discharge / dischargeMax) * 100);
+    const pct = Math.round((discharge / dangerDischarge) * 100);
     alertBody = [
       `Станция: ${station.stationName}`,
-      `Расход воды: ${discharge} м³/с (${pct}% от максимума)`,
-      `Исторический максимум: ${dischargeMax} м³/с`,
+      `Расход воды: ${discharge} м³/с (${pct}% от опасного)`,
+      `Опасный расход: ${dangerDischarge} м³/с`,
     ];
   }
 
@@ -309,7 +310,7 @@ async function checkAndTriggerAlert(
   alertBody!.push(`Тренд: ${trendLabel}`, "", "Будьте готовы к эвакуации. Следите за обновлениями.");
 
   log.warn(
-    { river: station.riverName, station: station.stationName, levelCm, discharge, dischargeMax },
+    { river: station.riverName, station: station.stationName, levelCm, discharge, dangerDischarge },
     "DANGER THRESHOLD CROSSED — creating alert",
   );
 
