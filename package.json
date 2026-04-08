@@ -23,6 +23,7 @@
     "dev:vk": "npm run dev -w apps/vk",
     "build:vk": "npm run build -w apps/vk",
     "build": "npm run build:db && npm run build:shared && npm run build:api && npm run build:pwa && npm run build:telegram && npm run build:vk",
+    "test:api": "npm run test -w apps/api",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit -p tsconfig.base.json"
   },

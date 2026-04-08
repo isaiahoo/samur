@@ -8,7 +8,8 @@ import { Redis } from "ioredis";
 import { config } from "./config.js";
 import { optionalAuth } from "./middleware/auth.js";
 import { initRateLimiter, rateLimiterMiddleware } from "./middleware/rateLimiter.js";
-import { requestLogger } from "./middleware/requestLogger.js";
+import { pinoRequestLogger, logger } from "./lib/logger.js";
+import { metricsMiddleware } from "./lib/metrics.js";
 import { notFoundHandler, errorHandler } from "./middleware/error.js";
 import { initSocketIO } from "./socket.js";
 
@@ -24,6 +25,7 @@ import mapRouter from "./routes/map.js";
 import statsRouter from "./routes/stats.js";
 import webhooksRouter from "./routes/webhooks.js";
 import channelsRouter from "./routes/channels.js";
+import metricsRouter from "./routes/metrics.js";
 
 const app = express();
 const server = http.createServer(app);
@@ -40,14 +42,14 @@ try {
   });
 
   redisClient.on("error", (err) => {
-    console.error("Redis error:", err.message);
+    logger.error({ err: err.message }, "Redis error");
   });
 
   redisClient.on("connect", () => {
-    console.log("Redis connected");
+    logger.info("Redis connected");
   });
 } catch (err) {
-  console.warn("Redis connection failed, running without Redis:", err);
+  logger.warn({ err }, "Redis connection failed, running without Redis");
   redisClient = null;
 }
 
@@ -60,7 +62,8 @@ app.use(express.json({ limit: "5mb" }));
 // Parse JWT early so rate limiter can use role-based limits
 app.use(optionalAuth);
 
-app.use(requestLogger);
+app.use(pinoRequestLogger);
+app.use(metricsMiddleware);
 
 // Rate limiter (role-aware: 30/min anon, 120/min auth, 600/min coordinator)
 initRateLimiter(redisClient);
@@ -78,6 +81,7 @@ app.use("/api/v1/map", mapRouter);
 app.use("/api/v1/stats", statsRouter);
 app.use("/api/v1/webhook", webhooksRouter);
 app.use("/api/v1/channels", channelsRouter);
+app.use(metricsRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
@@ -85,14 +89,14 @@ app.use(errorHandler);
 initSocketIO(server, corsOrigins, redisClient);
 
 server.listen(config.PORT, () => {
-  console.log(`🚀 Samur API running on port ${config.PORT} [${config.NODE_ENV}]`);
-  console.log(`   Health:  http://localhost:${config.PORT}/api/v1/health`);
-  console.log(`   Stats:   http://localhost:${config.PORT}/api/v1/stats`);
-  console.log(`   Map:     http://localhost:${config.PORT}/api/v1/map/clusters`);
+  logger.info({
+    port: config.PORT,
+    env: config.NODE_ENV,
+  }, "Samur API running");
 });
 
 function shutdown(signal: string) {
-  console.log(`\n${signal} received, shutting down...`);
+  logger.info({ signal }, "Shutting down...");
   server.close(() => {
     redisClient?.disconnect();
     process.exit(0);

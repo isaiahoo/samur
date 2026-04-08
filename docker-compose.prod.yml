@@ -1,0 +1,213 @@
+version: "3.9"
+
+services:
+  # ── Database ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: samur-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-samur}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-samur}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-samur} -d ${POSTGRES_DB:-samur}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.0"
+
+  # ── Database backup cron ──────────────────────────────────────────────────
+  pg-backup:
+    image: postgis/postgis:16-3.4
+    container_name: samur-pg-backup
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-samur}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-samur}
+    volumes:
+      - ./backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          STAMP=$$(date +%Y%m%d_%H%M%S)
+          pg_dump -Fc > /backups/samur_$$STAMP.dump
+          echo "[$$STAMP] Backup created"
+          # Keep last 7 days
+          find /backups -name "samur_*.dump" -mtime +7 -delete
+          sleep 86400
+        done
+
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: samur-redis
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+
+  # ── API ───────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: samur-api
+    restart: always
+    expose:
+      - "3000"
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-samur}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-samur}?schema=public"
+      REDIS_URL: "redis://redis:6379"
+      NODE_ENV: production
+      PORT: "3000"
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      TG_BOT_TOKEN: ${TG_BOT_TOKEN}
+      VK_APP_ID: ${VK_APP_ID}
+      VK_SECRET: ${VK_SECRET}
+      WEBHOOK_API_KEY: ${WEBHOOK_API_KEY}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://samur.dag}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "1.0"
+
+  # ── PWA ───────────────────────────────────────────────────────────────────
+  pwa:
+    build:
+      context: .
+      dockerfile: apps/pwa/Dockerfile
+    container_name: samur-pwa
+    restart: always
+    expose:
+      - "80"
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.25"
+
+  # ── Telegram bot ──────────────────────────────────────────────────────────
+  telegram:
+    build:
+      context: .
+      dockerfile: apps/telegram/Dockerfile
+    container_name: samur-telegram
+    restart: always
+    environment:
+      TG_BOT_TOKEN: ${TG_BOT_TOKEN}
+      API_BASE_URL: http://api:3000
+      SOCKET_URL: http://api:3000
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.5"
+
+  # ── Reverse proxy with SSL ───────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: samur-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - certbot-webroot:/var/www/certbot:ro
+      - certbot-certs:/etc/letsencrypt:ro
+    depends_on:
+      - api
+      - pwa
+
+  # ── SSL certificate auto-renewal ─────────────────────────────────────────
+  certbot:
+    image: certbot/certbot:latest
+    container_name: samur-certbot
+    volumes:
+      - certbot-webroot:/var/www/certbot
+      - certbot-certs:/etc/letsencrypt
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          certbot renew --webroot -w /var/www/certbot --quiet
+          sleep 43200
+        done
+
+  # ── Prometheus (optional monitoring) ──────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: samur-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheusdata:/prometheus
+    expose:
+      - "9090"
+    profiles:
+      - monitoring
+
+  # ── Grafana (optional monitoring) ─────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: samur-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-samur}
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./monitoring/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+    ports:
+      - "3001:3000"
+    profiles:
+      - monitoring
+
+volumes:
+  pgdata:
+  redisdata:
+  certbot-webroot:
+  certbot-certs:
+  prometheusdata:
+  grafanadata:

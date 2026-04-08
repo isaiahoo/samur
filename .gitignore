@@ -6,3 +6,5 @@ dist/
 coverage/
 .turbo/
 *.tsbuildinfo
+backups/
+*.dump
