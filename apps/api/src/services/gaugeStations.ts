@@ -47,10 +47,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: "sulak-miatly",
     urovenSlug: null,
     roshydrometId: null,
-    openMeteoLat: null, // needs calibration
-    openMeteoLng: null,
-    meanDischarge: null,
-    dangerDischarge: null,
+    openMeteoLat: 42.925, // calibrated 2026-04-08: 226 m³/s (upstream of Chirkey dam)
+    openMeteoLng: 46.875,
+    meanDischarge: 200,
+    dangerDischarge: 800,
   },
   {
     riverName: "Сулак",
@@ -75,10 +75,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: "sulak-sulak",
     urovenSlug: null,
     roshydrometId: null,
-    openMeteoLat: null, // needs calibration
-    openMeteoLng: null,
-    meanDischarge: null,
-    dangerDischarge: null,
+    openMeteoLat: 43.525, // calibrated 2026-04-08: 52 m³/s (delta, low GloFAS resolution)
+    openMeteoLng: 47.075,
+    meanDischarge: 50,
+    dangerDischarge: 200,
   },
 
   // ── Самур (Samur) ──────────────────────────────────────────────────────
@@ -105,10 +105,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: "samur-ahty",
     urovenSlug: null,
     roshydrometId: null,
-    openMeteoLat: null, // needs calibration
-    openMeteoLng: null,
-    meanDischarge: null,
-    dangerDischarge: null,
+    openMeteoLat: 41.425, // calibrated 2026-04-08: 61 m³/s
+    openMeteoLng: 47.825,
+    meanDischarge: 50,
+    dangerDischarge: 200,
   },
   {
     riverName: "Самур",
@@ -119,10 +119,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: "samur-luchek",
     urovenSlug: null,
     roshydrometId: null,
-    openMeteoLat: null, // needs calibration
-    openMeteoLng: null,
-    meanDischarge: null,
-    dangerDischarge: null,
+    openMeteoLat: 41.525, // calibrated 2026-04-08: 130 m³/s (lower Самур)
+    openMeteoLng: 48.175,
+    meanDischarge: 100,
+    dangerDischarge: 400,
   },
 
   // ── Терек (Terek) — Dagestan section ───────────────────────────────────
@@ -135,10 +135,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: "terek-hangash-yurt",
     urovenSlug: null,
     roshydrometId: null,
-    openMeteoLat: null, // needs calibration
-    openMeteoLng: null,
-    meanDischarge: null,
-    dangerDischarge: null,
+    openMeteoLat: 43.375, // calibrated 2026-04-08: 396 m³/s
+    openMeteoLng: 45.775,
+    meanDischarge: 300,
+    dangerDischarge: 1500,
   },
   {
     riverName: "Терек",
@@ -163,10 +163,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: "terek-kargalinskiy-gidrouzel",
     urovenSlug: "kargalinskoe",
     roshydrometId: "84803",
-    openMeteoLat: null, // needs calibration
-    openMeteoLng: null,
-    meanDischarge: null,
-    dangerDischarge: null,
+    openMeteoLat: 43.525, // calibrated 2026-04-08: 1412 m³/s
+    openMeteoLng: 46.375,
+    meanDischarge: 300,
+    dangerDischarge: 2000,
   },
 
   // ── Tributaries (Койсу rivers → form Сулак) ────────────────────────────
@@ -179,10 +179,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: null,
     urovenSlug: "krasnyj-most",
     roshydrometId: "84453",
-    openMeteoLat: null, // needs calibration
-    openMeteoLng: null,
-    meanDischarge: null,
-    dangerDischarge: null,
+    openMeteoLat: 42.625, // calibrated 2026-04-08: 126 m³/s
+    openMeteoLng: 46.875,
+    meanDischarge: 100,
+    dangerDischarge: 500,
   },
   {
     riverName: "Андийское Койсу",
@@ -193,10 +193,10 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     allriversSlug: null,
     urovenSlug: "chirkota",
     roshydrometId: "84302",
-    openMeteoLat: null, // needs calibration
-    openMeteoLng: null,
-    meanDischarge: null,
-    dangerDischarge: null,
+    openMeteoLat: 42.775, // calibrated 2026-04-08: 83 m³/s
+    openMeteoLng: 46.675,
+    meanDischarge: 80,
+    dangerDischarge: 400,
   },
 ];
 
