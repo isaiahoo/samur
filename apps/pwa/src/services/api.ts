@@ -211,6 +211,11 @@ export function getRiverStations() {
   return request<ApiResponse>("/river-levels/stations");
 }
 
+export function getNews(params?: Record<string, string | number | boolean>) {
+  const qs = params ? "?" + new URLSearchParams(toStringRecord(params)).toString() : "";
+  return request<PaginatedResponse<unknown>>(`/news${qs}`);
+}
+
 export function getMapClusters(params: Record<string, string | number>) {
   const qs = "?" + new URLSearchParams(toStringRecord(params)).toString();
   return request<ApiResponse>(`/map/clusters${qs}`);

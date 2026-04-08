@@ -8,6 +8,7 @@ import { Spinner } from "./components/Spinner.js";
 const MapPage = lazy(() => import("./pages/MapPage.js").then((m) => ({ default: m.MapPage })));
 const HelpPage = lazy(() => import("./pages/HelpPage.js").then((m) => ({ default: m.HelpPage })));
 const AlertsPage = lazy(() => import("./pages/AlertsPage.js").then((m) => ({ default: m.AlertsPage })));
+const NewsPage = lazy(() => import("./pages/NewsPage.js").then((m) => ({ default: m.NewsPage })));
 const InfoPage = lazy(() => import("./pages/InfoPage.js").then((m) => ({ default: m.InfoPage })));
 const LoginPage = lazy(() => import("./pages/LoginPage.js").then((m) => ({ default: m.LoginPage })));
 const AdminPage = lazy(() => import("./pages/admin/AdminPage.js").then((m) => ({ default: m.AdminPage })));
@@ -22,6 +23,7 @@ export function App() {
             <Route path="/" element={<MapPage />} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/alerts" element={<AlertsPage />} />
+            <Route path="/news" element={<NewsPage />} />
             <Route path="/info" element={<InfoPage />} />
           </Route>
           <Route path="/login" element={<LoginPage />} />
