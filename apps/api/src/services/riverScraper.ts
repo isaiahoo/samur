@@ -63,52 +63,66 @@ async function fetchWithRetry(url: string, retries = MAX_RETRIES): Promise<strin
 /**
  * Parses water level from allrivers.info gauge page.
  *
- * The page contains text like:
- *   "Текущий уровень воды: <b>XXX</b> см"
- * or in the waterlevel sub-page, bold values like:
- *   "уровень воды: <b>123</b> см"
+ * IMPORTANT: allrivers.info pages contain two types of data:
+ * 1. CURRENT operational level — phrased as "составляет <b>XXX</b> см над нулем поста"
+ *    with a measurement date like "13 мая 2024"
+ * 2. ARCHIVE "on this day" stats — min/avg/max from historical records
+ *    phrased as "минимальный уровень: <b>XXX</b> см"
  *
- * Also extracts historical stats for reference:
- *   "максимальный уровень: <b>456</b> см"
+ * Most Dagestan gauges currently show "к сожалению, неизвестны" (no operational data).
+ * We MUST NOT scrape archive stats as if they were current readings.
  */
 function parseAllRivers(html: string): ScrapeResult | null {
-  // Try to find current water level
-  // Pattern: various phrasings with a bold number followed by "см"
-  const patterns = [
-    /(?:текущий|нынешний|сегодняшний)\s+уровень\s+воды[^<]*?<b>\s*(\d+(?:[.,]\d+)?)\s*<\/b>\s*см/i,
-    /уровень\s+воды[^<]*?<b>\s*(\d+(?:[.,]\d+)?)\s*<\/b>\s*см/i,
-    /уровень[^<]*?составляет[^<]*?<b>\s*(\d+(?:[.,]\d+)?)\s*<\/b>\s*см/i,
-    /water[_\s]?level[^<]*?<b>\s*(\d+(?:[.,]\d+)?)\s*<\/b>/i,
-    // Fallback: look for any bold number near "см" in gauge context
-    /<b>\s*(\d{2,4}(?:[.,]\d+)?)\s*<\/b>\s*см/i,
+  // If the page explicitly says operational data is unavailable, return null.
+  // This prevents falling through to patterns that would match archive stats.
+  if (
+    html.includes("к сожалению, неизвестны") ||
+    html.includes("к сожалению, не известны") ||
+    html.includes("данные.*отсутствуют") ||
+    html.includes("нет данных")
+  ) {
+    // BUT check if there's still a stale operational reading on the page
+    // (some pages show the last known reading even when "today" is unknown)
+    const staleMatch = html.match(
+      /составляет\s*<b>\s*(\d+(?:[.,]\d+)?)\s*<\/b>\s*см\s*над\s*нулем/i,
+    );
+    const dateMatch = html.match(
+      /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+(\d{4})/i,
+    );
+
+    if (staleMatch && dateMatch) {
+      const levelCm = parseFloat(staleMatch[1].replace(",", "."));
+      const measuredAt = parseRussianDate(dateMatch[1], dateMatch[2], dateMatch[3]);
+      if (levelCm > 0 && levelCm < 5000 && measuredAt) {
+        return { levelCm, measuredAt, source: "allrivers" };
+      }
+    }
+
+    return null;
+  }
+
+  // Look for CURRENT operational reading only.
+  // The pattern is: "составляет <b>XXX</b> см над нулем поста"
+  // This is the ONLY reliable indicator of an actual current measurement.
+  const currentPatterns = [
+    /составляет\s*<b>\s*(\d+(?:[.,]\d+)?)\s*<\/b>\s*см\s*над\s*нулем/i,
+    /(?:текущий|нынешний|сегодняшний)\s+уровень\s+воды\s+составляет\s*<b>\s*(\d+(?:[.,]\d+)?)\s*<\/b>\s*см/i,
   ];
 
-  for (const pattern of patterns) {
+  for (const pattern of currentPatterns) {
     const match = html.match(pattern);
     if (match) {
       const levelCm = parseFloat(match[1].replace(",", "."));
       if (levelCm > 0 && levelCm < 5000) {
-        return {
-          levelCm,
-          measuredAt: new Date(),
-          source: "allrivers",
-        };
-      }
-    }
-  }
+        // Try to parse measurement date from page
+        const dateMatch = html.match(
+          /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+(\d{4})/i,
+        );
+        const measuredAt = dateMatch
+          ? parseRussianDate(dateMatch[1], dateMatch[2], dateMatch[3]) ?? new Date()
+          : new Date();
 
-  // Try to extract from chart data (sometimes embedded as JS arrays)
-  const chartMatch = html.match(/data\s*:\s*\[([^\]]+)\]/);
-  if (chartMatch) {
-    const numbers = chartMatch[1].match(/(\d+(?:\.\d+)?)/g);
-    if (numbers && numbers.length > 0) {
-      const lastValue = parseFloat(numbers[numbers.length - 1]);
-      if (lastValue > 0 && lastValue < 5000) {
-        return {
-          levelCm: lastValue,
-          measuredAt: new Date(),
-          source: "allrivers",
-        };
+        return { levelCm, measuredAt, source: "allrivers" };
       }
     }
   }
@@ -116,56 +130,47 @@ function parseAllRivers(html: string): ScrapeResult | null {
   return null;
 }
 
+const RUSSIAN_MONTHS: Record<string, number> = {
+  января: 0, февраля: 1, марта: 2, апреля: 3,
+  мая: 4, июня: 5, июля: 6, августа: 7,
+  сентября: 8, октября: 9, ноября: 10, декабря: 11,
+};
+
+function parseRussianDate(day: string, month: string, year: string): Date | null {
+  const m = RUSSIAN_MONTHS[month.toLowerCase()];
+  if (m === undefined) return null;
+  const d = new Date(parseInt(year), m, parseInt(day));
+  if (isNaN(d.getTime())) return null;
+  return d;
+}
+
 // ── urovenvody.ru parser ─────────────────────────────────────────────────
 
 /**
  * Parses water level from urovenvody.ru gauge page.
  *
- * The page has JS variables like:
- *   PLATFORM="84344"
- *   GR_MAX=1300
- * And may embed chart data or display current level text.
+ * NOTE: As of April 2026, urovenvody.ru has SUSPENDED publication of
+ * water level data for all Dagestan gauges. The parser handles this
+ * gracefully but is kept ready for when the service resumes.
  */
 function parseUrovenvody(html: string): ScrapeResult | null {
-  // Check if data publication is suspended
-  if (html.includes("временно прекращена") || html.includes("публикация данных")) {
+  // Check if data publication is suspended (this is currently the case)
+  if (
+    html.includes("временно прекращена") ||
+    html.includes("публикация данных") ||
+    html.includes("приостановлена")
+  ) {
     return null;
   }
 
-  // Try to find current level
-  const patterns = [
-    /уровень[^<]*?<[^>]*>\s*(\d+(?:[.,]\d+)?)\s*<\/[^>]*>\s*см/i,
-    /текущий[^<]*?(\d+(?:[.,]\d+)?)\s*см/i,
-    /последн[^<]*?(\d+(?:[.,]\d+)?)\s*см/i,
-  ];
-
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (match) {
-      const levelCm = parseFloat(match[1].replace(",", "."));
-      if (levelCm > 0 && levelCm < 5000) {
-        return {
-          levelCm,
-          measuredAt: new Date(),
-          source: "urovenvody",
-        };
-      }
-    }
-  }
-
-  // Try embedded chart data
-  const chartMatch = html.match(/var\s+data\s*=\s*\[([^\]]+)\]/);
-  if (chartMatch) {
-    const numbers = chartMatch[1].match(/(\d+(?:\.\d+)?)/g);
-    if (numbers && numbers.length > 0) {
-      const lastValue = parseFloat(numbers[numbers.length - 1]);
-      if (lastValue > 0 && lastValue < 5000) {
-        return {
-          levelCm: lastValue,
-          measuredAt: new Date(),
-          source: "urovenvody",
-        };
-      }
+  // Only look for clearly labeled current readings, not historical stats
+  const currentMatch = html.match(
+    /(?:текущий|последний|актуальный)\s+уровень[^<]*?<[^>]*>\s*(\d+(?:[.,]\d+)?)\s*<\/[^>]*>\s*см/i,
+  );
+  if (currentMatch) {
+    const levelCm = parseFloat(currentMatch[1].replace(",", "."));
+    if (levelCm > 0 && levelCm < 5000) {
+      return { levelCm, measuredAt: new Date(), source: "urovenvody" };
     }
   }
 
@@ -196,14 +201,24 @@ async function scrapeStation(station: GaugeStation): Promise<ScrapeResult | null
     if (html) {
       const result = parseAllRivers(html);
       if (result) {
+        const ageHours = (Date.now() - result.measuredAt.getTime()) / (1000 * 60 * 60);
         log.info(
-          { river: station.riverName, station: station.stationName, level: result.levelCm, source: "allrivers" },
-          "Scraped water level",
+          {
+            river: station.riverName,
+            station: station.stationName,
+            level: result.levelCm,
+            source: "allrivers",
+            measuredAt: result.measuredAt.toISOString(),
+            stale: ageHours > 24,
+          },
+          ageHours > 24
+            ? `Scraped water level (stale: ${Math.round(ageHours / 24)}d old)`
+            : "Scraped water level (current)",
         );
         return result;
       }
     }
-    log.debug({ slug: station.allriversSlug }, "No data from allrivers.info");
+    log.debug({ slug: station.allriversSlug }, "No current data from allrivers.info");
   }
 
   // Fallback to urovenvody.ru
@@ -220,9 +235,13 @@ async function scrapeStation(station: GaugeStation): Promise<ScrapeResult | null
         return result;
       }
     }
-    log.debug({ slug: station.urovenSlug }, "No data from urovenvody.ru");
+    log.debug({ slug: station.urovenSlug }, "No current data from urovenvody.ru");
   }
 
+  log.info(
+    { river: station.riverName, station: station.stationName },
+    "No operational data available from any source",
+  );
   return null;
 }
 
