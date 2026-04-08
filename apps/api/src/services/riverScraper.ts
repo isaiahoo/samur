@@ -433,7 +433,7 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
           deletedAt: null,
         },
         orderBy: { measuredAt: "desc" },
-        select: { levelCm: true, dischargeCubicM: true, measuredAt: true },
+        select: { levelCm: true, dischargeCubicM: true, dataSource: true, measuredAt: true },
       });
 
       // Dedup: skip if we already have a reading with the same measuredAt date/time
@@ -442,15 +442,17 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
         const mergedDate = merged.measuredAt.toISOString().slice(0, 10);
         const isDaily = merged.source === "open-meteo";
         const isRecent = previous.measuredAt.getTime() > Date.now() - 30 * 60 * 1000;
+        // Seed records (no dataSource, no real measurements) should never block real data
+        const prevIsSeed = previous.dataSource === null && previous.levelCm === null && previous.dischargeCubicM === null;
 
-        // For daily data: skip if same calendar day already stored
+        // For daily data: skip if same calendar day already stored with real data
         // For hourly data: skip if stored within last 30 min and value unchanged
-        const shouldSkip = isDaily
+        const shouldSkip = !prevIsSeed && (isDaily
           ? prevDate === mergedDate
           : isRecent && (
               (merged.levelCm !== null && previous.levelCm !== null && Math.abs(merged.levelCm - previous.levelCm) < 1) ||
               (merged.dischargeCubicM !== null && previous.dischargeCubicM !== null && Math.abs(merged.dischargeCubicM - previous.dischargeCubicM) < 0.5)
-            );
+            ));
 
         if (shouldSkip) {
           log.debug({ station: key, source: merged.source }, "Skipping — recent reading unchanged");
