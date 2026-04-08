@@ -52,6 +52,9 @@ services:
       VK_SECRET: "${VK_SECRET}"
       SMS_GATEWAY_URL: "${SMS_GATEWAY_URL}"
       SMS_GATEWAY_API_KEY: "${SMS_GATEWAY_API_KEY}"
+      TILE_PROVIDER: "${TILE_PROVIDER:-maptiler}"
+      MAPTILER_API_KEY: "${MAPTILER_API_KEY}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://72.56.8.247}"
     depends_on:
       postgres:
         condition: service_healthy
