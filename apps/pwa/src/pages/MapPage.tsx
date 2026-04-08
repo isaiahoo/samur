@@ -15,7 +15,6 @@ import { MapView } from "../components/map/MapView.js";
 import { LayerToggle } from "../components/map/LayerToggle.js";
 import { ReportForm } from "../components/map/ReportForm.js";
 import { UrgencyBadge } from "../components/UrgencyBadge.js";
-import { Spinner } from "../components/Spinner.js";
 import { getIncidents, getHelpRequests, getShelters, getRiverLevels } from "../services/api.js";
 import { cacheItems, getCachedItems } from "../services/db.js";
 import { useSocketEvent, useSocketSubscription } from "../hooks/useSocket.js";
@@ -30,7 +29,6 @@ export function MapPage() {
   const [helpRequests, setHelpRequests] = useState<HelpRequest[]>([]);
   const [shelters, setShelters] = useState<Shelter[]>([]);
   const [riverLevels, setRiverLevels] = useState<RiverLevel[]>([]);
-  const [initialLoading, setInitialLoading] = useState(true);
   const [showReport, setShowReport] = useState(false);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<{ type: string; data: unknown } | null>(null);
@@ -95,8 +93,6 @@ export function MapPage() {
       setIncidents(cachedInc as unknown as Incident[]);
       setHelpRequests(cachedHr as unknown as HelpRequest[]);
       setShelters(cachedSh as unknown as Shelter[]);
-    } finally {
-      setInitialLoading(false);
     }
   }, []);
 
@@ -170,8 +166,6 @@ export function MapPage() {
 
   return (
     <div className="map-page">
-      {initialLoading && <div className="map-loading"><Spinner /></div>}
-
       <MapView
         incidents={incidents}
         helpRequests={helpRequests}

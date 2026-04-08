@@ -272,7 +272,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 .map-page { position: relative; height: 100%; }
 .map-container { width: 100%; height: 100%; z-index: 1; }
-.maplibregl-ctrl-loading, .maplibregl-ctrl-loading * { display: none !important; }
+/* Hide all MapLibre loading/spinner indicators */
+.maplibregl-ctrl-loading,
+.maplibregl-ctrl-loading *,
+.maplibregl-user-location-accuracy-circle,
+.maplibregl-ctrl-geolocate-waiting .maplibregl-ctrl-icon { display: none !important; }
+.maplibregl-user-location-dot::before { animation: none !important; }
+.maplibregl-map .loading-indicator,
+.maplibregl-canvas-container .loading-indicator { display: none !important; }
 .map-loading {
   position: absolute;
   inset: 0;
