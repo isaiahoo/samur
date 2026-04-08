@@ -153,7 +153,7 @@
 - [ ] Load testing completed
 - [ ] Domain `samurchs.ru` configured (DNS, SSL, CORS) — see Domain Setup section below
 - [x] PostGIS spatial indexes added
-- [x] CI/CD pipeline configured (PR-only + manual trigger)
+- [ ] CI/CD pipeline (removed for now — not needed with small team, can add later)
 - [ ] Error monitoring (Sentry) integrated
 
 ---
