@@ -130,8 +130,12 @@ async function fetchFeed(feed: NewsFeed): Promise<number> {
         ? item.categories[0]
         : null;
 
-      // Extract image
-      const imageUrl = extractImageUrl(item.content || item["content:encoded"]) ?? null;
+      // Extract image: try enclosure first (RIA Dagestan), then HTML content (Interfax)
+      const enclosure = item.enclosure as { url?: string; type?: string } | undefined;
+      const enclosureUrl = enclosure?.url && enclosure.url.startsWith("http") ? enclosure.url : null;
+      const imageUrl = enclosureUrl
+        ?? extractImageUrl(item.content || item["content:encoded"])
+        ?? null;
 
       // Upsert — skip if already exists (unique constraint on feedId + externalId)
       try {
