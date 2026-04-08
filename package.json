@@ -18,7 +18,11 @@
     "build:pwa": "npm run build -w apps/pwa",
     "build:shared": "npm run build -w packages/shared",
     "build:db": "npm run build -w packages/db",
-    "build": "npm run build:db && npm run build:shared && npm run build:api && npm run build:pwa",
+    "dev:telegram": "npm run dev -w apps/telegram",
+    "build:telegram": "npm run build -w apps/telegram",
+    "dev:vk": "npm run dev -w apps/vk",
+    "build:vk": "npm run build -w apps/vk",
+    "build": "npm run build:db && npm run build:shared && npm run build:api && npm run build:pwa && npm run build:telegram && npm run build:vk",
     "lint": "eslint . --ext .ts,.tsx",
     "typecheck": "tsc --noEmit -p tsconfig.base.json"
   },

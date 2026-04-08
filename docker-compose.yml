@@ -58,6 +58,20 @@ services:
       redis:
         condition: service_healthy
 
+  telegram:
+    build:
+      context: .
+      dockerfile: apps/telegram/Dockerfile
+    container_name: samur-telegram
+    restart: unless-stopped
+    environment:
+      TG_BOT_TOKEN: "${TG_BOT_TOKEN}"
+      API_BASE_URL: "http://api:3000"
+      SOCKET_URL: "http://api:3000"
+    depends_on:
+      api:
+        condition: service_started
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: samur-pgadmin

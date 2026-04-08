@@ -14,6 +14,7 @@ import { initSocketIO } from "./socket.js";
 
 import healthRouter from "./routes/health.js";
 import authRouter from "./routes/auth.js";
+import authVkRouter from "./routes/authVk.js";
 import incidentsRouter from "./routes/incidents.js";
 import helpRequestsRouter from "./routes/helpRequests.js";
 import alertsRouter from "./routes/alerts.js";
@@ -66,6 +67,7 @@ app.use(rateLimiterMiddleware);
 
 app.use("/api/v1", healthRouter);
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/auth", authVkRouter);
 app.use("/api/v1/incidents", incidentsRouter);
 app.use("/api/v1/help-requests", helpRequestsRouter);
 app.use("/api/v1/alerts", alertsRouter);

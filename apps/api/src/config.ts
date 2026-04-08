@@ -9,6 +9,8 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(16),
   JWT_EXPIRES_IN: z.string().default("7d"),
   CORS_ORIGINS: z.string().default("http://localhost:5173"),
+  VK_SECRET: z.string().default(""),
+  VK_APP_ID: z.string().default(""),
   LOG_LEVEL: z.string().default("debug"),
 });
 
