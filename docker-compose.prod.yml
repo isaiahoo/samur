@@ -92,7 +92,7 @@ services:
       WEBHOOK_API_KEY: ${WEBHOOK_API_KEY}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://samur.dag}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      TILE_PROVIDER: ${TILE_PROVIDER:-openfreemap}
+      TILE_PROVIDER: ${TILE_PROVIDER:-maptiler}
       MAPTILER_API_KEY: ${MAPTILER_API_KEY:-}
     depends_on:
       postgres:

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { Request, Response, NextFunction } from "express";
+import { logger } from "../lib/logger.js";
 
 export class AppError extends Error {
   constructor(
@@ -34,7 +35,7 @@ export function errorHandler(
   }
 
   // Log unexpected errors
-  console.error("Unhandled error:", err);
+  logger.error({ err }, "Unhandled error");
 
   res.status(500).json({
     success: false,

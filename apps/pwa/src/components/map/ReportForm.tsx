@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { IncidentType, HelpCategory } from "@samur/shared";
 import { INCIDENT_TYPE_LABELS, HELP_CATEGORY_LABELS } from "@samur/shared";
 import { useGeolocation } from "../../hooks/useGeolocation.js";
@@ -52,12 +52,12 @@ export function ReportForm({ onClose }: { onClose: () => void }) {
   const showToast = useUIStore((s) => s.showToast);
   const online = useOnline();
 
-  useState(() => {
+  useEffect(() => {
     if (user) {
       setContactName(user.name ?? "");
       setContactPhone(user.phone ?? "");
     }
-  });
+  }, [user]);
 
   const handleSelectIncident = useCallback((type: IncidentType) => {
     setReportType("incident");

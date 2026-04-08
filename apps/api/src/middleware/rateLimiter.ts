@@ -2,6 +2,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { RateLimiterRedis, RateLimiterMemory } from "rate-limiter-flexible";
 import type { Redis } from "ioredis";
+import { logger } from "../lib/logger.js";
 
 const LIMITS = {
   anonymous: { points: 30, duration: 60 },
@@ -37,7 +38,7 @@ export function initRateLimiter(redisClient: Redis | null): void {
   };
 
   if (!redisClient) {
-    console.warn("Rate limiter using in-memory store (Redis unavailable)");
+    logger.warn("Rate limiter using in-memory store (Redis unavailable)");
   }
 }
 

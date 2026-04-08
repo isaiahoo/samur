@@ -4,6 +4,7 @@ import { Server, Socket } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import type { Redis } from "ioredis";
 import type { ServerToClientEvents, ClientToServerEvents } from "@samur/shared";
+import { logger } from "./lib/logger.js";
 
 type SamurSocket = Socket<ClientToServerEvents, ServerToClientEvents> & {
   geoSub?: { lat: number; lng: number; radius: number };
@@ -28,14 +29,14 @@ export function initSocketIO(
     const pubClient = redisClient.duplicate();
     const subClient = redisClient.duplicate();
     io.adapter(createAdapter(pubClient, subClient));
-    console.log("Socket.IO using Redis adapter");
+    logger.info("Socket.IO using Redis adapter");
   } else {
-    console.warn("Socket.IO using in-memory adapter (Redis unavailable)");
+    logger.warn("Socket.IO using in-memory adapter (Redis unavailable)");
   }
 
   io.on("connection", (rawSocket) => {
     const socket = rawSocket as SamurSocket;
-    console.log(`Socket connected: ${socket.id}`);
+    logger.debug({ socketId: socket.id }, "Socket connected");
 
     socket.on("subscribe:area", (sub) => {
       if (
@@ -52,7 +53,7 @@ export function initSocketIO(
     });
 
     socket.on("disconnect", () => {
-      console.log(`Socket disconnected: ${socket.id}`);
+      logger.debug({ socketId: socket.id }, "Socket disconnected");
     });
   });
 
