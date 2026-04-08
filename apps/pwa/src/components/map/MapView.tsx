@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useEffect, useRef, useState, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
-import L from "leaflet";
+import { useEffect, useRef, useCallback } from "react";
+import maplibregl from "maplibre-gl";
+import type { GeoJSONSource } from "maplibre-gl";
+import { Protocol } from "pmtiles";
+import "maplibre-gl/dist/maplibre-gl.css";
 import type { Incident, HelpRequest, Shelter, RiverLevel } from "@samur/shared";
 import {
   MAKHACHKALA_CENTER,
@@ -13,10 +15,13 @@ import {
   AMENITY_LABELS,
 } from "@samur/shared";
 import { formatRelativeTime } from "@samur/shared";
-import { incidentIcons, helpNeedIcon, helpOfferIcon, getShelterIcon, getRiverIcon } from "./MarkerIcons.js";
-import { UrgencyBadge } from "../UrgencyBadge.js";
-
-import "leaflet.markercluster";
+import { INCIDENT_COLORS, HELP_COLORS, SHELTER_COLORS } from "./MarkerIcons.js";
+import {
+  toIncidentsGeoJSON,
+  toHelpRequestsGeoJSON,
+  toSheltersGeoJSON,
+  toRiverLevelsGeoJSON,
+} from "./geoJsonHelpers.js";
 
 interface Props {
   incidents: Incident[];
@@ -28,6 +33,46 @@ interface Props {
   onMapMove?: (bounds: { north: number; south: number; east: number; west: number }, zoom: number) => void;
 }
 
+// ── Empty GeoJSON to use as initial source data ────────────────────────────
+
+const EMPTY_FC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+
+// ── Popup HTML builders ────────────────────────────────────────────────────
+
+function incidentPopupHTML(p: Record<string, unknown>): string {
+  const type = INCIDENT_TYPE_LABELS[p.type as string] ?? p.type;
+  const severity = SEVERITY_LABELS[p.severity as string] ?? p.severity;
+  const desc = p.description || "Нет описания";
+  const time = formatRelativeTime(p.createdAt as string);
+  return `<div class="popup-content"><strong>${type}</strong><span class="popup-badge severity-${p.severity}">${severity}</span><p>${desc}</p><small>${time}</small></div>`;
+}
+
+function helpPopupHTML(p: Record<string, unknown>): string {
+  const cat = HELP_CATEGORY_LABELS[p.category as string] ?? p.category;
+  const typeLabel = p.type === "offer" ? "Предлагает помощь" : "Нужна помощь";
+  const desc = p.description || "Нет описания";
+  const time = formatRelativeTime(p.createdAt as string);
+  return `<div class="popup-content"><strong>${cat}</strong><p>${typeLabel}</p><p>${desc}</p><small>${time}</small></div>`;
+}
+
+function shelterPopupHTML(p: Record<string, unknown>): string {
+  const status = SHELTER_STATUS_LABELS[p.status as string] ?? p.status;
+  const amenities = (p.amenities as string || "")
+    .split(",")
+    .filter(Boolean)
+    .map((a) => AMENITY_LABELS[a] ?? a)
+    .join(", ");
+  return `<div class="popup-content"><strong>${p.name}</strong><span class="popup-status">${status}</span><p>${p.address}</p><p>Мест: ${p.currentOccupancy}/${p.capacity}</p>${amenities ? `<p>${amenities}</p>` : ""}</div>`;
+}
+
+function riverPopupHTML(p: Record<string, unknown>): string {
+  const trend = RIVER_TREND_LABELS[p.trend as string] ?? p.trend;
+  const time = formatRelativeTime(p.measuredAt as string);
+  return `<div class="popup-content"><strong>${p.riverName} — ${p.stationName}</strong><p>Уровень: ${p.levelCm} см / ${p.dangerLevelCm} см (опасный)</p><p>Тренд: ${trend}</p><small>${time}</small></div>`;
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
+
 export function MapView({
   incidents,
   helpRequests,
@@ -37,156 +82,322 @@ export function MapView({
   onMarkerClick,
   onMapMove,
 }: Props) {
-  return (
-    <MapContainer
-      center={[MAKHACHKALA_CENTER.lat, MAKHACHKALA_CENTER.lng]}
-      zoom={11}
-      className="map-container"
-      zoomControl={false}
-      attributionControl={false}
-    >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <MapEventHandler onMapMove={onMapMove} />
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const popupRef = useRef<maplibregl.Popup | null>(null);
+  const readyRef = useRef(false);
 
-      {layers.incidents && (
-        <ClusteredLayer>
-          {incidents.map((inc) => (
-            <Marker
-              key={inc.id}
-              position={[inc.lat, inc.lng]}
-              icon={incidentIcons[inc.severity] ?? incidentIcons.low}
-              eventHandlers={{ click: () => onMarkerClick("incident", inc) }}
-            >
-              <Popup>
-                <div className="popup-content">
-                  <strong>{INCIDENT_TYPE_LABELS[inc.type] ?? inc.type}</strong>
-                  <UrgencyBadge value={inc.severity} kind="severity" />
-                  <p>{inc.description ?? "Нет описания"}</p>
-                  <small>{formatRelativeTime(inc.createdAt)}</small>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
-        </ClusteredLayer>
-      )}
+  // Store latest callbacks in refs to avoid re-initializing the map
+  const onMarkerClickRef = useRef(onMarkerClick);
+  onMarkerClickRef.current = onMarkerClick;
+  const onMapMoveRef = useRef(onMapMove);
+  onMapMoveRef.current = onMapMove;
 
-      {layers.helpRequests && (
-        <ClusteredLayer>
-          {helpRequests.map((hr) => (
-            <Marker
-              key={hr.id}
-              position={[hr.lat, hr.lng]}
-              icon={hr.type === "offer" ? helpOfferIcon : helpNeedIcon}
-              eventHandlers={{ click: () => onMarkerClick("helpRequest", hr) }}
-            >
-              <Popup>
-                <div className="popup-content">
-                  <strong>{HELP_CATEGORY_LABELS[hr.category] ?? hr.category}</strong>
-                  <UrgencyBadge value={hr.urgency} kind="urgency" />
-                  <p>{hr.description ?? "Нет описания"}</p>
-                  <small>{formatRelativeTime(hr.createdAt)}</small>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
-        </ClusteredLayer>
-      )}
-
-      {layers.shelters &&
-        shelters.map((s) => (
-          <Marker
-            key={s.id}
-            position={[s.lat, s.lng]}
-            icon={getShelterIcon(s.status)}
-            eventHandlers={{ click: () => onMarkerClick("shelter", s) }}
-          >
-            <Popup>
-              <div className="popup-content">
-                <strong>{s.name}</strong>
-                <span className="popup-status">{SHELTER_STATUS_LABELS[s.status]}</span>
-                <p>{s.address}</p>
-                <p>Мест: {s.currentOccupancy}/{s.capacity}</p>
-                {s.amenities.length > 0 && (
-                  <p>{s.amenities.map((a) => AMENITY_LABELS[a] ?? a).join(", ")}</p>
-                )}
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-
-      {layers.riverLevels &&
-        riverLevels.map((r) => (
-          <Marker
-            key={r.id}
-            position={[r.lat, r.lng]}
-            icon={getRiverIcon(r.levelCm, r.dangerLevelCm)}
-            eventHandlers={{ click: () => onMarkerClick("riverLevel", r) }}
-          >
-            <Popup>
-              <div className="popup-content">
-                <strong>{r.riverName} — {r.stationName}</strong>
-                <p>
-                  Уровень: {r.levelCm} см / {r.dangerLevelCm} см (опасный)
-                </p>
-                <p>Тренд: {RIVER_TREND_LABELS[r.trend]}</p>
-                <small>{formatRelativeTime(r.measuredAt)}</small>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
-    </MapContainer>
-  );
-}
-
-function MapEventHandler({
-  onMapMove,
-}: {
-  onMapMove?: (bounds: { north: number; south: number; east: number; west: number }, zoom: number) => void;
-}) {
-  useMapEvents({
-    moveend(e) {
-      if (!onMapMove) return;
-      const map = e.target;
-      const b = map.getBounds();
-      onMapMove(
-        {
-          north: b.getNorth(),
-          south: b.getSouth(),
-          east: b.getEast(),
-          west: b.getWest(),
-        },
-        map.getZoom(),
-      );
-    },
-  });
-  return null;
-}
-
-function ClusteredLayer({ children }: { children: React.ReactNode }) {
-  const map = useMap();
-  const groupRef = useRef<L.MarkerClusterGroup | null>(null);
+  // ── Register PMTiles protocol for offline tile access ──────────────────
 
   useEffect(() => {
-    if (!groupRef.current) {
-      groupRef.current = L.markerClusterGroup({
-        maxClusterRadius: 50,
-        spiderfyOnMaxZoom: true,
-        showCoverageOnHover: false,
+    const protocol = new Protocol();
+    maplibregl.addProtocol("pmtiles", protocol.tile);
+    return () => { maplibregl.removeProtocol("pmtiles"); };
+  }, []);
+
+  // ── Initialize map ───────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style: "/api/v1/tiles/style.json",
+      center: [MAKHACHKALA_CENTER.lng, MAKHACHKALA_CENTER.lat],
+      zoom: 11,
+      attributionControl: false,
+    });
+
+    map.addControl(
+      new maplibregl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: true,
+      }),
+      "top-left",
+    );
+
+    popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: "260px" });
+
+    map.on("load", () => {
+      // ── Sources ──────────────────────────────────────────────────────────
+
+      map.addSource("incidents", {
+        type: "geojson",
+        data: EMPTY_FC,
+        cluster: true,
+        clusterMaxZoom: 14,
+        clusterRadius: 50,
       });
-      map.addLayer(groupRef.current);
+
+      map.addSource("helpRequests", {
+        type: "geojson",
+        data: EMPTY_FC,
+        cluster: true,
+        clusterMaxZoom: 14,
+        clusterRadius: 50,
+      });
+
+      map.addSource("shelters", { type: "geojson", data: EMPTY_FC });
+      map.addSource("riverLevels", { type: "geojson", data: EMPTY_FC });
+
+      // ── Incident layers ──────────────────────────────────────────────────
+
+      map.addLayer({
+        id: "incidents-clusters",
+        type: "circle",
+        source: "incidents",
+        filter: ["has", "point_count"],
+        paint: {
+          "circle-color": "#EF4444",
+          "circle-radius": ["step", ["get", "point_count"], 18, 10, 24, 50, 32],
+          "circle-opacity": 0.85,
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#fff",
+        },
+      });
+
+      map.addLayer({
+        id: "incidents-cluster-count",
+        type: "symbol",
+        source: "incidents",
+        filter: ["has", "point_count"],
+        layout: {
+          "text-field": "{point_count_abbreviated}",
+          "text-font": ["Open Sans Regular"],
+          "text-size": 13,
+        },
+        paint: { "text-color": "#fff" },
+      });
+
+      map.addLayer({
+        id: "incidents-unclustered",
+        type: "circle",
+        source: "incidents",
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          "circle-color": [
+            "match",
+            ["get", "severity"],
+            "critical", INCIDENT_COLORS.critical,
+            "high", INCIDENT_COLORS.high,
+            "medium", INCIDENT_COLORS.medium,
+            "low", INCIDENT_COLORS.low,
+            INCIDENT_COLORS.low,
+          ],
+          "circle-radius": 8,
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#fff",
+        },
+      });
+
+      // ── Help request layers ──────────────────────────────────────────────
+
+      map.addLayer({
+        id: "help-clusters",
+        type: "circle",
+        source: "helpRequests",
+        filter: ["has", "point_count"],
+        paint: {
+          "circle-color": "#8B5CF6",
+          "circle-radius": ["step", ["get", "point_count"], 18, 10, 24, 50, 32],
+          "circle-opacity": 0.85,
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#fff",
+        },
+      });
+
+      map.addLayer({
+        id: "help-cluster-count",
+        type: "symbol",
+        source: "helpRequests",
+        filter: ["has", "point_count"],
+        layout: {
+          "text-field": "{point_count_abbreviated}",
+          "text-font": ["Open Sans Regular"],
+          "text-size": 13,
+        },
+        paint: { "text-color": "#fff" },
+      });
+
+      map.addLayer({
+        id: "help-unclustered",
+        type: "circle",
+        source: "helpRequests",
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          "circle-color": [
+            "match",
+            ["get", "type"],
+            "need", HELP_COLORS.need,
+            "offer", HELP_COLORS.offer,
+            HELP_COLORS.need,
+          ],
+          "circle-radius": 8,
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#fff",
+        },
+      });
+
+      // ── Shelter layer ────────────────────────────────────────────────────
+
+      map.addLayer({
+        id: "shelters",
+        type: "circle",
+        source: "shelters",
+        paint: {
+          "circle-color": [
+            "match",
+            ["get", "status"],
+            "open", SHELTER_COLORS.open,
+            "full", SHELTER_COLORS.full,
+            "closed", SHELTER_COLORS.closed,
+            SHELTER_COLORS.full,
+          ],
+          "circle-radius": 9,
+          "circle-stroke-width": 2.5,
+          "circle-stroke-color": "#fff",
+        },
+      });
+
+      // ── River level layer ────────────────────────────────────────────────
+
+      map.addLayer({
+        id: "rivers",
+        type: "circle",
+        source: "riverLevels",
+        paint: {
+          "circle-color": [
+            "interpolate",
+            ["linear"],
+            ["get", "dangerRatio"],
+            0, "#3B82F6",
+            0.6, "#F59E0B",
+            0.8, "#F97316",
+            1.0, "#EF4444",
+          ],
+          "circle-radius": 9,
+          "circle-stroke-width": 2.5,
+          "circle-stroke-color": "#fff",
+        },
+      });
+
+      readyRef.current = true;
+    });
+
+    // ── Click handlers ───────────────────────────────────────────────────
+
+    function handleClusterClick(sourceId: string) {
+      return (e: maplibregl.MapLayerMouseEvent) => {
+        const features = e.features;
+        if (!features?.length) return;
+        const clusterId = features[0].properties.cluster_id;
+        (map.getSource(sourceId) as GeoJSONSource).getClusterExpansionZoom(clusterId).then((zoom) => {
+          map.easeTo({
+            center: (features[0].geometry as GeoJSON.Point).coordinates as [number, number],
+            zoom,
+          });
+        });
+      };
     }
 
-    return () => {
-      if (groupRef.current) {
-        map.removeLayer(groupRef.current);
-        groupRef.current = null;
-      }
-    };
-  }, [map]);
+    map.on("click", "incidents-clusters", handleClusterClick("incidents"));
+    map.on("click", "help-clusters", handleClusterClick("helpRequests"));
 
-  // We don't render children through react-leaflet's cluster —
-  // instead we manually manage markers for performance
-  return <>{children}</>;
+    function showPopup(layerId: string, builder: (p: Record<string, unknown>) => string, markerType: string) {
+      map.on("click", layerId, (e: maplibregl.MapLayerMouseEvent) => {
+        const f = e.features?.[0];
+        if (!f) return;
+        const coords = (f.geometry as GeoJSON.Point).coordinates.slice() as [number, number];
+        const props = f.properties as Record<string, unknown>;
+
+        popupRef.current?.setLngLat(coords).setHTML(builder(props)).addTo(map);
+
+        // Build a full object with lat/lng for the detail panel
+        const item = { ...props, lat: coords[1], lng: coords[0] };
+        onMarkerClickRef.current(markerType, item);
+      });
+    }
+
+    showPopup("incidents-unclustered", incidentPopupHTML, "incident");
+    showPopup("help-unclustered", helpPopupHTML, "helpRequest");
+    showPopup("shelters", shelterPopupHTML, "shelter");
+    showPopup("rivers", riverPopupHTML, "riverLevel");
+
+    // Pointer cursor on interactive layers
+    const interactiveLayers = [
+      "incidents-clusters", "incidents-unclustered",
+      "help-clusters", "help-unclustered",
+      "shelters", "rivers",
+    ];
+    for (const layer of interactiveLayers) {
+      map.on("mouseenter", layer, () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", layer, () => { map.getCanvas().style.cursor = ""; });
+    }
+
+    // ── Bounds tracking ──────────────────────────────────────────────────
+
+    map.on("moveend", () => {
+      const b = map.getBounds();
+      onMapMoveRef.current?.(
+        { north: b.getNorth(), south: b.getSouth(), east: b.getEast(), west: b.getWest() },
+        map.getZoom(),
+      );
+    });
+
+    mapRef.current = map;
+
+    return () => {
+      readyRef.current = false;
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
+
+  // ── Update data sources when props change ────────────────────────────────
+
+  const updateSource = useCallback(
+    (sourceId: string, data: GeoJSON.FeatureCollection) => {
+      const map = mapRef.current;
+      if (!map || !readyRef.current) return;
+      const src = map.getSource(sourceId) as GeoJSONSource | undefined;
+      src?.setData(data);
+    },
+    [],
+  );
+
+  useEffect(() => updateSource("incidents", toIncidentsGeoJSON(incidents)), [incidents, updateSource]);
+  useEffect(() => updateSource("helpRequests", toHelpRequestsGeoJSON(helpRequests)), [helpRequests, updateSource]);
+  useEffect(() => updateSource("shelters", toSheltersGeoJSON(shelters)), [shelters, updateSource]);
+  useEffect(() => updateSource("riverLevels", toRiverLevelsGeoJSON(riverLevels)), [riverLevels, updateSource]);
+
+  // ── Toggle layer visibility ──────────────────────────────────────────────
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !readyRef.current) return;
+
+    const layerGroups: Record<string, string[]> = {
+      incidents: ["incidents-clusters", "incidents-cluster-count", "incidents-unclustered"],
+      helpRequests: ["help-clusters", "help-cluster-count", "help-unclustered"],
+      shelters: ["shelters"],
+      riverLevels: ["rivers"],
+    };
+
+    for (const [key, layerIds] of Object.entries(layerGroups)) {
+      const vis = layers[key] ? "visible" : "none";
+      for (const id of layerIds) {
+        if (map.getLayer(id)) {
+          map.setLayoutProperty(id, "visibility", vis);
+        }
+      }
+    }
+  }, [layers]);
+
+  return <div ref={containerRef} className="map-container" />;
 }

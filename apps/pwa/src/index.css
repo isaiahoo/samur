@@ -314,19 +314,6 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   min-width: 180px;
 }
 .layer-toggle-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 14px; cursor: pointer; }
-.btn-gps {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  background: #fff;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-  cursor: pointer;
-  color: #2563eb;
-}
 
 .report-overlay {
   position: fixed;
@@ -602,6 +589,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .text-success { color: #16a34a; font-size: 13px; }
 .empty-state { display: flex; justify-content: center; padding: 48px 16px; color: #94a3b8; font-size: 15px; }
 
-.custom-marker { background: none !important; border: none !important; }
-.leaflet-popup-content-wrapper { border-radius: 10px; }
-.leaflet-popup-content { margin: 10px 12px; }
+.maplibregl-popup-content { border-radius: 10px; padding: 10px 12px; }
+.popup-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; color: #fff; font-size: 11px; font-weight: 600; margin-left: 6px; }
+.severity-critical { background: #EF4444; }
+.severity-high { background: #F97316; }
+.severity-medium { background: #F59E0B; }
+.severity-low { background: #3B82F6; }

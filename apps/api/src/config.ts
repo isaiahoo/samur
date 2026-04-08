@@ -14,6 +14,8 @@ const envSchema = z.object({
   WEBHOOK_API_KEY: z.string().default(""),
   TG_BOT_TOKEN: z.string().default(""),
   LOG_LEVEL: z.string().default("debug"),
+  MAPTILER_API_KEY: z.string().default(""),
+  TILE_PROVIDER: z.enum(["maptiler", "openfreemap"]).default("openfreemap"),
 });
 
 function loadConfig() {

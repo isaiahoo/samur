@@ -28,9 +28,9 @@
 | Компонент | Технологии |
 |---|---|
 | API | Node.js 20, Express, Socket.IO, Prisma, Zod, Pino, Prometheus |
-| PWA | React, Vite, Leaflet, Workbox (офлайн), IndexedDB |
+| PWA | React, Vite, MapLibre GL JS, PMTiles (офлайн), Workbox, IndexedDB |
 | Telegram | node-telegram-bot-api, Socket.IO client |
-| VK | VKUI, VK Bridge SDK, Leaflet |
+| VK | VKUI, VK Bridge SDK, MapLibre GL JS |
 | SMS | FrontlineSMS webhook интеграция |
 | Meshtastic | Python bridge (LoRa mesh radio) |
 | БД | PostgreSQL 16 + PostGIS 3.4 |

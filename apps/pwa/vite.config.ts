@@ -15,12 +15,12 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
           {
-            // OSM tile caching
-            urlPattern: /^https:\/\/[abc]\.tile\.openstreetmap\.org\/.*/i,
+            // Vector tile caching (via our proxy)
+            urlPattern: /\/api\/v1\/tiles\/\d+\/\d+\/\d+\.pbf$/i,
             handler: "CacheFirst",
             options: {
-              cacheName: "osm-tiles",
-              expiration: { maxEntries: 2000, maxAgeSeconds: 7 * 24 * 60 * 60 },
+              cacheName: "vector-tiles",
+              expiration: { maxEntries: 5000, maxAgeSeconds: 7 * 24 * 60 * 60 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
@@ -72,7 +72,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          leaflet: ["leaflet", "react-leaflet"],
+          maplibre: ["maplibre-gl"],
           recharts: ["recharts"],
         },
       },
