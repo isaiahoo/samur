@@ -150,6 +150,21 @@ export interface RiverLevel {
   deletedAt: string | null;
 }
 
+export interface NewsArticle {
+  id: string;
+  feedId: string;
+  externalId: string;
+  title: string;
+  summary: string | null;
+  body: string | null;
+  url: string;
+  imageUrl: string | null;
+  category: string | null;
+  publishedAt: string;
+  fetchedAt: string;
+  deletedAt: string | null;
+}
+
 export interface MapCluster {
   lat: number;
   lng: number;

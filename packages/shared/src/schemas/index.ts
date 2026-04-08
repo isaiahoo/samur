@@ -256,6 +256,15 @@ export const RiverLevelQuerySchema = PaginationSchema.extend({
   order: SortOrderSchema,
 });
 
+export const NewsArticleQuerySchema = PaginationSchema.extend({
+  feedId: z.string().optional(),
+  category: z.string().optional(),
+  sort: z.enum(["published_at", "fetched_at"]).default("published_at"),
+  order: SortOrderSchema,
+});
+
+export type NewsArticleQuery = z.infer<typeof NewsArticleQuerySchema>;
+
 export const MapClusterQuerySchema = z.object({
   zoom: z.coerce.number().int().min(1).max(20),
   south: z.coerce.number(),
