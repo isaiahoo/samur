@@ -570,7 +570,7 @@ export async function seedGaugeStations(): Promise<number> {
           dataSource: null,
           isForecast: false,
           trend: "stable",
-          measuredAt: new Date(),
+          measuredAt: new Date("2000-01-01T00:00:00Z"), // old date so real data always wins DISTINCT ON
         },
       });
       seeded++;
