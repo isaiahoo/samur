@@ -1,0 +1,28 @@
+{
+  "name": "samur",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Flood relief coordination platform for Dagestan",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w apps/api",
+    "build:api": "npm run build -w apps/api",
+    "db:generate": "npm run generate -w packages/db",
+    "db:migrate": "npm run migrate -w packages/db",
+    "db:seed": "npm run seed -w packages/db",
+    "db:studio": "npm run studio -w packages/db",
+    "dev:pwa": "npm run dev -w apps/pwa",
+    "build:pwa": "npm run build -w apps/pwa",
+    "build:shared": "npm run build -w packages/shared",
+    "build:db": "npm run build -w packages/db",
+    "build": "npm run build:db && npm run build:shared && npm run build:api && npm run build:pwa",
+    "lint": "eslint . --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit -p tsconfig.base.json"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

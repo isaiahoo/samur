@@ -1,0 +1,77 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: samur-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: samur
+      POSTGRES_PASSWORD: samur_dev
+      POSTGRES_DB: samur
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U samur -d samur"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: samur-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: samur-api
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: "postgresql://samur:samur_dev@postgres:5432/samur?schema=public"
+      REDIS_URL: "redis://redis:6379"
+      NODE_ENV: "production"
+      PORT: "3000"
+      JWT_SECRET: "${JWT_SECRET}"
+      TG_BOT_TOKEN: "${TG_BOT_TOKEN}"
+      VK_APP_ID: "${VK_APP_ID}"
+      VK_SECRET: "${VK_SECRET}"
+      SMS_GATEWAY_URL: "${SMS_GATEWAY_URL}"
+      SMS_GATEWAY_API_KEY: "${SMS_GATEWAY_API_KEY}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: samur-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@samur.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:

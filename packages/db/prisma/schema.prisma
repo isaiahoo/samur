@@ -1,0 +1,262 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  resident
+  volunteer
+  coordinator
+  admin
+}
+
+enum IncidentType {
+  flood
+  road_blocked
+  building_damaged
+  power_out
+  water_contaminated
+}
+
+enum Severity {
+  low
+  medium
+  high
+  critical
+}
+
+enum IncidentStatus {
+  unverified
+  verified
+  resolved
+  false_report
+}
+
+enum HelpRequestType {
+  need
+  offer
+}
+
+enum HelpCategory {
+  rescue
+  shelter
+  food
+  water
+  medicine
+  equipment
+  transport
+  labor
+  generator
+  pump
+}
+
+enum Urgency {
+  normal
+  urgent
+  critical
+}
+
+enum HelpRequestStatus {
+  open
+  claimed
+  in_progress
+  completed
+  cancelled
+}
+
+enum AlertUrgency {
+  info
+  warning
+  critical
+}
+
+enum ShelterStatus {
+  open
+  full
+  closed
+}
+
+enum RiverTrend {
+  rising
+  stable
+  falling
+}
+
+enum Source {
+  pwa
+  telegram
+  vk
+  sms
+  meshtastic
+}
+
+enum Channel {
+  pwa
+  telegram
+  vk
+  sms
+  meshtastic
+}
+
+enum Amenity {
+  food
+  beds
+  medical
+  power
+  wifi
+}
+
+// ─── Models ─────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  phone     String?  @unique
+  role      UserRole @default(resident)
+  vkId      String?  @unique @map("vk_id")
+  tgId      String?  @unique @map("tg_id")
+  password  String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  incidents         Incident[]    @relation("IncidentAuthor")
+  verifiedIncidents Incident[]    @relation("IncidentVerifier")
+  helpRequests      HelpRequest[] @relation("HelpRequestAuthor")
+  claimedRequests   HelpRequest[] @relation("HelpRequestClaimer")
+  alerts            Alert[]
+
+  @@index([role])
+  @@map("users")
+}
+
+model Incident {
+  id          String         @id @default(cuid())
+  userId      String?        @map("user_id")
+  type        IncidentType
+  severity    Severity
+  lat         Float
+  lng         Float
+  location    Unsupported("geometry(Point, 4326)")?
+  address     String?
+  description String?
+  photoUrls   String[]       @default([]) @map("photo_urls")
+  status      IncidentStatus @default(unverified)
+  verifiedBy  String?        @map("verified_by")
+  source      Source         @default(pwa)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  deletedAt   DateTime?      @map("deleted_at")
+
+  author       User?         @relation("IncidentAuthor", fields: [userId], references: [id], onDelete: SetNull)
+  verifier     User?         @relation("IncidentVerifier", fields: [verifiedBy], references: [id], onDelete: SetNull)
+  helpRequests HelpRequest[]
+
+  @@index([status, type])
+  @@index([severity])
+  @@index([createdAt])
+  @@index([source])
+  @@index([deletedAt])
+  @@map("incidents")
+}
+
+model HelpRequest {
+  id           String            @id @default(cuid())
+  userId       String?           @map("user_id")
+  incidentId   String?           @map("incident_id")
+  type         HelpRequestType
+  category     HelpCategory
+  description  String?
+  lat          Float
+  lng          Float
+  location     Unsupported("geometry(Point, 4326)")?
+  address      String?
+  urgency      Urgency           @default(normal)
+  contactPhone String?           @map("contact_phone")
+  contactName  String?           @map("contact_name")
+  status       HelpRequestStatus @default(open)
+  claimedBy    String?           @map("claimed_by")
+  source       Source            @default(pwa)
+  createdAt    DateTime          @default(now()) @map("created_at")
+  updatedAt    DateTime          @updatedAt @map("updated_at")
+  deletedAt    DateTime?         @map("deleted_at")
+
+  author   User?     @relation("HelpRequestAuthor", fields: [userId], references: [id], onDelete: SetNull)
+  claimer  User?     @relation("HelpRequestClaimer", fields: [claimedBy], references: [id], onDelete: SetNull)
+  incident Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+
+  @@index([status, type])
+  @@index([status, category])
+  @@index([urgency])
+  @@index([createdAt])
+  @@index([source])
+  @@index([deletedAt])
+  @@map("help_requests")
+}
+
+model Alert {
+  id        String       @id @default(cuid())
+  authorId  String       @map("author_id")
+  urgency   AlertUrgency
+  title     String
+  body      String
+  geoBounds Unsupported("geometry(Polygon, 4326)")? @map("geo_bounds")
+  channels  Channel[]
+  sentAt    DateTime     @default(now()) @map("sent_at")
+  expiresAt DateTime?    @map("expires_at")
+  deletedAt DateTime?    @map("deleted_at")
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([urgency])
+  @@index([sentAt])
+  @@index([expiresAt])
+  @@index([deletedAt])
+  @@map("alerts")
+}
+
+model Shelter {
+  id               String        @id @default(cuid())
+  name             String
+  lat              Float
+  lng              Float
+  location         Unsupported("geometry(Point, 4326)")?
+  address          String
+  capacity         Int
+  currentOccupancy Int           @default(0) @map("current_occupancy")
+  amenities        Amenity[]
+  contactPhone     String?       @map("contact_phone")
+  status           ShelterStatus @default(open)
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  deletedAt        DateTime?     @map("deleted_at")
+
+  @@index([status])
+  @@index([deletedAt])
+  @@map("shelters")
+}
+
+model RiverLevel {
+  id            String     @id @default(cuid())
+  riverName     String     @map("river_name")
+  stationName   String     @map("station_name")
+  lat           Float
+  lng           Float
+  location      Unsupported("geometry(Point, 4326)")?
+  levelCm       Float      @map("level_cm")
+  dangerLevelCm Float      @map("danger_level_cm")
+  trend         RiverTrend
+  measuredAt    DateTime   @map("measured_at")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  deletedAt     DateTime?  @map("deleted_at")
+
+  @@index([riverName, measuredAt])
+  @@index([measuredAt])
+  @@index([deletedAt])
+  @@map("river_levels")
+}
