@@ -79,6 +79,7 @@ export default function MapPanel({ id, go }: Props) {
           zoom={11}
           style={{ height: "100%", width: "100%" }}
           zoomControl={false}
+          attributionControl={false}
         >
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
