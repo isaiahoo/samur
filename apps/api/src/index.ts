@@ -56,6 +56,9 @@ try {
 
 const corsOrigins = config.CORS_ORIGINS.split(",").map((s) => s.trim());
 
+// ── Tile proxy: mounted BEFORE heavy middleware (no auth/rate-limit/logging) ──
+app.use("/api/v1/tiles", cors({ origin: corsOrigins }), tilesRouter);
+
 app.use(helmet());
 app.use(cors({ origin: corsOrigins, credentials: true }));
 app.use(express.json({ limit: "5mb" }));
@@ -82,7 +85,6 @@ app.use("/api/v1/map", mapRouter);
 app.use("/api/v1/stats", statsRouter);
 app.use("/api/v1/webhook", webhooksRouter);
 app.use("/api/v1/channels", channelsRouter);
-app.use("/api/v1/tiles", tilesRouter);
 app.use(metricsRouter);
 
 app.use(notFoundHandler);

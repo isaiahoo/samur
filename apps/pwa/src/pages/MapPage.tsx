@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Incident, HelpRequest, Shelter, RiverLevel } from "@samur/shared";
 import {
   INCIDENT_TYPE_LABELS,
@@ -30,19 +30,20 @@ export function MapPage() {
   const [helpRequests, setHelpRequests] = useState<HelpRequest[]>([]);
   const [shelters, setShelters] = useState<Shelter[]>([]);
   const [riverLevels, setRiverLevels] = useState<RiverLevel[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [showReport, setShowReport] = useState(false);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<{ type: string; data: unknown } | null>(null);
 
-  const [layers, setLayers] = useState({
+  const [layers, setLayers] = useState(() => ({
     incidents: true,
     helpRequests: true,
     shelters: true,
     riverLevels: true,
-  });
+  }));
 
-  const [bounds, setBounds] = useState<MapBounds | null>(null);
+  const boundsRef = useRef<MapBounds | null>(null);
+  const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const online = useOnline();
   const { position, requestPosition } = useGeolocation();
   const openSheet = useUIStore((s) => s.openSheet);
@@ -51,8 +52,8 @@ export function MapPage() {
   useSocketSubscription(position?.lat ?? null, position?.lng ?? null, 50000);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
     try {
+      const bounds = boundsRef.current;
       const params: Record<string, string | number> = { limit: 100 };
       if (bounds) {
         params.north = bounds.north;
@@ -95,12 +96,14 @@ export function MapPage() {
       setHelpRequests(cachedHr as unknown as HelpRequest[]);
       setShelters(cachedSh as unknown as Shelter[]);
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
     }
-  }, [bounds]);
+  }, []);
 
+  // Initial data fetch
   useEffect(() => {
     fetchData();
+    return () => { if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current); };
   }, [fetchData]);
 
   useEffect(() => {
@@ -148,8 +151,11 @@ export function MapPage() {
   );
 
   const handleMapMove = useCallback((newBounds: MapBounds, _zoom: number) => {
-    setBounds(newBounds);
-  }, []);
+    boundsRef.current = newBounds;
+    // Debounce: refetch data 800ms after the user stops moving the map
+    if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
+    fetchTimerRef.current = setTimeout(() => { fetchData(); }, 800);
+  }, [fetchData]);
 
   const toggleLayer = useCallback((key: string) => {
     setLayers((prev) => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
@@ -164,7 +170,7 @@ export function MapPage() {
 
   return (
     <div className="map-page">
-      {loading && <div className="map-loading"><Spinner /></div>}
+      {initialLoading && <div className="map-loading"><Spinner /></div>}
 
       <MapView
         incidents={incidents}

@@ -177,12 +177,36 @@ router.get("/offline-style.json", (_req, res) => {
   });
 });
 
+// ── In-memory tile cache (LRU, ~200 MB cap) ──────────────────────────────
+
+const TILE_CACHE_MAX = 4000; // ~50 KB avg per tile → ~200 MB
+const tileCache = new Map<string, Buffer>();
+
+function cacheTile(key: string, buf: Buffer) {
+  if (tileCache.size >= TILE_CACHE_MAX) {
+    // Evict oldest entry (first inserted)
+    const first = tileCache.keys().next().value!;
+    tileCache.delete(first);
+  }
+  tileCache.set(key, buf);
+}
+
 // ── Tile proxy endpoint ────────────────────────────────────────────────────
 // Proxies vector tile requests to MapTiler or OpenFreeMap
 // API key stays server-side — never exposed to frontend
 
 router.get("/:z/:x/:y.pbf", async (req, res) => {
   const { z, x, y } = req.params;
+  const cacheKey = `${z}/${x}/${y}`;
+
+  // Serve from memory cache
+  const cached = tileCache.get(cacheKey);
+  if (cached) {
+    res.set("Content-Type", "application/x-protobuf");
+    res.set("Cache-Control", "public, max-age=86400, immutable");
+    res.send(cached);
+    return;
+  }
 
   let upstreamUrl: string;
 
@@ -201,12 +225,15 @@ router.get("/:z/:x/:y.pbf", async (req, res) => {
       return;
     }
 
-    res.set("Content-Type", "application/x-protobuf");
-    res.set("Cache-Control", "public, max-age=86400"); // 1 day
-    // Note: do NOT forward Content-Encoding — Node fetch auto-decompresses
+    // Node fetch auto-decompresses — we get raw bytes, no Content-Encoding issues
+    const buf = Buffer.from(await upstream.arrayBuffer());
 
-    const buffer = Buffer.from(await upstream.arrayBuffer());
-    res.send(buffer);
+    // Cache in memory
+    cacheTile(cacheKey, buf);
+
+    res.set("Content-Type", "application/x-protobuf");
+    res.set("Cache-Control", "public, max-age=86400, immutable");
+    res.send(buf);
   } catch (err) {
     logger.error({ err, z, x, y }, "Tile proxy error");
     res.status(502).end();

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, memo } from "react";
 import maplibregl from "maplibre-gl";
 import type { GeoJSONSource } from "maplibre-gl";
 import { Protocol } from "pmtiles";
@@ -73,7 +73,7 @@ function riverPopupHTML(p: Record<string, unknown>): string {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export function MapView({
+export const MapView = memo(function MapView({
   incidents,
   helpRequests,
   shelters,
@@ -442,4 +442,4 @@ export function MapView({
   }, [layers]);
 
   return <div ref={containerRef} className="map-container" />;
-}
+});
