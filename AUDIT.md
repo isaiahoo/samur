@@ -151,7 +151,29 @@
 - [x] Health checks on all services
 - [ ] Monitoring dashboards created in Grafana
 - [ ] Load testing completed
-- [ ] Domain `samurchs.ru` configured (DNS, SSL, CORS)
+- [ ] Domain `samurchs.ru` configured (DNS, SSL, CORS) — see Domain Setup section below
 - [x] PostGIS spatial indexes added
-- [x] CI/CD pipeline configured
+- [x] CI/CD pipeline configured (PR-only + manual trigger)
 - [ ] Error monitoring (Sentry) integrated
+
+---
+
+## Domain Setup: `samurchs.ru`
+
+**Current status:** Domain registration in progress (as of 2026-04-08)
+
+### What's already done
+- [x] HTTPS nginx config written (`nginx/conf.d/samur.conf.https-ready`)
+- [x] Certbot auto-renewal service in `docker-compose.prod.yml`
+- [x] SSL init script at `scripts/init-ssl.sh`
+- [x] Server running at `72.56.8.247` with HTTP
+
+### What's left when domain is registered
+1. **DNS** — Point `samurchs.ru` A record to `72.56.8.247` (or use Cloudflare proxy)
+2. **SSL certificates** — Run `scripts/init-ssl.sh` with the domain name to get Let's Encrypt certs
+3. **nginx** — Rename `samur.conf.https-ready` → `samur.conf`, remove `default.conf`, restart nginx
+4. **CORS** — Update `CORS_ORIGINS` in `.env` to `https://samurchs.ru`
+5. **VK Mini App** — Update VK app settings with new domain URL
+6. **CSP header** — Update `connect-src` in nginx to include `wss://samurchs.ru`
+7. **PWA manifest** — Verify `start_url` and scope work with the domain
+8. **Service worker** — Users on the old IP will need to clear cache / unregister SW
