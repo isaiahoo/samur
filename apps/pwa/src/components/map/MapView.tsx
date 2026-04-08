@@ -74,6 +74,8 @@ function trendArrow(trend: string): string {
 }
 
 function staleWarning(measuredAt: string, dataSource: string | null): string {
+  // Seed records have no dataSource — don't show stale warning
+  if (!dataSource) return "";
   const ageMs = Date.now() - new Date(measuredAt).getTime();
   const ageHours = ageMs / (1000 * 60 * 60);
   // Open-Meteo returns daily data — 24h old is normal, not stale
@@ -107,25 +109,28 @@ function riverPopupHTML(p: Record<string, unknown>): string {
     barHtml = `<div class="popup-river-bar"><div style="width:${Math.min(pct, 100)}%;background:${barColor}"></div></div>`;
     levelHtml = `<p class="popup-river-level">${arrow} ${levelCm} / ${dangerCm} см (${pct}%)</p>`;
   } else if (discharge !== null && discharge > 0) {
-    // Discharge mode
-    const refMax = dischargeMax ?? (dischargeMean ? dischargeMean * 3 : 1);
-    const pctMax = Math.round((discharge / refMax) * 100);
-    const pctMean = dischargeMean ? Math.round((discharge / dischargeMean) * 100) : null;
-    const barColor = pctMax >= 100 ? "#EF4444" : pctMax >= 80 ? "#F97316" : pctMax >= 60 ? "#F59E0B" : "#3B82F6";
-    barHtml = `<div class="popup-river-bar"><div style="width:${Math.min(pctMax, 100)}%;background:${barColor}"></div></div>`;
-    const meanStr = pctMean !== null ? ` (${pctMean}% от нормы)` : "";
+    // Discharge mode — bar relative to mean (normal flow)
+    const ref = dischargeMean ?? discharge;
+    const pctMean = Math.round((discharge / ref) * 100);
+    // Color: blue=normal, yellow=150%+, orange=200%+, red=300%+ of mean
+    const barColor = pctMean >= 300 ? "#EF4444" : pctMean >= 200 ? "#F97316" : pctMean >= 150 ? "#F59E0B" : "#3B82F6";
+    const barWidth = Math.min(Math.round((discharge / (ref * 3)) * 100), 100);
+    barHtml = `<div class="popup-river-bar"><div style="width:${barWidth}%;background:${barColor}"></div></div>`;
+    const meanStr = dischargeMean ? ` (${pctMean}% от нормы)` : "";
     levelHtml = `<p class="popup-river-level">${arrow} ${discharge} м³/с${meanStr}</p>`;
   } else {
     levelHtml = `<p class="popup-river-level">Нет данных</p>`;
   }
+
+  const hasData = (levelCm !== null && levelCm > 0) || (discharge !== null && discharge > 0);
 
   return `<div class="popup-content popup-river">
     <strong>${p.riverName} — ${p.stationName}</strong>
     ${stale}
     ${barHtml}
     ${levelHtml}
-    <p>Тренд: ${trend}</p>
-    <small>${time}</small>
+    ${hasData ? `<p>Тренд: ${trend}</p>` : ""}
+    ${hasData ? `<small>${time}</small>` : ""}
   </div>`;
 }
 

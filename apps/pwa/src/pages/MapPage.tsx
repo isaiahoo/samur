@@ -284,14 +284,16 @@ function DetailPanel({
   if (type === "riverLevel") {
     const r = data as RiverLevel;
     const trendArrow = r.trend === "rising" ? "↑" : r.trend === "falling" ? "↓" : "→";
+    const hasLevel = r.levelCm !== null && r.levelCm > 0;
+    const hasDischarge = r.dischargeCubicM !== null && r.dischargeCubicM > 0;
+    const hasData = hasLevel || hasDischarge;
+
+    // Stale check — skip for seed records (no dataSource)
     const ageMs = Date.now() - new Date(r.measuredAt).getTime();
     const ageHours = ageMs / (1000 * 60 * 60);
     const staleThreshold = r.dataSource === "open-meteo" ? 48 : 6;
     const warnThreshold = r.dataSource === "open-meteo" ? 24 : 2;
-    const isStale = ageHours > warnThreshold;
-
-    const hasLevel = r.levelCm !== null && r.levelCm > 0;
-    const hasDischarge = r.dischargeCubicM !== null && r.dischargeCubicM > 0;
+    const isStale = r.dataSource !== null && ageHours > warnThreshold;
 
     let pct = 0;
     let barColor = "#3B82F6";
@@ -303,11 +305,12 @@ function DetailPanel({
       barColor = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F97316" : pct >= 60 ? "#F59E0B" : "#3B82F6";
       levelText = `${trendArrow} Уровень: ${r.levelCm} см из ${r.dangerLevelCm} см (${pct}%)`;
     } else if (hasDischarge) {
-      const refMax = r.dischargeMax ?? (r.dischargeMean ? r.dischargeMean * 3 : 1);
-      pct = Math.round((r.dischargeCubicM! / refMax) * 100);
-      barColor = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F97316" : pct >= 60 ? "#F59E0B" : "#3B82F6";
-      const pctMean = r.dischargeMean ? Math.round((r.dischargeCubicM! / r.dischargeMean) * 100) : null;
-      levelText = `${trendArrow} Расход: ${r.dischargeCubicM} м³/с${pctMean !== null ? ` (${pctMean}% от нормы)` : ""}`;
+      const ref = r.dischargeMean ?? r.dischargeCubicM!;
+      const pctMean = Math.round((r.dischargeCubicM! / ref) * 100);
+      pct = Math.min(Math.round((r.dischargeCubicM! / (ref * 3)) * 100), 100);
+      barColor = pctMean >= 300 ? "#EF4444" : pctMean >= 200 ? "#F97316" : pctMean >= 150 ? "#F59E0B" : "#3B82F6";
+      const meanStr = r.dischargeMean ? ` (${pctMean}% от нормы)` : "";
+      levelText = `${trendArrow} Расход: ${r.dischargeCubicM} м³/с${meanStr}`;
     }
 
     return (
@@ -318,21 +321,23 @@ function DetailPanel({
             {ageHours > staleThreshold ? "⚠ Данные устарели" : "Данные не обновлялись"} ({Math.round(ageHours)}ч назад)
           </p>
         )}
-        {(hasLevel || hasDischarge) && (
+        {hasData && (
           <div className="river-level-bar">
             <div className="river-level-fill" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }} />
           </div>
         )}
         <p>{levelText}</p>
-        <p>Тренд: {RIVER_TREND_LABELS[r.trend]}</p>
-        <RiverSparkline
-          riverName={r.riverName}
-          stationName={r.stationName}
-          dangerLevelCm={r.dangerLevelCm}
-          dischargeMax={r.dischargeMax}
-          mode={hasLevel ? "cm" : "discharge"}
-        />
-        <p className="detail-meta">{formatRelativeTime(r.measuredAt)}</p>
+        {hasData && <p>Тренд: {RIVER_TREND_LABELS[r.trend]}</p>}
+        {hasData && (
+          <RiverSparkline
+            riverName={r.riverName}
+            stationName={r.stationName}
+            dangerLevelCm={r.dangerLevelCm}
+            dischargeMax={r.dischargeMax}
+            mode={hasLevel ? "cm" : "discharge"}
+          />
+        )}
+        {hasData && <p className="detail-meta">{formatRelativeTime(r.measuredAt)}</p>}
       </div>
     );
   }

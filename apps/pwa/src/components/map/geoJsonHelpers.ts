@@ -70,12 +70,13 @@ export function toRiverLevelsGeoJSON(items: RiverLevel[]): FeatureCollection {
   return {
     type: "FeatureCollection",
     features: items.map((r) => {
-      // Compute danger ratio from cm or discharge
+      // Compute danger ratio from cm or discharge (relative to mean)
       let dangerRatio = 0;
       if (r.levelCm !== null && r.dangerLevelCm && r.dangerLevelCm > 0) {
         dangerRatio = r.levelCm / r.dangerLevelCm;
-      } else if (r.dischargeCubicM !== null && r.dischargeMax && r.dischargeMax > 0) {
-        dangerRatio = r.dischargeCubicM / r.dischargeMax;
+      } else if (r.dischargeCubicM !== null && r.dischargeMean && r.dischargeMean > 0) {
+        // Map to 0-1 scale: 1x mean = 0.33, 2x mean = 0.66, 3x mean = 1.0
+        dangerRatio = (r.dischargeCubicM / r.dischargeMean) / 3;
       }
 
       return point(r.lng, r.lat, {
