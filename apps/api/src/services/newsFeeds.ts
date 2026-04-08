@@ -79,8 +79,6 @@ export const NEWS_FEEDS: NewsFeed[] = [
     priority: 3,
     keywordFilter: [
       "Дагестан", "Дербент", "Махачкал", "Каспийск",
-      "паводок", "наводнен", "подтоплен", "затоплен",
-      "эвакуац", "МЧС",
     ],
     enabled: true,
   },
@@ -92,8 +90,7 @@ export const NEWS_FEEDS: NewsFeed[] = [
     intervalMinutes: 60,
     priority: 4,
     keywordFilter: [
-      "Дагестан", "Дербент", "Махачкал",
-      "паводок", "наводнен",
+      "Дагестан", "Дербент", "Махачкал", "Каспийск",
     ],
     enabled: true,
   },
