@@ -911,3 +911,111 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .severity-high { background: #F97316; }
 .severity-medium { background: #F59E0B; }
 .severity-low { background: #3B82F6; }
+
+/* ── Timeline Slider ──────────────────────────────────────────────────── */
+
+.timeline-slider {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.timeline-banner {
+  text-align: center;
+  padding: 4px 12px;
+  background: rgba(30, 41, 59, 0.85);
+  color: #F59E0B;
+  font-size: 13px;
+  font-weight: 600;
+  backdrop-filter: blur(4px);
+}
+
+.timeline-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 10px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid #E2E8F0;
+}
+
+.timeline-play-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: #1E293B;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.timeline-play-btn:active { background: #334155; }
+
+.timeline-track-wrapper {
+  flex: 1;
+  position: relative;
+  height: 32px;
+}
+
+.timeline-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: #CBD5E1;
+  outline: none;
+  margin-top: 6px;
+}
+.timeline-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #1E293B;
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.timeline-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #1E293B;
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.timeline-ticks {
+  position: absolute;
+  top: 18px;
+  left: 0;
+  right: 0;
+  height: 14px;
+  pointer-events: none;
+}
+
+.timeline-tick {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: #94A3B8;
+  white-space: nowrap;
+}
+.timeline-tick--today {
+  font-weight: 700;
+  color: #1E293B;
+}
+.timeline-tick--active {
+  color: #3B82F6;
+  font-weight: 600;
+}

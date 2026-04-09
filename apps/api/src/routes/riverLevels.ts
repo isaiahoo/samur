@@ -143,6 +143,41 @@ router.get("/history/:riverName/:stationName", async (req, res, next) => {
   }
 });
 
+// ── Bulk forecast: all stations, observed + forecast for timeline ────────
+
+router.get("/forecast", async (_req, res, next) => {
+  try {
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const readings = await prisma.riverLevel.findMany({
+      where: {
+        deletedAt: null,
+        measuredAt: { gte: since },
+      },
+      orderBy: { measuredAt: "asc" },
+      select: {
+        riverName: true,
+        stationName: true,
+        lat: true,
+        lng: true,
+        levelCm: true,
+        dangerLevelCm: true,
+        dischargeCubicM: true,
+        dischargeMean: true,
+        dischargeMax: true,
+        dataSource: true,
+        isForecast: true,
+        trend: true,
+        measuredAt: true,
+      },
+    });
+
+    res.json({ success: true, data: readings });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ── Manual scrape trigger (admin only) ───────────────────────────────────
 
 router.post(

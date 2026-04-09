@@ -11,11 +11,12 @@ import {
 import { formatRelativeTime } from "@samur/shared";
 import { MapView } from "../components/map/MapView.js";
 import { LayerToggle } from "../components/map/LayerToggle.js";
+import { TimelineSlider } from "../components/map/TimelineSlider.js";
 import { ReportForm } from "../components/map/ReportForm.js";
 import { UrgencyBadge } from "../components/UrgencyBadge.js";
 import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning } from "../components/map/gaugeUtils.js";
 import { GaugeChart, type HistoryPoint } from "../components/map/GaugeChart.js";
-import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory, getPrecipitation } from "../services/api.js";
+import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory, getRiverLevelForecast, getPrecipitation } from "../services/api.js";
 import type { PrecipitationPoint } from "../components/map/geoJsonHelpers.js";
 import { cacheItems, getCachedItems } from "../services/db.js";
 import { useSocketEvent, useSocketSubscription } from "../hooks/useSocket.js";
@@ -32,6 +33,16 @@ export function MapPage() {
   const [precipitation, setPrecipitation] = useState<PrecipitationPoint[]>([]);
   const [showReport, setShowReport] = useState(false);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
+
+  // Timeline scrubber state
+  type ForecastReading = {
+    riverName: string; stationName: string; lat: number; lng: number;
+    levelCm: number | null; dangerLevelCm: number | null;
+    dischargeCubicM: number | null; dischargeMean: number | null; dischargeMax: number | null;
+    dataSource: string | null; isForecast: boolean; trend: string; measuredAt: string;
+  };
+  const [forecastData, setForecastData] = useState<ForecastReading[]>([]);
+  const [timelineIndex, setTimelineIndex] = useState(0);
 
   const [layers, setLayers] = useState(() => ({
     incidents: true,
@@ -64,6 +75,21 @@ export function MapPage() {
       const res = await getPrecipitation();
       if (res?.data) setPrecipitation(res.data);
     } catch { /* ignore — optional overlay */ }
+  }, []);
+
+  // Bulk forecast data for timeline scrubber
+  const fetchForecastData = useCallback(async () => {
+    try {
+      const res = await getRiverLevelForecast();
+      if (res?.data) {
+        setForecastData(res.data);
+        // Set initial timeline index to today
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const allDates = [...new Set(res.data.map((r) => r.measuredAt.slice(0, 10)))].sort();
+        const todayIdx = allDates.indexOf(todayStr);
+        setTimelineIndex(todayIdx >= 0 ? todayIdx : 0);
+      }
+    } catch { /* ignore — timeline is enhancement, not critical */ }
   }, []);
 
   // Bounds-dependent data — refetch on map move
@@ -111,13 +137,14 @@ export function MapPage() {
     }
   }, []);
 
-  // Initial data fetch — river levels + precipitation loaded once, rest refetched on map move
+  // Initial data fetch — river levels + precipitation + forecast loaded once, rest refetched on map move
   useEffect(() => {
     fetchData();
     fetchRiverLevels();
     fetchPrecipData();
+    fetchForecastData();
     return () => { if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current); };
-  }, [fetchData, fetchRiverLevels, fetchPrecipData]);
+  }, [fetchData, fetchRiverLevels, fetchPrecipData, fetchForecastData]);
 
   useEffect(() => {
     requestPosition();
@@ -155,6 +182,55 @@ export function MapPage() {
     });
   });
 
+  // ── Timeline: group forecast data by date, derive effective river levels ──
+
+  const { timelineDates, effectiveRiverLevels } = useMemo(() => {
+    if (forecastData.length === 0) {
+      return { timelineDates: [] as string[], effectiveRiverLevels: riverLevels };
+    }
+
+    // Extract unique dates sorted
+    const dateSet = new Set(forecastData.map((r) => r.measuredAt.slice(0, 10)));
+    const allDates = [...dateSet].sort();
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayIdx = allDates.indexOf(todayStr);
+    const selectedDate = allDates[timelineIndex] ?? todayStr;
+
+    // If viewing today (or no forecast loaded), use live data
+    if (selectedDate === todayStr || timelineIndex === todayIdx) {
+      return { timelineDates: allDates, effectiveRiverLevels: riverLevels };
+    }
+
+    // For other dates, pick the latest reading per station for that date
+    const dateReadings = forecastData.filter(
+      (r) => r.measuredAt.slice(0, 10) === selectedDate,
+    );
+
+    // Group by station, take latest per station
+    const stationMap = new Map<string, ForecastReading>();
+    for (const r of dateReadings) {
+      const key = `${r.riverName}::${r.stationName}`;
+      const existing = stationMap.get(key);
+      if (!existing || r.measuredAt > existing.measuredAt) {
+        stationMap.set(key, r);
+      }
+    }
+
+    // Convert to RiverLevel-compatible objects
+    const derived = [...stationMap.values()].map((r) => ({
+      ...r,
+      id: `forecast-${r.riverName}-${r.stationName}-${selectedDate}`,
+      createdAt: r.measuredAt,
+    })) as unknown as RiverLevel[];
+
+    return { timelineDates: allDates, effectiveRiverLevels: derived };
+  }, [forecastData, riverLevels, timelineIndex]);
+
+  const handleTimelineChange = useCallback((index: number) => {
+    setTimelineIndex(index);
+  }, []);
+
   const handleMarkerClick = useCallback(
     (type: string, item: unknown) => {
       openSheet(<DetailPanel type={type} data={item} onClose={closeSheet} />);
@@ -188,7 +264,7 @@ export function MapPage() {
         incidents={incidents}
         helpRequests={helpRequests}
         shelters={shelters}
-        riverLevels={riverLevels}
+        riverLevels={effectiveRiverLevels}
         precipitation={precipitation}
         layers={layers}
         onMarkerClick={handleMarkerClick}
@@ -202,8 +278,15 @@ export function MapPage() {
           open={layerMenuOpen}
           onOpenChange={setLayerMenuOpen}
         />
-
       </div>
+
+      {timelineDates.length >= 2 && (
+        <TimelineSlider
+          dates={timelineDates}
+          selectedIndex={timelineIndex}
+          onIndexChange={handleTimelineChange}
+        />
+      )}
 
       <button
         className="fab"

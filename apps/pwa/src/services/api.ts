@@ -207,6 +207,24 @@ export function getRiverLevelHistory(riverName: string, stationName: string, day
   );
 }
 
+export function getRiverLevelForecast() {
+  return request<ApiResponse<Array<{
+    riverName: string;
+    stationName: string;
+    lat: number;
+    lng: number;
+    levelCm: number | null;
+    dangerLevelCm: number | null;
+    dischargeCubicM: number | null;
+    dischargeMean: number | null;
+    dischargeMax: number | null;
+    dataSource: string | null;
+    isForecast: boolean;
+    trend: string;
+    measuredAt: string;
+  }>>>("/river-levels/forecast");
+}
+
 export function getRiverStations() {
   return request<ApiResponse>("/river-levels/stations");
 }
