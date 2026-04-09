@@ -139,12 +139,12 @@ export function toSoilMoistureGeoJSON(points: SoilMoisturePoint[]): FeatureColle
   return {
     type: "FeatureCollection",
     features: points
-      .filter((p) => p.moisture > 0.15) // skip very dry points (no flood risk)
+      .filter((p) => p.moisture > 0.10)
       .map((p) =>
         point(p.lng, p.lat, {
           moisture: p.moisture,
-          // Normalize: 0.15–0.50 → 0–1 scale for heatmap weight
-          intensity: Math.min(Math.max((p.moisture - 0.15) / 0.35, 0), 1.0),
+          // Normalize: 0.10–0.45 → 0–1 scale (aggressive — even "normal" moisture shows)
+          intensity: Math.min(Math.max((p.moisture - 0.10) / 0.35, 0.05), 1.0),
         }),
       ),
   };

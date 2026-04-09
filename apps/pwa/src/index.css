@@ -950,6 +950,70 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   margin-top: 2px;
 }
 
+/* ── Soil moisture status indicator ───────────────────────────────────────── */
+
+.soil-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin: 8px 0;
+  border-left: 3px solid;
+}
+.soil-status-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.soil-status-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  gap: 8px;
+}
+.soil-status-value {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.soil-status--dry {
+  background: #F8FAFC;
+  color: #64748B;
+  border-left-color: #94A3B8;
+}
+.soil-status--normal {
+  background: #F0FDF4;
+  color: #166534;
+  border-left-color: #22C55E;
+}
+.soil-status--normal .soil-status-value { color: #15803D; }
+
+.soil-status--elevated {
+  background: #ECFEFF;
+  color: #155E75;
+  border-left-color: #06B6D4;
+}
+.soil-status--elevated .soil-status-value { color: #0891B2; }
+
+.soil-status--saturated {
+  background: #EDE9FE;
+  color: #5B21B6;
+  border-left-color: #8B5CF6;
+}
+.soil-status--saturated .soil-status-value { color: #7C3AED; }
+
+.soil-status--critical {
+  background: #FEF2F2;
+  color: #991B1B;
+  border-left-color: #EF4444;
+  font-weight: 600;
+}
+.soil-status--critical .soil-status-value { color: #DC2626; }
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Phase 6 — NERV-Style Crisis Escalation + Controls Redesign
    ═══════════════════════════════════════════════════════════════════════════ */

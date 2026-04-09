@@ -355,7 +355,9 @@ export const MapView = memo(function MapView({
         },
       });
 
-      // ── Soil moisture heatmap (earth tones: transparent → cyan → blue → purple) ──
+      // ── Soil moisture heatmap (cyan → blue → purple, wide coverage) ────
+      // 25 grid points across Dagestan — needs large radius & strong intensity
+      // to create a continuous coverage field, not scattered dots.
 
       map.addLayer({
         id: "soil-moisture-heatmap",
@@ -363,33 +365,38 @@ export const MapView = memo(function MapView({
         source: "soilMoistureHeatmap",
         paint: {
           "heatmap-weight": ["get", "intensity"],
+          // High intensity to compensate for sparse 25-point grid
           "heatmap-intensity": [
             "interpolate", ["linear"], ["zoom"],
-            6, 0.6,
-            10, 1.2,
-            14, 1.8,
+            5, 1.5,
+            8, 2.5,
+            11, 3.5,
+            14, 4.0,
           ],
+          // Very large radius so 25 points blend into continuous field
           "heatmap-radius": [
             "interpolate", ["linear"], ["zoom"],
-            6, 25,
-            9, 50,
-            12, 70,
+            5, 80,
+            7, 120,
+            9, 160,
+            12, 200,
           ],
           // Color ramp: transparent → cyan (normal) → blue (wet) → purple (saturated)
           "heatmap-color": [
             "interpolate", ["linear"], ["heatmap-density"],
             0, "rgba(0,0,0,0)",
-            0.15, "rgba(165,243,252,0.3)",  // light cyan (normal moisture)
-            0.35, "rgba(6,182,212,0.45)",   // #06B6D4 cyan (elevated)
-            0.6, "rgba(59,130,246,0.55)",   // #3B82F6 blue (wet)
-            0.85, "rgba(139,92,246,0.65)",  // #8B5CF6 purple (saturated)
-            1.0, "rgba(109,40,217,0.7)",    // #6D28D9 deep purple (very saturated)
+            0.1, "rgba(165,243,252,0.25)",  // light cyan — baseline moisture
+            0.25, "rgba(6,182,212,0.45)",   // #06B6D4 cyan — normal
+            0.45, "rgba(59,130,246,0.6)",   // #3B82F6 blue — elevated
+            0.7, "rgba(139,92,246,0.7)",    // #8B5CF6 purple — wet
+            1.0, "rgba(109,40,217,0.8)",    // #6D28D9 deep purple — saturated
           ],
           "heatmap-opacity": [
             "interpolate", ["linear"], ["zoom"],
-            7, 0.45,
-            11, 0.35,
-            14, 0.2,
+            6, 0.7,
+            9, 0.55,
+            12, 0.4,
+            14, 0.25,
           ],
         },
       });

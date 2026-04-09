@@ -258,9 +258,9 @@ export function MapPage() {
 
   const handleMarkerClick = useCallback(
     (type: string, item: unknown) => {
-      openSheet(<DetailPanel type={type} data={item} allRiverLevels={effectiveRiverLevels} onClose={closeSheet} />);
+      openSheet(<DetailPanel type={type} data={item} allRiverLevels={effectiveRiverLevels} soilMoisture={soilMoisture} onClose={closeSheet} />);
     },
-    [openSheet, closeSheet, effectiveRiverLevels],
+    [openSheet, closeSheet, effectiveRiverLevels, soilMoisture],
   );
 
   const handleMapMove = useCallback((newBounds: MapBounds, _zoom: number) => {
@@ -339,11 +339,13 @@ function DetailPanel({
   type,
   data,
   allRiverLevels,
+  soilMoisture,
   onClose,
 }: {
   type: string;
   data: unknown;
   allRiverLevels?: RiverLevel[];
+  soilMoisture?: SoilMoisturePoint[];
   onClose: () => void;
 }) {
   if (type === "incident") {
@@ -414,13 +416,39 @@ function DetailPanel({
   }
 
   if (type === "riverLevel") {
-    return <RiverLevelDetail data={data as RiverLevel} allLevels={allRiverLevels ?? []} />;
+    return <RiverLevelDetail data={data as RiverLevel} allLevels={allRiverLevels ?? []} soilMoisture={soilMoisture ?? []} />;
   }
 
   return null;
 }
 
-function RiverLevelDetail({ data: r, allLevels }: { data: RiverLevel; allLevels: RiverLevel[] }) {
+/** Find nearest soil moisture grid point to a station (within ~50km) */
+function findNearestMoisture(lat: number, lng: number, points: SoilMoisturePoint[]): SoilMoisturePoint | null {
+  let best: SoilMoisturePoint | null = null;
+  let bestDist = Infinity;
+  for (const p of points) {
+    const dlat = p.lat - lat;
+    const dlng = p.lng - lng;
+    const dist = dlat * dlat + dlng * dlng;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = p;
+    }
+  }
+  // ~0.5 degree ≈ 50km — skip if too far
+  return bestDist < 0.25 ? best : null;
+}
+
+/** Soil moisture status label and CSS class */
+function moistureStatus(m: number): { label: string; className: string } {
+  if (m >= 0.45) return { label: "Почва перенасыщена — критический риск", className: "soil-status--critical" };
+  if (m >= 0.38) return { label: "Почва насыщена — высокий риск паводка", className: "soil-status--saturated" };
+  if (m >= 0.30) return { label: "Влажность повышена", className: "soil-status--elevated" };
+  if (m >= 0.20) return { label: "Нормальная влажность", className: "soil-status--normal" };
+  return { label: "Сухая почва", className: "soil-status--dry" };
+}
+
+function RiverLevelDetail({ data: r, allLevels, soilMoisture }: { data: RiverLevel; allLevels: RiverLevel[]; soilMoisture: SoilMoisturePoint[] }) {
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
 
@@ -429,6 +457,10 @@ function RiverLevelDetail({ data: r, allLevels }: { data: RiverLevel; allLevels:
   const upstreamWarning = useMemo(
     () => checkUpstreamDanger(r.riverName, r.stationName, tier, allLevels),
     [r.riverName, r.stationName, tier, allLevels],
+  );
+  const nearestMoisture = useMemo(
+    () => findNearestMoisture(r.lat, r.lng, soilMoisture),
+    [r.lat, r.lng, soilMoisture],
   );
   const hasLevel = r.levelCm !== null && r.levelCm > 0;
   const hasDischarge = r.dischargeCubicM !== null && r.dischargeCubicM > 0;
@@ -516,6 +548,17 @@ function RiverLevelDetail({ data: r, allLevels }: { data: RiverLevel; allLevels:
           <span className="upstream-warning-icon">{"\u25B2"}</span>
           {upstreamWarning.text}
           <div className="upstream-warning-eta">Вода может дойти за 6-12 часов</div>
+        </div>
+      )}
+
+      {/* Soil moisture indicator */}
+      {nearestMoisture && (
+        <div className={`soil-status ${moistureStatus(nearestMoisture.moisture).className}`}>
+          <span className="soil-status-icon">💧</span>
+          <div className="soil-status-content">
+            <span className="soil-status-label">{moistureStatus(nearestMoisture.moisture).label}</span>
+            <span className="soil-status-value">{Math.round(nearestMoisture.moisture * 100)}%</span>
+          </div>
         </div>
       )}
 
