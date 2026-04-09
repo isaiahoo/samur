@@ -65,6 +65,10 @@ export interface PrecipitationReading {
   lng: number;
   /** Total precipitation in mm for the next 24 hours */
   precipitation24h: number;
+  /** Maximum single-hour precipitation in mm */
+  peakHourlyMm: number;
+  /** All 24 hourly values for future temporal display */
+  hourlyBreakdown: number[];
 }
 
 interface OpenMeteoHourly {
@@ -116,7 +120,7 @@ async function fetchJSON<T>(url: string, retries = MAX_RETRIES): Promise<T | nul
 
 let cachedData: PrecipitationReading[] = [];
 let cachedAt = 0;
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 export function getCachedPrecipitation(): PrecipitationReading[] {
   return cachedData;
@@ -171,16 +175,23 @@ export async function fetchPrecipitationGrid(): Promise<PrecipitationReading[]> 
       continue;
     }
 
-    // Sum all hourly precipitation values for 24h total
+    // Sum all hourly precipitation values for 24h total + track peak
     let total = 0;
+    let peak = 0;
+    const hourly: number[] = [];
     for (const val of resp.hourly.precipitation) {
-      total += val ?? 0;
+      const v = val ?? 0;
+      total += v;
+      if (v > peak) peak = v;
+      hourly.push(v);
     }
 
     readings.push({
       lat: gp.lat,
       lng: gp.lng,
       precipitation24h: Math.round(total * 10) / 10,
+      peakHourlyMm: Math.round(peak * 10) / 10,
+      hourlyBreakdown: hourly,
     });
   }
 

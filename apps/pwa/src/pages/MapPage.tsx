@@ -21,6 +21,8 @@ import type { PrecipitationPoint, SoilMoisturePoint, SnowPoint, RunoffPoint } fr
 import { legendGradientCSS } from "../components/map/SoilMoistureOverlay.js";
 import { snowLegendGradientCSS } from "../components/map/SnowOverlay.js";
 import { runoffLegendGradientCSS } from "../components/map/RunoffOverlay.js";
+import { precipLegendGradientCSS } from "../components/map/PrecipitationOverlay.js";
+import { floodLegendGradientCSS } from "../components/map/FloodZoneOverlay.js";
 import { cacheItems, getCachedItems } from "../services/db.js";
 import { useSocketEvent, useSocketSubscription } from "../hooks/useSocket.js";
 import { useGeolocation } from "../hooks/useGeolocation.js";
@@ -337,8 +339,35 @@ export function MapPage() {
         />
       </div>
 
-      {((layers.soilMoisture && soilMoisture.length > 0) || (layers.snow && snowData.length > 0) || (layers.runoff && runoffData.length > 0)) && (
+      {((layers.floodHeatmap && riverLevels.length > 0) || (layers.precipitation && precipitation.length > 0) || (layers.soilMoisture && soilMoisture.length > 0) || (layers.snow && snowData.length > 0) || (layers.runoff && runoffData.length > 0)) && (
         <div className="map-legends">
+          {layers.floodHeatmap && riverLevels.length > 0 && (
+            <div className="flood-legend">
+              <div className="flood-legend-title">🌊 Зона затопления</div>
+              <div className="flood-legend-scale">
+                <div className="flood-legend-bar" style={{ background: floodLegendGradientCSS() }} />
+                <div className="flood-legend-ends">
+                  <span>повышен</span>
+                  <span>опасный</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {layers.precipitation && precipitation.length > 0 && (
+            <div className="precip-legend">
+              <div className="precip-legend-header">
+                <span className="precip-legend-icon">🌧</span>
+                <span className="precip-legend-title">Осадки (24ч)</span>
+              </div>
+              <div className="precip-legend-bar" style={{ background: precipLegendGradientCSS() }} />
+              <div className="precip-legend-ticks">
+                <div className="precip-legend-tick"><span className="precip-legend-tick-val">слабый</span></div>
+                <div className="precip-legend-tick"><span className="precip-legend-tick-val">сильный</span></div>
+              </div>
+            </div>
+          )}
+
           {layers.soilMoisture && soilMoisture.length > 0 && (
             <div className="soil-legend">
               <div className="soil-legend-header">

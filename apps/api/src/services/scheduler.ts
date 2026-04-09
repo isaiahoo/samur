@@ -10,9 +10,10 @@ import { computeRunoffGrid } from "./runoffClient.js";
 
 const log = logger.child({ service: "scheduler" });
 
-const SCRAPE_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
-const NEWS_INTERVAL_MS = 15 * 60 * 1000;   // 15 minutes
-const PRECIP_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const SCRAPE_INTERVAL_MS = 60 * 60 * 1000;        // 1 hour
+const NEWS_INTERVAL_MS = 15 * 60 * 1000;          // 15 minutes
+const PRECIP_INTERVAL_MS = 2 * 60 * 60 * 1000;    // 2 hours — more frequent for flood events
+const WEATHER_INTERVAL_MS = 6 * 60 * 60 * 1000;   // 6 hours — soil moisture + snow
 
 let scrapeTimer: ReturnType<typeof setInterval> | null = null;
 let newsTimer: ReturnType<typeof setInterval> | null = null;
@@ -172,17 +173,17 @@ export async function startScheduler(): Promise<void> {
   newsTimer = setInterval(runNewsFetch, NEWS_INTERVAL_MS);
   log.info({ intervalMs: NEWS_INTERVAL_MS }, "News fetch scheduler started");
 
-  // Schedule precipitation fetches every 6 hours
+  // Schedule precipitation fetches every 2 hours (more frequent for flood events)
   precipTimer = setInterval(runPrecipFetch, PRECIP_INTERVAL_MS);
   log.info({ intervalMs: PRECIP_INTERVAL_MS }, "Precipitation scheduler started");
 
-  // Schedule soil moisture fetches every 6 hours (same interval as precipitation)
-  soilMoistureTimer = setInterval(runSoilMoistureFetch, PRECIP_INTERVAL_MS);
-  log.info({ intervalMs: PRECIP_INTERVAL_MS }, "Soil moisture scheduler started");
+  // Schedule soil moisture fetches every 6 hours
+  soilMoistureTimer = setInterval(runSoilMoistureFetch, WEATHER_INTERVAL_MS);
+  log.info({ intervalMs: WEATHER_INTERVAL_MS }, "Soil moisture scheduler started");
 
   // Schedule snow fetches every 6 hours
-  snowTimer = setInterval(runSnowFetch, PRECIP_INTERVAL_MS);
-  log.info({ intervalMs: PRECIP_INTERVAL_MS }, "Snow scheduler started");
+  snowTimer = setInterval(runSnowFetch, WEATHER_INTERVAL_MS);
+  log.info({ intervalMs: WEATHER_INTERVAL_MS }, "Snow scheduler started");
 }
 
 export function stopScheduler(): void {

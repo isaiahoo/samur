@@ -19,8 +19,6 @@ import {
   toIncidentsGeoJSON,
   toHelpRequestsGeoJSON,
   toSheltersGeoJSON,
-  toRiverLevelsGeoJSON,
-  toPrecipitationGeoJSON,
   type PrecipitationPoint,
   type SoilMoisturePoint,
   type SnowPoint,
@@ -29,6 +27,8 @@ import {
 import { generateSoilMoistureImage, SOIL_BOUNDS, getSettlementsAtRisk, type SettlementRisk } from "./SoilMoistureOverlay.js";
 import { generateSnowOverlayImage, SNOW_BOUNDS, getSettlementsAtMeltRisk } from "./SnowOverlay.js";
 import { generateRunoffOverlayImage } from "./RunoffOverlay.js";
+import { generatePrecipitationImage } from "./PrecipitationOverlay.js";
+import { generateFloodZoneImage } from "./FloodZoneOverlay.js";
 import { computeTier, trendArrow, checkUpstreamDanger, type GaugeTier } from "./gaugeUtils.js";
 import {
   createMarkerElement,
@@ -166,8 +166,6 @@ export const MapView = memo(function MapView({
         map.addSource("helpRequests", { type: "geojson", data: EMPTY_FC, cluster: true, clusterMaxZoom: 14, clusterRadius: 50 });
       }
       if (!map.getSource("shelters")) map.addSource("shelters", { type: "geojson", data: EMPTY_FC });
-      if (!map.getSource("riverHeatmap")) map.addSource("riverHeatmap", { type: "geojson", data: EMPTY_FC });
-      if (!map.getSource("precipHeatmap")) map.addSource("precipHeatmap", { type: "geojson", data: EMPTY_FC });
 
       // ── Incident layers ──────────────────────────────────────────────────
 
@@ -279,72 +277,8 @@ export const MapView = memo(function MapView({
         });
       }
 
-      // ── River flood risk heatmap (warm: amber -> red) ───────────────────
-
-      if (!map.getLayer("river-heatmap")) {
-        map.addLayer({
-          id: "river-heatmap",
-          type: "heatmap",
-          source: "riverHeatmap",
-          paint: {
-            "heatmap-weight": ["get", "heatWeight"],
-            "heatmap-intensity": [
-              "interpolate", ["linear"], ["zoom"],
-              6, 0.8, 10, 1.5, 14, 2.0,
-            ],
-            "heatmap-radius": [
-              "interpolate", ["linear"], ["zoom"],
-              6, 30, 9, 60, 12, 80,
-            ],
-            "heatmap-color": [
-              "interpolate", ["linear"], ["heatmap-density"],
-              0, "rgba(0,0,0,0)",
-              0.15, "rgba(254,243,199,0.4)",
-              0.35, "rgba(245,158,11,0.6)",
-              0.6, "rgba(239,68,68,0.7)",
-              1.0, "rgba(153,27,27,0.8)",
-            ],
-            "heatmap-opacity": [
-              "interpolate", ["linear"], ["zoom"],
-              7, 0.6, 11, 0.4, 14, 0.25,
-            ],
-          },
-        });
-      }
-
-      // ── Precipitation forecast heatmap (cool: cyan -> blue) ─────────────
-
-      if (!map.getLayer("precip-heatmap")) {
-        map.addLayer({
-          id: "precip-heatmap",
-          type: "heatmap",
-          source: "precipHeatmap",
-          paint: {
-            "heatmap-weight": ["get", "intensity"],
-            "heatmap-intensity": [
-              "interpolate", ["linear"], ["zoom"],
-              6, 0.6, 10, 1.2, 14, 1.8,
-            ],
-            "heatmap-radius": [
-              "interpolate", ["linear"], ["zoom"],
-              6, 25, 9, 50, 12, 70,
-            ],
-            "heatmap-color": [
-              "interpolate", ["linear"], ["heatmap-density"],
-              0, "rgba(0,0,0,0)",
-              0.15, "rgba(207,250,254,0.3)",
-              0.35, "rgba(6,182,212,0.4)",
-              0.6, "rgba(30,64,175,0.5)",
-              1.0, "rgba(30,64,175,0.6)",
-            ],
-            "heatmap-opacity": [
-              "interpolate", ["linear"], ["zoom"],
-              7, 0.4, 11, 0.35, 14, 0.2,
-            ],
-          },
-        });
-      }
-
+      // Heatmap overlays (flood zone, precipitation) are added dynamically
+      // as canvas-based image sources — see useEffect blocks below.
       // Soil moisture overlay is added dynamically as an image source
       // (IDW-interpolated canvas) — see the soilMoisture useEffect below
 
@@ -513,8 +447,7 @@ export const MapView = memo(function MapView({
   useEffect(() => updateSource("incidents", toIncidentsGeoJSON(incidents)), [incidents, updateSource]);
   useEffect(() => updateSource("helpRequests", toHelpRequestsGeoJSON(helpRequests)), [helpRequests, updateSource]);
   useEffect(() => updateSource("shelters", toSheltersGeoJSON(shelters)), [shelters, updateSource]);
-  useEffect(() => updateSource("riverHeatmap", toRiverLevelsGeoJSON(riverLevels)), [riverLevels, updateSource]);
-  useEffect(() => updateSource("precipHeatmap", toPrecipitationGeoJSON(precipitation)), [precipitation, updateSource]);
+  // River heatmap and precipitation are now canvas-based overlays (below)
 
   // ── Soil moisture: IDW-interpolated canvas overlay ──────────────────────
   // styleVersion dependency ensures re-creation after offline/online style switch
@@ -559,6 +492,71 @@ export const MapView = memo(function MapView({
       );
     }
   }, [soilMoisture, mapReady, styleVersion]);
+
+  // ── Precipitation: IDW-interpolated canvas overlay ────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || precipitation.length === 0) return;
+
+    const dataUrl = generatePrecipitationImage(precipitation);
+    if (!dataUrl) return;
+
+    const { north, south, east, west } = SOIL_BOUNDS;
+    const coords: [[number, number], [number, number], [number, number], [number, number]] = [
+      [west, north], [east, north], [east, south], [west, south],
+    ];
+
+    const src = map.getSource("precipOverlayImg") as maplibregl.ImageSource | undefined;
+    if (src) {
+      src.updateImage({ url: dataUrl, coordinates: coords });
+    } else {
+      map.addSource("precipOverlayImg", {
+        type: "image", url: dataUrl, coordinates: coords,
+      });
+      const beforeLayer = map.getLayer("shelters") ? "shelters" : undefined;
+      map.addLayer({
+        id: "precip-overlay",
+        type: "raster",
+        source: "precipOverlayImg",
+        paint: { "raster-opacity": 0.6, "raster-fade-duration": 0 },
+      }, beforeLayer);
+    }
+  }, [precipitation, mapReady, styleVersion]);
+
+  // ── Flood zone: circle-based canvas overlay from gauge stations ────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || riverLevels.length === 0) return;
+
+    const dataUrl = generateFloodZoneImage(riverLevels);
+    if (!dataUrl) {
+      // No stations above threshold — remove overlay if it exists
+      if (map.getLayer("flood-zone-overlay")) map.removeLayer("flood-zone-overlay");
+      if (map.getSource("floodZoneImg")) map.removeSource("floodZoneImg");
+      return;
+    }
+
+    const { north, south, east, west } = SOIL_BOUNDS;
+    const coords: [[number, number], [number, number], [number, number], [number, number]] = [
+      [west, north], [east, north], [east, south], [west, south],
+    ];
+
+    const src = map.getSource("floodZoneImg") as maplibregl.ImageSource | undefined;
+    if (src) {
+      src.updateImage({ url: dataUrl, coordinates: coords });
+    } else {
+      map.addSource("floodZoneImg", {
+        type: "image", url: dataUrl, coordinates: coords,
+      });
+      const beforeLayer = map.getLayer("shelters") ? "shelters" : undefined;
+      map.addLayer({
+        id: "flood-zone-overlay",
+        type: "raster",
+        source: "floodZoneImg",
+        paint: { "raster-opacity": 0.6, "raster-fade-duration": 0 },
+      }, beforeLayer);
+    }
+  }, [riverLevels, mapReady, styleVersion]);
 
   // ── Settlement risk markers (HTML markers for towns in wet zones) ──────
 
@@ -896,8 +894,8 @@ export const MapView = memo(function MapView({
       incidents: ["incidents-clusters", "incidents-cluster-count", "incidents-unclustered"],
       helpRequests: ["help-clusters", "help-cluster-count", "help-unclustered"],
       shelters: ["shelters"],
-      floodHeatmap: ["river-heatmap"],
-      precipitation: ["precip-heatmap"],
+      floodHeatmap: ["flood-zone-overlay"],
+      precipitation: ["precip-overlay"],
       soilMoisture: ["soil-moisture-overlay"],
       snow: ["snow-overlay"],
       runoff: ["runoff-overlay"],

@@ -235,7 +235,7 @@ export function getNews(params?: Record<string, string | number | boolean>) {
 }
 
 export function getPrecipitation() {
-  return request<ApiResponse<Array<{ lat: number; lng: number; precipitation: number }>>>("/weather/precipitation");
+  return request<ApiResponse<Array<{ lat: number; lng: number; precipitation: number; peakHourlyMm: number }>>>("/weather/precipitation");
 }
 
 export function getSoilMoisture() {

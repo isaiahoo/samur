@@ -23,6 +23,7 @@ router.get("/precipitation", (_req, res) => {
       lat: p.lat,
       lng: p.lng,
       precipitation: p.precipitation24h,
+      peakHourlyMm: p.peakHourlyMm,
     })),
     meta: {
       points: data.length,
