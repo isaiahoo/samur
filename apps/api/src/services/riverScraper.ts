@@ -24,6 +24,10 @@ interface ScrapeResult {
   dischargeCubicM: number | null;
   dischargeMean: number | null;
   dischargeMax: number | null;
+  dischargeMedian: number | null;
+  dischargeMin: number | null;
+  dischargeP25: number | null;
+  dischargeP75: number | null;
   measuredAt: Date;
   source: "allrivers" | "urovenvody" | "open-meteo";
   isForecast: boolean;
@@ -100,7 +104,7 @@ function parseAllRivers(html: string): ScrapeResult | null {
       const levelCm = parseFloat(staleMatch[1].replace(",", "."));
       const measuredAt = parseRussianDate(dateMatch[1], dateMatch[2], dateMatch[3]);
       if (levelCm > 0 && levelCm < 5000 && measuredAt) {
-        return { levelCm, dischargeCubicM: null, dischargeMean: null, dischargeMax: null, measuredAt, source: "allrivers", isForecast: false };
+        return { levelCm, dischargeCubicM: null, dischargeMean: null, dischargeMax: null, dischargeMedian: null, dischargeMin: null, dischargeP25: null, dischargeP75: null, measuredAt, source: "allrivers", isForecast: false };
       }
     }
 
@@ -128,7 +132,7 @@ function parseAllRivers(html: string): ScrapeResult | null {
           ? parseRussianDate(dateMatch[1], dateMatch[2], dateMatch[3]) ?? new Date()
           : new Date();
 
-        return { levelCm, dischargeCubicM: null, dischargeMean: null, dischargeMax: null, measuredAt, source: "allrivers", isForecast: false };
+        return { levelCm, dischargeCubicM: null, dischargeMean: null, dischargeMax: null, dischargeMedian: null, dischargeMin: null, dischargeP25: null, dischargeP75: null, measuredAt, source: "allrivers", isForecast: false };
       }
     }
   }
@@ -176,7 +180,7 @@ function parseUrovenvody(html: string): ScrapeResult | null {
   if (currentMatch) {
     const levelCm = parseFloat(currentMatch[1].replace(",", "."));
     if (levelCm > 0 && levelCm < 5000) {
-      return { levelCm, dischargeCubicM: null, dischargeMean: null, dischargeMax: null, measuredAt: new Date(), source: "urovenvody", isForecast: false };
+      return { levelCm, dischargeCubicM: null, dischargeMean: null, dischargeMax: null, dischargeMedian: null, dischargeMin: null, dischargeP25: null, dischargeP75: null, measuredAt: new Date(), source: "urovenvody", isForecast: false };
     }
   }
 
@@ -406,6 +410,10 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
             dischargeCubicM: todayReading?.discharge ?? null,
             dischargeMean: todayReading?.dischargeMean ?? null,
             dischargeMax: todayReading?.dischargeMax ?? null,
+            dischargeMedian: todayReading?.dischargeMedian ?? null,
+            dischargeMin: todayReading?.dischargeMin ?? null,
+            dischargeP25: todayReading?.dischargeP25 ?? null,
+            dischargeP75: todayReading?.dischargeP75 ?? null,
           }
         : todayReading
           ? {
@@ -413,6 +421,10 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
               dischargeCubicM: todayReading.discharge,
               dischargeMean: todayReading.dischargeMean,
               dischargeMax: todayReading.dischargeMax,
+              dischargeMedian: todayReading.dischargeMedian,
+              dischargeMin: todayReading.dischargeMin,
+              dischargeP25: todayReading.dischargeP25,
+              dischargeP75: todayReading.dischargeP75,
               measuredAt: new Date(todayReading.date + "T12:00:00Z"),
               source: "open-meteo" as const,
               isForecast: false,
@@ -478,6 +490,10 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
           dischargeCubicM: merged.dischargeCubicM,
           dischargeMean: merged.dischargeMean,
           dischargeMax: merged.dischargeMax,
+          dischargeMedian: merged.dischargeMedian,
+          dischargeMin: merged.dischargeMin,
+          dischargeP25: merged.dischargeP25,
+          dischargeP75: merged.dischargeP75,
           dataSource: merged.source,
           isForecast: false,
           trend,
@@ -517,6 +533,10 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
               dischargeCubicM: fc.discharge,
               dischargeMean: fc.dischargeMean,
               dischargeMax: fc.dischargeMax,
+              dischargeMedian: fc.dischargeMedian,
+              dischargeMin: fc.dischargeMin,
+              dischargeP25: fc.dischargeP25,
+              dischargeP75: fc.dischargeP75,
               dataSource: "open-meteo",
               isForecast: true,
               trend: "stable",

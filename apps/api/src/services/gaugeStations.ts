@@ -256,6 +256,102 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     meanDischarge: 196,
     dangerDischarge: 500,
   },
+
+  // ── Аксай (Aksay — tributary of Терек) ────────────────────────────────
+  {
+    riverName: "Аксай",
+    stationName: "Хасавюрт",
+    lat: 43.25,
+    lng: 46.58,
+    dangerLevelCm: 350,
+    allriversSlug: null,
+    urovenSlug: null,
+    roshydrometId: null,
+    openMeteoLat: 43.275,
+    openMeteoLng: 46.575,
+    meanDischarge: 25,
+    dangerDischarge: 120,
+  },
+
+  // ── Шура-Озень (Shura-Ozen) ──────────────────────────────────────────
+  {
+    riverName: "Шура-Озень",
+    stationName: "Буйнакск",
+    lat: 42.80,
+    lng: 47.15,
+    dangerLevelCm: 250,
+    allriversSlug: null,
+    urovenSlug: null,
+    roshydrometId: null,
+    openMeteoLat: 42.825,
+    openMeteoLng: 47.175,
+    meanDischarge: 15,
+    dangerDischarge: 80,
+  },
+
+  // ── Казикумухское Койсу (feeds into Сулак system) ─────────────────────
+  {
+    riverName: "Казикумухское Койсу",
+    stationName: "Кули",
+    lat: 42.18,
+    lng: 47.05,
+    dangerLevelCm: 280,
+    allriversSlug: null,
+    urovenSlug: null,
+    roshydrometId: null,
+    openMeteoLat: 42.175,
+    openMeteoLng: 47.075,
+    meanDischarge: 30,
+    dangerDischarge: 150,
+  },
+
+  // ── Кара-Койсу (feeds into Аварское Койсу → Сулак) ───────────────────
+  {
+    riverName: "Кара-Койсу",
+    stationName: "Гергебиль",
+    lat: 42.38,
+    lng: 47.10,
+    dangerLevelCm: 280,
+    allriversSlug: null,
+    urovenSlug: null,
+    roshydrometId: null,
+    openMeteoLat: 42.375,
+    openMeteoLng: 47.125,
+    meanDischarge: 40,
+    dangerDischarge: 200,
+  },
+
+  // ── Акташ (coastal river, Каякент district) ──────────────────────────
+  {
+    riverName: "Акташ",
+    stationName: "Манас",
+    lat: 42.63,
+    lng: 47.60,
+    dangerLevelCm: 200,
+    allriversSlug: null,
+    urovenSlug: null,
+    roshydrometId: null,
+    openMeteoLat: 42.625,
+    openMeteoLng: 47.625,
+    meanDischarge: 10,
+    dangerDischarge: 60,
+  },
+
+  // ── Манас-Озень (coastal river near Каспийск) ────────────────────────
+  {
+    riverName: "Манас-Озень",
+    stationName: "Каспийск",
+    lat: 42.85,
+    lng: 47.65,
+    dangerLevelCm: 200,
+    allriversSlug: null,
+    urovenSlug: null,
+    roshydrometId: null,
+    openMeteoLat: 42.875,
+    openMeteoLng: 47.675,
+    meanDischarge: 8,
+    dangerDischarge: 50,
+  },
 ];
 
 /** Get a station key for deduplication (riverName + stationName) */

@@ -28,6 +28,10 @@ export interface HistoryPoint {
   dischargeCubicM: number | null;
   dischargeMean: number | null;
   dischargeMax: number | null;
+  dischargeMedian?: number | null;
+  dischargeMin?: number | null;
+  dischargeP25?: number | null;
+  dischargeP75?: number | null;
   isForecast: boolean;
   measuredAt: string;
 }
@@ -46,6 +50,8 @@ interface ChartPoint {
   dateISO: string;    // full ISO for tooltip
   value: number | null;
   forecast: number | null;
+  p25: number | null;
+  p75: number | null;
 }
 
 function formatDate(iso: string): string {
@@ -118,6 +124,8 @@ export function GaugeChart({
           dateISO: p.measuredAt,
           value: p.isForecast ? null : v,
           forecast: p.isForecast ? v : null,
+          p25: mode === "discharge" ? (p.dischargeP25 ?? null) : null,
+          p75: mode === "discharge" ? (p.dischargeP75 ?? null) : null,
         };
       });
 
@@ -133,6 +141,8 @@ export function GaugeChart({
           dateISO: lastObserved.dateISO,
           value: lastObserved.value,
           forecast: lastObserved.value,
+          p25: lastObserved.p25,
+          p75: lastObserved.p75,
         });
       }
     }
@@ -142,14 +152,17 @@ export function GaugeChart({
 
   if (chartData.length < 2) return null;
 
-  // Calculate Y domain to include danger line and mean range
+  // Check if we have real p25/p75 data
+  const hasPercentiles = chartData.some((p) => p.p25 !== null && p.p75 !== null);
+
+  // Calculate Y domain to include danger line and range
   const allValues = chartData
-    .flatMap((p) => [p.value, p.forecast])
+    .flatMap((p) => [p.value, p.forecast, p.p25, p.p75])
     .filter((v): v is number => v !== null);
   const dataMin = Math.min(...allValues);
   const dataMax = Math.max(...allValues, dangerVal);
-  const rangeMin = meanVal > 0 ? meanVal * 0.7 : dataMin * 0.8;
-  const rangeMax = meanVal > 0 ? meanVal * 1.3 : 0;
+  const rangeMin = hasPercentiles ? dataMin : (meanVal > 0 ? meanVal * 0.7 : dataMin * 0.8);
+  const rangeMax = hasPercentiles ? dataMax : (meanVal > 0 ? meanVal * 1.3 : 0);
   const yMin = Math.max(0, Math.floor(Math.min(dataMin * 0.85, rangeMin) / 10) * 10);
   const yMax = Math.ceil(Math.max(dataMax * 1.1, rangeMax, dangerVal * 1.05));
 
@@ -161,8 +174,33 @@ export function GaugeChart({
       <p className="gauge-chart-label">7 дней — наблюдение + прогноз:</p>
       <ResponsiveContainer width="100%" height={180}>
         <ComposedChart data={chartData} margin={{ top: 8, right: 12, bottom: 0, left: -16 }}>
-          {/* Typical range band (mean ±30%) */}
-          {meanVal > 0 && (
+          {/* Historical range band — real p25/p75 or synthetic ±30% of mean */}
+          {hasPercentiles ? (
+            <>
+              <Area
+                type="monotone"
+                dataKey="p75"
+                stroke="none"
+                fill="#94A3B8"
+                fillOpacity={0.12}
+                connectNulls
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+              />
+              <Area
+                type="monotone"
+                dataKey="p25"
+                stroke="none"
+                fill="#fff"
+                fillOpacity={1}
+                connectNulls
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+              />
+            </>
+          ) : meanVal > 0 ? (
             <ReferenceArea
               y1={meanVal * 0.7}
               y2={meanVal * 1.3}
@@ -170,7 +208,7 @@ export function GaugeChart({
               fillOpacity={0.1}
               ifOverflow="extendDomain"
             />
-          )}
+          ) : null}
 
           <XAxis
             dataKey="date"
@@ -280,6 +318,11 @@ export function GaugeChart({
         {meanVal > 0 && (
           <span className="gauge-chart-legend-item">
             <span className="gauge-chart-legend-line gauge-chart-legend-line--mean" /> норма
+          </span>
+        )}
+        {hasPercentiles && (
+          <span className="gauge-chart-legend-item">
+            <span className="gauge-chart-legend-swatch" /> 25–75%
           </span>
         )}
       </div>

@@ -142,6 +142,10 @@ export interface RiverLevel {
   dischargeCubicM: number | null;
   dischargeMean: number | null;
   dischargeMax: number | null;
+  dischargeMedian: number | null;
+  dischargeMin: number | null;
+  dischargeP25: number | null;
+  dischargeP75: number | null;
   dataSource: string | null;
   isForecast: boolean;
   trend: RiverTrend;

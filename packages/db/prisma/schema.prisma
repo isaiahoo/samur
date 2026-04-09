@@ -253,6 +253,10 @@ model RiverLevel {
   dischargeCubicM Float?     @map("discharge_cubic_m")
   dischargeMean   Float?     @map("discharge_mean")
   dischargeMax    Float?     @map("discharge_max")
+  dischargeMedian Float?     @map("discharge_median")
+  dischargeMin    Float?     @map("discharge_min")
+  dischargeP25    Float?     @map("discharge_p25")
+  dischargeP75    Float?     @map("discharge_p75")
   dataSource      String?    @map("data_source")
   isForecast      Boolean    @default(false) @map("is_forecast")
   trend           RiverTrend

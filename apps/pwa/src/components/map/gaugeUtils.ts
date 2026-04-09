@@ -83,9 +83,9 @@ export function computeTier(r: RiverLevel): GaugeTier {
       return { tier: 4, label: TIER_LABELS[4], color: TIER_COLORS[4], pctOfMean: pct, hasData: true };
     }
 
-    if (ratio > 3.5) return { tier: 4, label: TIER_LABELS[4], color: TIER_COLORS[4], pctOfMean: pct, hasData: true };
-    if (ratio > 2.5) return { tier: 3, label: TIER_LABELS[3], color: TIER_COLORS[3], pctOfMean: pct, hasData: true };
-    if (ratio > 1.5) return { tier: 2, label: TIER_LABELS[2], color: TIER_COLORS[2], pctOfMean: pct, hasData: true };
+    if (ratio > 2.5) return { tier: 4, label: TIER_LABELS[4], color: TIER_COLORS[4], pctOfMean: pct, hasData: true };
+    if (ratio > 1.5) return { tier: 3, label: TIER_LABELS[3], color: TIER_COLORS[3], pctOfMean: pct, hasData: true };
+    if (ratio > 1.15) return { tier: 2, label: TIER_LABELS[2], color: TIER_COLORS[2], pctOfMean: pct, hasData: true };
     return { tier: 1, label: TIER_LABELS[1], color: TIER_COLORS[1], pctOfMean: pct, hasData: true };
   }
 
@@ -166,9 +166,9 @@ export function computeForecastWarning(
         tier = 4;
       } else if (mean > 0) {
         const ratio = value / mean;
-        if (ratio > 3.5) tier = 4;
-        else if (ratio > 2.5) tier = 3;
-        else if (ratio > 1.5) tier = 2;
+        if (ratio > 2.5) tier = 4;
+        else if (ratio > 1.5) tier = 3;
+        else if (ratio > 1.15) tier = 2;
       }
     } else if (mode === "cm" && p.levelCm !== null && p.levelCm > 0) {
       value = p.levelCm;
@@ -233,14 +233,17 @@ export function heatWeight(r: RiverLevel): number {
  */
 export const RIVER_CHAINS: Record<string, string[]> = {
   "Самур": ["Усухчай", "Ахты", "Лучек", "Устье (дельта)"],
-  "Сулак": ["Красный Мост", "Чиркота", "Миатлы", "Языковка", "Сулак"],
-  "Терек": ["Хангаш-Юрт", "Аликазган", "Каргалинский гидроузел"],
+  "Сулак": ["Кули", "Гергебиль", "Красный Мост", "Чиркота", "Миатлы", "Языковка", "Сулак"],
+  "Терек": ["Хангаш-Юрт", "Хасавюрт", "Аликазган", "Каргалинский гидроузел"],
 };
 
 /** Tributaries that feed into a main river */
 export const TRIBUTARY_MAP: Record<string, string> = {
   "Аварское Койсу": "Сулак",
   "Андийское Койсу": "Сулак",
+  "Казикумухское Койсу": "Сулак",
+  "Кара-Койсу": "Сулак",
+  "Аксай": "Терек",
 };
 
 export interface UpstreamWarning {

@@ -17,6 +17,10 @@ export interface DischargeReading {
   discharge: number;               // m³/s
   dischargeMean: number | null;    // historical mean for this calendar day
   dischargeMax: number | null;     // historical max for this calendar day
+  dischargeMedian: number | null;  // historical median for this calendar day
+  dischargeMin: number | null;     // historical min for this calendar day
+  dischargeP25: number | null;     // 25th percentile for this calendar day
+  dischargeP75: number | null;     // 75th percentile for this calendar day
   isForecast: boolean;
 }
 
@@ -25,6 +29,10 @@ interface OpenMeteoDaily {
   river_discharge?: (number | null)[];
   river_discharge_mean?: (number | null)[];
   river_discharge_max?: (number | null)[];
+  river_discharge_median?: (number | null)[];
+  river_discharge_min?: (number | null)[];
+  river_discharge_p25?: (number | null)[];
+  river_discharge_p75?: (number | null)[];
 }
 
 interface OpenMeteoSingleResponse {
@@ -95,7 +103,7 @@ export async function fetchDischargeForStations(
 
   const url =
     `${FLOOD_API_BASE}?latitude=${lats}&longitude=${lngs}` +
-    `&daily=river_discharge,river_discharge_mean,river_discharge_max` +
+    `&daily=river_discharge,river_discharge_mean,river_discharge_max,river_discharge_median,river_discharge_min,river_discharge_p25,river_discharge_p75` +
     `&past_days=7&forecast_days=7`;
 
   log.info({ stationCount: calibrated.length, url }, "Fetching Open-Meteo discharge data");
@@ -131,7 +139,10 @@ export async function fetchDischargeForStations(
       continue;
     }
 
-    const { time, river_discharge, river_discharge_mean, river_discharge_max } = resp.daily;
+    const {
+      time, river_discharge, river_discharge_mean, river_discharge_max,
+      river_discharge_median, river_discharge_min, river_discharge_p25, river_discharge_p75,
+    } = resp.daily;
 
     if (time.length !== river_discharge.length) {
       log.warn({ station: key, timeLen: time.length, dataLen: river_discharge.length },
@@ -150,6 +161,10 @@ export async function fetchDischargeForStations(
         discharge: Math.round(discharge * 100) / 100,
         dischargeMean: river_discharge_mean?.[j] ?? null,
         dischargeMax: river_discharge_max?.[j] ?? null,
+        dischargeMedian: river_discharge_median?.[j] ?? null,
+        dischargeMin: river_discharge_min?.[j] ?? null,
+        dischargeP25: river_discharge_p25?.[j] ?? null,
+        dischargeP75: river_discharge_p75?.[j] ?? null,
         isForecast: time[j] > today,
       });
     }

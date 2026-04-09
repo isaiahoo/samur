@@ -576,6 +576,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .gauge-chart-legend-line--forecast { border-color: #3B82F6; border-top-style: dashed; }
 .gauge-chart-legend-line--danger { border-color: #EF4444; border-top-style: dashed; }
 .gauge-chart-legend-line--mean { border-color: #94A3B8; border-top-style: dashed; }
+.gauge-chart-legend-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 8px;
+  background: #94A3B8;
+  opacity: 0.25;
+  border-radius: 1px;
+}
 
 /* ── Gauge card forecast line ───────────────────────────────────────────── */
 .gauge-card-forecast {
