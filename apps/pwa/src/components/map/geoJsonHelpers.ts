@@ -127,3 +127,25 @@ export function toPrecipitationGeoJSON(points: PrecipitationPoint[]): FeatureCol
       ),
   };
 }
+
+/** GeoJSON for soil moisture grid heatmap */
+export interface SoilMoisturePoint {
+  lat: number;
+  lng: number;
+  moisture: number; // m³/m³ volumetric water content (0.1–0.5)
+}
+
+export function toSoilMoistureGeoJSON(points: SoilMoisturePoint[]): FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: points
+      .filter((p) => p.moisture > 0.15) // skip very dry points (no flood risk)
+      .map((p) =>
+        point(p.lng, p.lat, {
+          moisture: p.moisture,
+          // Normalize: 0.15–0.50 → 0–1 scale for heatmap weight
+          intensity: Math.min(Math.max((p.moisture - 0.15) / 0.35, 0), 1.0),
+        }),
+      ),
+  };
+}

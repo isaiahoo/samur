@@ -2,6 +2,7 @@
 
 import { Router } from "express";
 import { getCachedPrecipitation } from "../services/precipitationClient.js";
+import { getCachedSoilMoisture } from "../services/soilMoistureClient.js";
 
 const router = Router();
 
@@ -24,6 +25,30 @@ router.get("/precipitation", (_req, res) => {
     meta: {
       points: data.length,
       unit: "mm/24h",
+    },
+  });
+});
+
+/**
+ * GET /api/v1/weather/soil-moisture
+ *
+ * Returns soil moisture grid for heatmap display.
+ * Values are volumetric water content (m³/m³): 0.1=dry, 0.3=normal, 0.45+=saturated.
+ * Data is cached in-memory, refreshed every 6 hours by the scheduler.
+ */
+router.get("/soil-moisture", (_req, res) => {
+  const data = getCachedSoilMoisture();
+
+  res.json({
+    success: true,
+    data: data.map((p) => ({
+      lat: p.lat,
+      lng: p.lng,
+      moisture: p.moisture,
+    })),
+    meta: {
+      points: data.length,
+      unit: "m³/m³",
     },
   });
 });

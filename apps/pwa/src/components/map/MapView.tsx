@@ -21,7 +21,9 @@ import {
   toSheltersGeoJSON,
   toRiverLevelsGeoJSON,
   toPrecipitationGeoJSON,
+  toSoilMoistureGeoJSON,
   type PrecipitationPoint,
+  type SoilMoisturePoint,
 } from "./geoJsonHelpers.js";
 import { computeTier, trendArrow, checkUpstreamDanger, type GaugeTier } from "./gaugeUtils.js";
 import {
@@ -38,6 +40,7 @@ interface Props {
   shelters: Shelter[];
   riverLevels: RiverLevel[];
   precipitation: PrecipitationPoint[];
+  soilMoisture: SoilMoisturePoint[];
   layers: Record<string, boolean>;
   crisisMode?: boolean;
   onMarkerClick: (type: string, item: unknown) => void;
@@ -95,6 +98,7 @@ export const MapView = memo(function MapView({
   shelters,
   riverLevels,
   precipitation,
+  soilMoisture,
   layers,
   crisisMode,
   onMarkerClick,
@@ -169,6 +173,9 @@ export const MapView = memo(function MapView({
 
       // Precipitation forecast heatmap source
       map.addSource("precipHeatmap", { type: "geojson", data: EMPTY_FC });
+
+      // Soil moisture heatmap source
+      map.addSource("soilMoistureHeatmap", { type: "geojson", data: EMPTY_FC });
 
       // ── Incident layers ──────────────────────────────────────────────────
 
@@ -348,6 +355,45 @@ export const MapView = memo(function MapView({
         },
       });
 
+      // ── Soil moisture heatmap (earth tones: transparent → cyan → blue → purple) ──
+
+      map.addLayer({
+        id: "soil-moisture-heatmap",
+        type: "heatmap",
+        source: "soilMoistureHeatmap",
+        paint: {
+          "heatmap-weight": ["get", "intensity"],
+          "heatmap-intensity": [
+            "interpolate", ["linear"], ["zoom"],
+            6, 0.6,
+            10, 1.2,
+            14, 1.8,
+          ],
+          "heatmap-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            6, 25,
+            9, 50,
+            12, 70,
+          ],
+          // Color ramp: transparent → cyan (normal) → blue (wet) → purple (saturated)
+          "heatmap-color": [
+            "interpolate", ["linear"], ["heatmap-density"],
+            0, "rgba(0,0,0,0)",
+            0.15, "rgba(165,243,252,0.3)",  // light cyan (normal moisture)
+            0.35, "rgba(6,182,212,0.45)",   // #06B6D4 cyan (elevated)
+            0.6, "rgba(59,130,246,0.55)",   // #3B82F6 blue (wet)
+            0.85, "rgba(139,92,246,0.65)",  // #8B5CF6 purple (saturated)
+            1.0, "rgba(109,40,217,0.7)",    // #6D28D9 deep purple (very saturated)
+          ],
+          "heatmap-opacity": [
+            "interpolate", ["linear"], ["zoom"],
+            7, 0.45,
+            11, 0.35,
+            14, 0.2,
+          ],
+        },
+      });
+
       // ── Shelter layer ────────────────────────────────────────────────────
 
       map.addLayer({
@@ -501,6 +547,7 @@ export const MapView = memo(function MapView({
   useEffect(() => updateSource("shelters", toSheltersGeoJSON(shelters)), [shelters, updateSource]);
   useEffect(() => updateSource("riverHeatmap", toRiverLevelsGeoJSON(riverLevels)), [riverLevels, updateSource]);
   useEffect(() => updateSource("precipHeatmap", toPrecipitationGeoJSON(precipitation)), [precipitation, updateSource]);
+  useEffect(() => updateSource("soilMoistureHeatmap", toSoilMoistureGeoJSON(soilMoisture)), [soilMoisture, updateSource]);
 
   // ── Gauge station HTML markers ──────────────────────────────────────────
 
@@ -649,6 +696,7 @@ export const MapView = memo(function MapView({
       shelters: ["shelters"],
       floodHeatmap: ["river-heatmap"],
       precipitation: ["precip-heatmap"],
+      soilMoisture: ["soil-moisture-heatmap"],
     };
 
     for (const [key, layerIds] of Object.entries(layerGroups)) {

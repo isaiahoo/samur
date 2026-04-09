@@ -16,8 +16,8 @@ import { ReportForm } from "../components/map/ReportForm.js";
 import { UrgencyBadge } from "../components/UrgencyBadge.js";
 import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning, checkUpstreamDanger } from "../components/map/gaugeUtils.js";
 import { GaugeChart, type HistoryPoint } from "../components/map/GaugeChart.js";
-import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory, getRiverLevelForecast, getPrecipitation } from "../services/api.js";
-import type { PrecipitationPoint } from "../components/map/geoJsonHelpers.js";
+import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory, getRiverLevelForecast, getPrecipitation, getSoilMoisture } from "../services/api.js";
+import type { PrecipitationPoint, SoilMoisturePoint } from "../components/map/geoJsonHelpers.js";
 import { cacheItems, getCachedItems } from "../services/db.js";
 import { useSocketEvent, useSocketSubscription } from "../hooks/useSocket.js";
 import { useGeolocation } from "../hooks/useGeolocation.js";
@@ -31,6 +31,7 @@ export function MapPage() {
   const [shelters, setShelters] = useState<Shelter[]>([]);
   const [riverLevels, setRiverLevels] = useState<RiverLevel[]>([]);
   const [precipitation, setPrecipitation] = useState<PrecipitationPoint[]>([]);
+  const [soilMoisture, setSoilMoisture] = useState<SoilMoisturePoint[]>([]);
   const [showReport, setShowReport] = useState(false);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
 
@@ -51,6 +52,7 @@ export function MapPage() {
     riverLevels: true,
     floodHeatmap: true,
     precipitation: false,
+    soilMoisture: false,
   }));
 
   const boundsRef = useRef<MapBounds | null>(null);
@@ -76,6 +78,14 @@ export function MapPage() {
     try {
       const res = await getPrecipitation();
       if (res?.data) setPrecipitation(res.data);
+    } catch { /* ignore — optional overlay */ }
+  }, []);
+
+  // Soil moisture grid — fetch once on mount (cached on backend for 6h)
+  const fetchSoilMoistureData = useCallback(async () => {
+    try {
+      const res = await getSoilMoisture();
+      if (res?.data) setSoilMoisture(res.data);
     } catch { /* ignore — optional overlay */ }
   }, []);
 
@@ -139,14 +149,15 @@ export function MapPage() {
     }
   }, []);
 
-  // Initial data fetch — river levels + precipitation + forecast loaded once, rest refetched on map move
+  // Initial data fetch — river levels + precipitation + soil moisture + forecast loaded once, rest refetched on map move
   useEffect(() => {
     fetchData();
     fetchRiverLevels();
     fetchPrecipData();
+    fetchSoilMoistureData();
     fetchForecastData();
     return () => { if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current); };
-  }, [fetchData, fetchRiverLevels, fetchPrecipData, fetchForecastData]);
+  }, [fetchData, fetchRiverLevels, fetchPrecipData, fetchSoilMoistureData, fetchForecastData]);
 
   useEffect(() => {
     requestPosition();
@@ -270,6 +281,7 @@ export function MapPage() {
     { key: "riverLevels", label: "Уровень рек", active: layers.riverLevels },
     { key: "floodHeatmap", label: "Зона затопления", active: layers.floodHeatmap },
     { key: "precipitation", label: "Осадки", active: layers.precipitation },
+    { key: "soilMoisture", label: "Влажность почвы", active: layers.soilMoisture },
   ];
 
   return (
@@ -280,6 +292,7 @@ export function MapPage() {
         shelters={shelters}
         riverLevels={effectiveRiverLevels}
         precipitation={precipitation}
+        soilMoisture={soilMoisture}
         layers={layers}
         crisisMode={crisisMode}
         onMarkerClick={handleMarkerClick}

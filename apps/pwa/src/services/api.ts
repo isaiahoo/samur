@@ -238,6 +238,10 @@ export function getPrecipitation() {
   return request<ApiResponse<Array<{ lat: number; lng: number; precipitation: number }>>>("/weather/precipitation");
 }
 
+export function getSoilMoisture() {
+  return request<ApiResponse<Array<{ lat: number; lng: number; moisture: number }>>>("/weather/soil-moisture");
+}
+
 export function getMapClusters(params: Record<string, string | number>) {
   const qs = "?" + new URLSearchParams(toStringRecord(params)).toString();
   return request<ApiResponse>(`/map/clusters${qs}`);
