@@ -7,8 +7,8 @@
  * color surface via spatial interpolation — the same technique
  * used by NASA SMAP, Windy, and Copernicus for environmental data.
  *
- * Color scheme: Brown (dry) → White (normal) → Blue (saturated)
- * following the scientific BrBG convention.
+ * Color scheme: Amber (dry) → Green (normal) → Blue (wet) → Indigo (saturated)
+ * Vivid, high-contrast palette designed for map overlays (no washed-out midpoints).
  */
 
 import type { SoilMoisturePoint } from "./geoJsonHelpers.js";
@@ -22,20 +22,21 @@ export const SOIL_BOUNDS = {
   west: 45.5,
 } as const;
 
-// ── Brown-to-Blue diverging color ramp (BrBG) ──────────────────────────
-// Matches NASA SMAP / ECMWF / Copernicus conventions
+// ── Vivid color ramp for map overlay ────────────────────────────────────
+// No white/gray midpoints — every stop is a saturated, visible color.
+// Amber → Yellow-Green → Green → Teal → Blue → Indigo
 
 interface RGB { r: number; g: number; b: number }
 
 const COLOR_STOPS: Array<{ val: number; color: RGB }> = [
-  { val: 0.08, color: { r: 140, g: 81, b: 10 } },   // #8C510A — very dry (brown)
-  { val: 0.15, color: { r: 191, g: 129, b: 45 } },   // #BF812D — dry
-  { val: 0.22, color: { r: 223, g: 194, b: 125 } },  // #DFC27D — slightly dry (tan)
-  { val: 0.28, color: { r: 246, g: 232, b: 195 } },  // #F6E8C3 — normal-dry
-  { val: 0.32, color: { r: 199, g: 234, b: 229 } },  // #C7EAE5 — normal-wet
-  { val: 0.36, color: { r: 128, g: 205, b: 193 } },  // #80CDC1 — moist
-  { val: 0.42, color: { r: 53, g: 151, b: 143 } },   // #35978F — wet
-  { val: 0.50, color: { r: 1, g: 102, b: 94 } },     // #01665E — saturated (dark teal)
+  { val: 0.08, color: { r: 180, g: 83, b: 9 } },    // #B45309 — very dry (burnt amber)
+  { val: 0.14, color: { r: 217, g: 119, b: 6 } },    // #D97706 — dry (amber)
+  { val: 0.20, color: { r: 234, g: 179, b: 8 } },    // #EAB308 — warm (yellow)
+  { val: 0.26, color: { r: 132, g: 204, b: 22 } },   // #84CC16 — normal-dry (lime)
+  { val: 0.32, color: { r: 34, g: 197, b: 94 } },    // #22C55E — normal (green)
+  { val: 0.38, color: { r: 20, g: 184, b: 166 } },   // #14B8A6 — moist (teal)
+  { val: 0.44, color: { r: 59, g: 130, b: 246 } },   // #3B82F6 — wet (blue)
+  { val: 0.50, color: { r: 79, g: 70, b: 229 } },    // #4F46E5 — saturated (indigo)
 ];
 
 function moistureToRGB(moisture: number): RGB {
@@ -91,7 +92,7 @@ const CANVAS_H = 100;
  */
 export function generateSoilMoistureImage(
   points: SoilMoisturePoint[],
-  alpha = 180, // 0-255, controls overlay transparency
+  alpha = 255, // full opacity — transparency controlled by MapLibre raster-opacity
 ): string | null {
   if (points.length === 0) return null;
 

@@ -516,7 +516,7 @@ export const MapView = memo(function MapView({
     const map = mapRef.current;
     if (!map || !mapReady || soilMoisture.length === 0) return;
 
-    const dataUrl = generateSoilMoistureImage(soilMoisture, 160);
+    const dataUrl = generateSoilMoistureImage(soilMoisture);
     if (!dataUrl) return;
 
     const { north, south, east, west } = SOIL_BOUNDS;
@@ -544,7 +544,7 @@ export const MapView = memo(function MapView({
           type: "raster",
           source: "soilMoistureImg",
           paint: {
-            "raster-opacity": 0.55,
+            "raster-opacity": 0.5,
             "raster-fade-duration": 0,
           },
         },
