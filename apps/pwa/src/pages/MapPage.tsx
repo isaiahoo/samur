@@ -32,7 +32,6 @@ export function MapPage() {
   const [riverLevels, setRiverLevels] = useState<RiverLevel[]>([]);
   const [precipitation, setPrecipitation] = useState<PrecipitationPoint[]>([]);
   const [showReport, setShowReport] = useState(false);
-  const [layerMenuOpen, setLayerMenuOpen] = useState(false);
 
   // Timeline scrubber state
   type ForecastReading = {
@@ -58,6 +57,8 @@ export function MapPage() {
   const { position, requestPosition } = useGeolocation();
   const openSheet = useUIStore((s) => s.openSheet);
   const closeSheet = useUIStore((s) => s.closeSheet);
+  const setCrisis = useUIStore((s) => s.setCrisis);
+  const crisisMode = useUIStore((s) => s.crisisMode);
 
   useSocketSubscription(position?.lat ?? null, position?.lng ?? null, 50000);
 
@@ -227,6 +228,18 @@ export function MapPage() {
     return { timelineDates: allDates, effectiveRiverLevels: derived };
   }, [forecastData, riverLevels, timelineIndex]);
 
+  // ── Crisis detection: activate when any station reaches Tier 4 ──
+  useEffect(() => {
+    const rivers: string[] = [];
+    for (const r of effectiveRiverLevels) {
+      const t = computeTier(r);
+      if (t.tier === 4 && t.hasData && !rivers.includes(r.riverName)) {
+        rivers.push(r.riverName);
+      }
+    }
+    setCrisis(rivers.length > 0, rivers);
+  }, [effectiveRiverLevels, setCrisis]);
+
   const handleTimelineChange = useCallback((index: number) => {
     setTimelineIndex(index);
   }, []);
@@ -267,6 +280,7 @@ export function MapPage() {
         riverLevels={effectiveRiverLevels}
         precipitation={precipitation}
         layers={layers}
+        crisisMode={crisisMode}
         onMarkerClick={handleMarkerClick}
         onMapMove={handleMapMove}
       />
@@ -275,8 +289,6 @@ export function MapPage() {
         <LayerToggle
           layers={layerConfigs}
           onToggle={toggleLayer}
-          open={layerMenuOpen}
-          onOpenChange={setLayerMenuOpen}
         />
       </div>
 
@@ -293,7 +305,7 @@ export function MapPage() {
         onClick={() => setShowReport(true)}
         aria-label="Сообщить"
       >
-        <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+        <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
           <path d="M12 5v14M5 12h14" />
         </svg>
       </button>

@@ -39,6 +39,7 @@ interface Props {
   riverLevels: RiverLevel[];
   precipitation: PrecipitationPoint[];
   layers: Record<string, boolean>;
+  crisisMode?: boolean;
   onMarkerClick: (type: string, item: unknown) => void;
   onMapMove?: (bounds: { north: number; south: number; east: number; west: number }, zoom: number) => void;
 }
@@ -95,6 +96,7 @@ export const MapView = memo(function MapView({
   riverLevels,
   precipitation,
   layers,
+  crisisMode,
   onMarkerClick,
   onMapMove,
 }: Props) {
@@ -664,6 +666,20 @@ export const MapView = memo(function MapView({
       entry.element.style.display = gaugeVis ? "" : "none";
     }
   }, [layers, mapReady]);
+
+  // ── Crisis mode: desaturate basemap raster tiles ────────────────────────
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    const style = map.getStyle();
+    if (!style?.layers) return;
+    for (const layer of style.layers) {
+      if (layer.type === "raster") {
+        map.setPaintProperty(layer.id, "raster-saturation", crisisMode ? -0.5 : 0);
+      }
+    }
+  }, [crisisMode, mapReady]);
 
   return <div ref={containerRef} className="map-container" />;
 });

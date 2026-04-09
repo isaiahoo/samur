@@ -9,14 +9,26 @@ export function Layout() {
   const unread = useUIStore((s) => s.unreadAlerts);
   const sheetContent = useUIStore((s) => s.sheetContent);
   const closeSheet = useUIStore((s) => s.closeSheet);
+  const crisisMode = useUIStore((s) => s.crisisMode);
+  const crisisRivers = useUIStore((s) => s.crisisRivers);
   const online = useOnline();
 
   return (
-    <div className="app-layout">
+    <div className={`app-layout${crisisMode ? " crisis-mode" : ""}`}>
       <header className="app-header">
         <h1 className="app-title">Самур</h1>
         {!online && <span className="offline-badge">Офлайн</span>}
       </header>
+
+      {crisisMode && (
+        <div className="crisis-banner">
+          <span className="crisis-chevron" />
+          <span className="crisis-banner-text">
+            КРИТИЧЕСКАЯ СИТУАЦИЯ — р. {crisisRivers.join(", р. ")}
+          </span>
+          <span className="crisis-chevron" />
+        </div>
+      )}
 
       <main className="app-main">
         <Outlet />

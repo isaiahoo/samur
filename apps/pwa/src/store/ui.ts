@@ -13,6 +13,10 @@ interface UIState {
   toast: { message: string; type: "success" | "error" | "info" } | null;
   showToast: (message: string, type?: "success" | "error" | "info") => void;
   clearToast: () => void;
+
+  crisisMode: boolean;
+  crisisRivers: string[];
+  setCrisis: (mode: boolean, rivers: string[]) => void;
 }
 
 export const useUIStore = create<UIState>()((set) => ({
@@ -30,4 +34,8 @@ export const useUIStore = create<UIState>()((set) => ({
     setTimeout(() => set({ toast: null }), 4000);
   },
   clearToast: () => set({ toast: null }),
+
+  crisisMode: false,
+  crisisRivers: [],
+  setCrisis: (mode, rivers) => set({ crisisMode: mode, crisisRivers: rivers }),
 }));
