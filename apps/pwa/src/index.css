@@ -530,15 +530,35 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 
 /* ── GaugeChart (recharts) ──────────────────────────────────────────────── */
-.gauge-chart-container { margin: 10px 0 6px; }
+.gauge-chart-container {
+  margin: 10px 0 6px;
+  background: #FAFBFC;
+  border-radius: 10px;
+  padding: 12px 8px 8px;
+  border: 1px solid #E8ECF0;
+}
+.gauge-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+.gauge-chart-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  letter-spacing: -0.1px;
+}
 .gauge-chart-label { font-size: 12px; color: #64748b; margin-bottom: 6px; }
 .gauge-chart-loading {
-  height: 180px;
+  height: 210px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f8fafc;
-  border-radius: 8px;
+  background: #FAFBFC;
+  border-radius: 10px;
+  border: 1px solid #E8ECF0;
   font-size: 13px;
   color: #94a3b8;
   margin: 10px 0 6px;
@@ -547,42 +567,39 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .gauge-chart-tooltip {
   background: #fff;
   border: 1px solid #E2E8F0;
-  border-radius: 8px;
-  padding: 8px 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
   font-size: 12px;
+  min-width: 120px;
 }
-.gauge-chart-tooltip-date { color: #64748b; margin-bottom: 2px; }
-.gauge-chart-tooltip-value { font-weight: 700; color: #1E293B; }
-.gauge-chart-tooltip-forecast { font-weight: 500; color: #94A3B8; }
+.gauge-chart-tooltip-date { color: #64748b; margin-bottom: 3px; font-size: 11px; }
+.gauge-chart-tooltip-value { font-weight: 700; color: #1E293B; font-size: 14px; }
+.gauge-chart-tooltip-forecast { font-weight: 500; color: #94A3B8; font-size: 12px; }
+.gauge-chart-tooltip-status { font-weight: 600; font-size: 11px; margin-top: 3px; }
 
 .gauge-chart-legend {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   font-size: 11px;
   color: #64748b;
-  margin-top: 6px;
+  margin-top: 8px;
+  padding: 0 4px;
   flex-wrap: wrap;
 }
-.gauge-chart-legend-item { display: flex; align-items: center; gap: 4px; }
-.gauge-chart-legend-line {
-  display: inline-block;
-  width: 16px;
-  height: 0;
-  border-top: 2px solid;
-}
-.gauge-chart-legend-line--observed { border-color: #3B82F6; }
-.gauge-chart-legend-line--forecast { border-color: #3B82F6; border-top-style: dashed; }
-.gauge-chart-legend-line--danger { border-color: #EF4444; border-top-style: dashed; }
-.gauge-chart-legend-line--mean { border-color: #94A3B8; border-top-style: dashed; }
-.gauge-chart-legend-swatch {
-  display: inline-block;
-  width: 12px;
+.gauge-chart-legend-item { display: flex; align-items: center; gap: 5px; }
+.gauge-chart-legend-dot {
+  width: 8px;
   height: 8px;
-  background: #94A3B8;
-  opacity: 0.25;
-  border-radius: 1px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.gauge-chart-legend-dot--dashed {
+  background: transparent;
+  border: 2px dashed #60A5FA;
+  width: 8px;
+  height: 8px;
 }
 
 /* ── Gauge card forecast line ───────────────────────────────────────────── */
