@@ -11,7 +11,6 @@ import {
   SEVERITY_LABELS,
   HELP_CATEGORY_LABELS,
   SHELTER_STATUS_LABELS,
-  RIVER_TREND_LABELS,
   AMENITY_LABELS,
 } from "@samur/shared";
 import { formatRelativeTime } from "@samur/shared";
@@ -20,8 +19,15 @@ import {
   toIncidentsGeoJSON,
   toHelpRequestsGeoJSON,
   toSheltersGeoJSON,
-  toRiverLevelsGeoJSON,
 } from "./geoJsonHelpers.js";
+import { computeTier, trendArrow, type GaugeTier } from "./gaugeUtils.js";
+import {
+  createMarkerElement,
+  updateMarkerElement,
+  variantForZoom,
+  type GaugeMarkerData,
+  type MarkerVariant,
+} from "./GaugeMarker.js";
 
 interface Props {
   incidents: Incident[];
@@ -65,73 +71,15 @@ function shelterPopupHTML(p: Record<string, unknown>): string {
   return `<div class="popup-content"><strong>${p.name}</strong><span class="popup-status">${status}</span><p>${p.address}</p><p>Мест: ${p.currentOccupancy}/${p.capacity}</p>${amenities ? `<p>${amenities}</p>` : ""}</div>`;
 }
 
-function trendArrow(trend: string): string {
-  switch (trend) {
-    case "rising": return "↑";
-    case "falling": return "↓";
-    default: return "→";
-  }
-}
+// trendArrow is now imported from gaugeUtils
 
-function staleWarning(measuredAt: string, dataSource: string | null): string {
-  // Seed records have no dataSource — don't show stale warning
-  if (!dataSource) return "";
-  const ageMs = Date.now() - new Date(measuredAt).getTime();
-  const ageHours = ageMs / (1000 * 60 * 60);
-  // Open-Meteo returns daily data — 24h old is normal, not stale
-  const staleThreshold = dataSource === "open-meteo" ? 48 : 6;
-  const warnThreshold = dataSource === "open-meteo" ? 24 : 2;
-  if (ageHours > staleThreshold) return `<div class="popup-stale">⚠ Данные устарели (${Math.round(ageHours)}ч назад)</div>`;
-  if (ageHours > warnThreshold) return `<div class="popup-stale-warn">Обновлено ${Math.round(ageHours)}ч назад</div>`;
-  return "";
-}
+// staleWarning + riverPopupHTML removed — gauge stations now use HTML markers + bottom sheet detail panel
 
-function riverPopupHTML(p: Record<string, unknown>): string {
-  const trend = RIVER_TREND_LABELS[p.trend as string] ?? p.trend;
-  const arrow = trendArrow(p.trend as string);
-  const time = formatRelativeTime(p.measuredAt as string);
-  const dataSource = (p.dataSource as string) ?? null;
-  const stale = staleWarning(p.measuredAt as string, dataSource);
-
-  const levelCm = p.levelCm !== null && p.levelCm !== undefined ? Number(p.levelCm) : null;
-  const discharge = p.dischargeCubicM !== null && p.dischargeCubicM !== undefined ? Number(p.dischargeCubicM) : null;
-  const dischargeMean = p.dischargeMean !== null && p.dischargeMean !== undefined ? Number(p.dischargeMean) : null;
-  const dischargeMax = p.dischargeMax !== null && p.dischargeMax !== undefined ? Number(p.dischargeMax) : null;
-
-  let barHtml = "";
-  let levelHtml = "";
-
-  if (levelCm !== null && levelCm > 0) {
-    // CM mode
-    const dangerCm = Number(p.dangerLevelCm) || 1;
-    const pct = Math.round((levelCm / dangerCm) * 100);
-    const barColor = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F97316" : pct >= 60 ? "#F59E0B" : "#3B82F6";
-    barHtml = `<div class="popup-river-bar"><div style="width:${Math.min(pct, 100)}%;background:${barColor}"></div></div>`;
-    levelHtml = `<p class="popup-river-level">${arrow} ${levelCm} / ${dangerCm} см (${pct}%)</p>`;
-  } else if (discharge !== null && discharge > 0) {
-    // Discharge mode — bar relative to mean (normal flow)
-    const ref = dischargeMean ?? discharge;
-    const pctMean = Math.round((discharge / ref) * 100);
-    // Color: blue=normal, yellow=150%+, orange=200%+, red=300%+ of mean
-    const barColor = pctMean >= 300 ? "#EF4444" : pctMean >= 200 ? "#F97316" : pctMean >= 150 ? "#F59E0B" : "#3B82F6";
-    const barWidth = Math.min(Math.round((discharge / (ref * 3)) * 100), 100);
-    barHtml = `<div class="popup-river-bar"><div style="width:${barWidth}%;background:${barColor}"></div></div>`;
-    const meanStr = dischargeMean ? ` (${pctMean}% от нормы)` : "";
-    levelHtml = `<p class="popup-river-level">${arrow} ${discharge} м³/с${meanStr}</p>`;
-  } else {
-    levelHtml = `<p class="popup-river-level">Нет данных</p>`;
-  }
-
-  const hasData = (levelCm !== null && levelCm > 0) || (discharge !== null && discharge > 0);
-
-  return `<div class="popup-content popup-river">
-    <strong>${p.riverName} — ${p.stationName}</strong>
-    ${stale}
-    ${barHtml}
-    ${levelHtml}
-    ${hasData ? `<p>Тренд: ${trend}</p>` : ""}
-    ${hasData ? `<small>${time}</small>` : ""}
-  </div>`;
+/** Set z-index on the MapLibre marker so danger markers render on top */
+function applyMarkerZIndex(marker: maplibregl.Marker, tier: GaugeTier) {
+  // maplibregl.Marker.getElement() returns the root container div
+  const el = marker.getElement();
+  if (el) el.style.zIndex = String(tier.hasData ? tier.tier : 0);
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -208,7 +156,7 @@ export const MapView = memo(function MapView({
       });
 
       map.addSource("shelters", { type: "geojson", data: EMPTY_FC });
-      map.addSource("riverLevels", { type: "geojson", data: EMPTY_FC });
+      // riverLevels source removed — gauge stations now use HTML markers
 
       // ── Incident layers ──────────────────────────────────────────────────
 
@@ -329,27 +277,7 @@ export const MapView = memo(function MapView({
         },
       });
 
-      // ── River level layer ────────────────────────────────────────────────
-
-      map.addLayer({
-        id: "rivers",
-        type: "circle",
-        source: "riverLevels",
-        paint: {
-          "circle-color": [
-            "interpolate",
-            ["linear"],
-            ["get", "dangerRatio"],
-            0, "#3B82F6",
-            0.6, "#F59E0B",
-            0.8, "#F97316",
-            1.0, "#EF4444",
-          ],
-          "circle-radius": 9,
-          "circle-stroke-width": 2.5,
-          "circle-stroke-color": "#fff",
-        },
-      });
+      // River level layer removed — gauge stations now use HTML markers (see gauge marker effect below)
 
       setMapReady(true);
     });
@@ -391,13 +319,13 @@ export const MapView = memo(function MapView({
     showPopup("incidents-unclustered", incidentPopupHTML, "incident");
     showPopup("help-unclustered", helpPopupHTML, "helpRequest");
     showPopup("shelters", shelterPopupHTML, "shelter");
-    showPopup("rivers", riverPopupHTML, "riverLevel");
+    // rivers popup removed — gauge markers handle clicks directly
 
     // Pointer cursor on interactive layers
     const interactiveLayers = [
       "incidents-clusters", "incidents-unclustered",
       "help-clusters", "help-unclustered",
-      "shelters", "rivers",
+      "shelters",
     ];
     for (const layer of interactiveLayers) {
       map.on("mouseenter", layer, () => { map.getCanvas().style.cursor = "pointer"; });
@@ -479,7 +407,139 @@ export const MapView = memo(function MapView({
   useEffect(() => updateSource("incidents", toIncidentsGeoJSON(incidents)), [incidents, updateSource]);
   useEffect(() => updateSource("helpRequests", toHelpRequestsGeoJSON(helpRequests)), [helpRequests, updateSource]);
   useEffect(() => updateSource("shelters", toSheltersGeoJSON(shelters)), [shelters, updateSource]);
-  useEffect(() => updateSource("riverLevels", toRiverLevelsGeoJSON(riverLevels)), [riverLevels, updateSource]);
+
+  // ── Gauge station HTML markers ──────────────────────────────────────────
+
+  const gaugeMarkersRef = useRef<Map<string, {
+    marker: maplibregl.Marker;
+    variant: MarkerVariant;
+    data: GaugeMarkerData;
+    element: HTMLDivElement;
+  }>>(new Map());
+
+  const currentZoomRef = useRef(11);
+
+  // Keep a ref to the latest riverLevels so click handlers aren't stale
+  const riverLevelsRef = useRef(riverLevels);
+  riverLevelsRef.current = riverLevels;
+
+  // Rebuild all gauge markers when riverLevels data changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    const existing = gaugeMarkersRef.current;
+    const activeKeys = new Set<string>();
+    const variant = variantForZoom(currentZoomRef.current);
+
+    for (const r of riverLevels) {
+      const key = `${r.riverName}::${r.stationName}`;
+      activeKeys.add(key);
+
+      const tier = computeTier(r);
+      const arrow = trendArrow(r.trend);
+      const markerData: GaugeMarkerData = {
+        riverName: r.riverName,
+        stationName: r.stationName,
+        arrow,
+        tier,
+      };
+
+      const entry = existing.get(key);
+
+      // Click handler that always reads fresh data from ref
+      const makeClickHandler = (stationKey: string) => () => {
+        const fresh = riverLevelsRef.current.find(
+          (rl) => `${rl.riverName}::${rl.stationName}` === stationKey,
+        );
+        if (fresh) onMarkerClickRef.current("riverLevel", fresh);
+      };
+
+      if (entry) {
+        // Update existing marker
+        const needsRebuild = updateMarkerElement(entry.element, markerData, variant, entry.variant);
+        if (needsRebuild) {
+          const newEl = createMarkerElement(markerData, variant);
+          newEl.addEventListener("click", makeClickHandler(key));
+          entry.marker.remove();
+          const newMarker = new maplibregl.Marker({ element: newEl, anchor: "center" })
+            .setLngLat([r.lng, r.lat])
+            .addTo(map);
+          applyMarkerZIndex(newMarker, tier);
+          existing.set(key, { marker: newMarker, variant, data: markerData, element: newEl });
+        } else {
+          entry.data = markerData;
+          entry.variant = variant;
+          entry.marker.setLngLat([r.lng, r.lat]);
+          applyMarkerZIndex(entry.marker, tier);
+        }
+      } else {
+        // Create new marker
+        const el = createMarkerElement(markerData, variant);
+        el.addEventListener("click", makeClickHandler(key));
+        const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+          .setLngLat([r.lng, r.lat])
+          .addTo(map);
+        applyMarkerZIndex(marker, tier);
+        existing.set(key, { marker, variant, data: markerData, element: el });
+      }
+    }
+
+    // Remove markers for stations that are no longer in the data
+    for (const [key, entry] of existing) {
+      if (!activeKeys.has(key)) {
+        entry.marker.remove();
+        existing.delete(key);
+      }
+    }
+  }, [riverLevels, mapReady]);
+
+  // Zoom change: swap marker variants (dot/pill/card)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    const onZoom = () => {
+      const zoom = map.getZoom();
+      const newVariant = variantForZoom(zoom);
+      const oldVariant = variantForZoom(currentZoomRef.current);
+      currentZoomRef.current = zoom;
+
+      if (newVariant === oldVariant) return;
+
+      // Rebuild all markers with new variant
+      const existing = gaugeMarkersRef.current;
+      for (const [key, entry] of existing) {
+        const newEl = createMarkerElement(entry.data, newVariant);
+        const lngLat = entry.marker.getLngLat();
+        newEl.addEventListener("click", () => {
+          const fresh = riverLevelsRef.current.find(
+            (rl) => `${rl.riverName}::${rl.stationName}` === key,
+          );
+          if (fresh) onMarkerClickRef.current("riverLevel", fresh);
+        });
+        entry.marker.remove();
+        const newMarker = new maplibregl.Marker({ element: newEl, anchor: "center" })
+          .setLngLat(lngLat)
+          .addTo(map);
+        applyMarkerZIndex(newMarker, entry.data.tier);
+        existing.set(key, { marker: newMarker, variant: newVariant, data: entry.data, element: newEl });
+      }
+    };
+
+    map.on("zoomend", onZoom);
+    return () => { map.off("zoomend", onZoom); };
+  }, [mapReady]);
+
+  // Cleanup all gauge markers on unmount
+  useEffect(() => {
+    return () => {
+      for (const entry of gaugeMarkersRef.current.values()) {
+        entry.marker.remove();
+      }
+      gaugeMarkersRef.current.clear();
+    };
+  }, []);
 
   // ── Toggle layer visibility ──────────────────────────────────────────────
 
@@ -491,7 +551,6 @@ export const MapView = memo(function MapView({
       incidents: ["incidents-clusters", "incidents-cluster-count", "incidents-unclustered"],
       helpRequests: ["help-clusters", "help-cluster-count", "help-unclustered"],
       shelters: ["shelters"],
-      riverLevels: ["rivers"],
     };
 
     for (const [key, layerIds] of Object.entries(layerGroups)) {
@@ -501,6 +560,12 @@ export const MapView = memo(function MapView({
           map.setLayoutProperty(id, "visibility", vis);
         }
       }
+    }
+
+    // Toggle gauge HTML markers visibility
+    const gaugeVis = layers.riverLevels;
+    for (const entry of gaugeMarkersRef.current.values()) {
+      entry.element.style.display = gaugeVis ? "" : "none";
     }
   }, [layers, mapReady]);
 

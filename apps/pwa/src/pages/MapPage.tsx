@@ -8,13 +8,13 @@ import {
   URGENCY_LABELS,
   SHELTER_STATUS_LABELS,
   AMENITY_LABELS,
-  RIVER_TREND_LABELS,
 } from "@samur/shared";
 import { formatRelativeTime } from "@samur/shared";
 import { MapView } from "../components/map/MapView.js";
 import { LayerToggle } from "../components/map/LayerToggle.js";
 import { ReportForm } from "../components/map/ReportForm.js";
 import { UrgencyBadge } from "../components/UrgencyBadge.js";
+import { computeTier, trendArrow, TIER_ACTIONS } from "../components/map/gaugeUtils.js";
 import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory } from "../services/api.js";
 import { cacheItems, getCachedItems } from "../services/db.js";
 import { useSocketEvent, useSocketSubscription } from "../hooks/useSocket.js";
@@ -290,7 +290,8 @@ function DetailPanel({
 
   if (type === "riverLevel") {
     const r = data as RiverLevel;
-    const trendArrow = r.trend === "rising" ? "↑" : r.trend === "falling" ? "↓" : "→";
+    const tier = computeTier(r);
+    const arrow = trendArrow(r.trend);
     const hasLevel = r.levelCm !== null && r.levelCm > 0;
     const hasDischarge = r.dischargeCubicM !== null && r.dischargeCubicM > 0;
     const hasData = hasLevel || hasDischarge;
@@ -302,39 +303,46 @@ function DetailPanel({
     const warnThreshold = r.dataSource === "open-meteo" ? 24 : 2;
     const isStale = r.dataSource !== null && ageHours > warnThreshold;
 
-    let pct = 0;
-    let barColor = "#3B82F6";
-    let levelText = "Нет данных";
-
+    // Technical details
+    let techText = "";
     if (hasLevel) {
-      const dangerCm = r.dangerLevelCm ?? 1;
-      pct = Math.round((r.levelCm! / dangerCm) * 100);
-      barColor = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F97316" : pct >= 60 ? "#F59E0B" : "#3B82F6";
-      levelText = `${trendArrow} Уровень: ${r.levelCm} см из ${r.dangerLevelCm} см (${pct}%)`;
+      techText = `Уровень: ${r.levelCm} / ${r.dangerLevelCm} см`;
     } else if (hasDischarge) {
-      const ref = r.dischargeMean ?? r.dischargeCubicM!;
-      const pctMean = Math.round((r.dischargeCubicM! / ref) * 100);
-      pct = Math.min(Math.round((r.dischargeCubicM! / (ref * 3)) * 100), 100);
-      barColor = pctMean >= 300 ? "#EF4444" : pctMean >= 200 ? "#F97316" : pctMean >= 150 ? "#F59E0B" : "#3B82F6";
-      const meanStr = r.dischargeMean ? ` (${pctMean}% от нормы)` : "";
-      levelText = `${trendArrow} Расход: ${r.dischargeCubicM} м³/с${meanStr}`;
+      techText = `Расход: ${r.dischargeCubicM} м³/с`;
+      if (r.dischargeMean) techText += ` (норма: ${r.dischargeMean})`;
     }
 
     return (
       <div className="detail-panel">
         <h3>{r.riverName} — {r.stationName}</h3>
-        {isStale && (
-          <p className="detail-stale">
-            {ageHours > staleThreshold ? "⚠ Данные устарели" : "Данные не обновлялись"} ({Math.round(ageHours)}ч назад)
-          </p>
-        )}
+
+        {/* Tier banner */}
         {hasData && (
-          <div className="river-level-bar">
-            <div className="river-level-fill" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }} />
+          <div className={`tier-banner tier-banner--${tier.tier}`}>
+            {tier.label}
           </div>
         )}
-        <p>{levelText}</p>
-        {hasData && <p>Тренд: {RIVER_TREND_LABELS[r.trend]}</p>}
+
+        {/* Hero percentage */}
+        {hasData && tier.pctOfMean > 0 && (
+          <div className={`tier-hero tier-hero--${tier.tier}`}>
+            {tier.pctOfMean}%
+            <span style={{ fontSize: 14, fontWeight: 500, color: "#64748b", marginLeft: 6 }}>
+              от нормы {arrow}
+            </span>
+          </div>
+        )}
+
+        {isStale && (
+          <p className="detail-stale">
+            {ageHours > staleThreshold ? "Данные устарели" : "Данные не обновлялись"} ({Math.round(ageHours)}ч назад)
+          </p>
+        )}
+
+        {/* Technical details */}
+        {hasData && <p style={{ fontSize: 13, color: "#475569", margin: "8px 0" }}>{techText}</p>}
+
+        {/* Sparkline */}
         {hasData && (
           <RiverSparkline
             riverName={r.riverName}
@@ -344,6 +352,14 @@ function DetailPanel({
             mode={hasLevel ? "cm" : "discharge"}
           />
         )}
+
+        {/* Action text */}
+        {hasData && (
+          <div className={`tier-action tier-action--${tier.tier}`}>
+            {TIER_ACTIONS[tier.tier]}
+          </div>
+        )}
+
         {hasData && <p className="detail-meta">{formatRelativeTime(r.measuredAt)}</p>}
       </div>
     );
