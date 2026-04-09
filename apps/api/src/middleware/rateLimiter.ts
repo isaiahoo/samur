@@ -5,8 +5,8 @@ import type { Redis } from "ioredis";
 import { logger } from "../lib/logger.js";
 
 const LIMITS = {
-  anonymous: { points: 30, duration: 60 },
-  authenticated: { points: 120, duration: 60 },
+  anonymous: { points: 90, duration: 60 },
+  authenticated: { points: 300, duration: 60 },
   coordinator: { points: 600, duration: 60 },
 } as const;
 
@@ -20,7 +20,7 @@ export function initRateLimiter(redisClient: Redis | null): void {
         keyPrefix: `samur_rl_${key}`,
         points: opts.points,
         duration: opts.duration,
-        blockDuration: 30,
+        blockDuration: 10,
       });
     }
     return new RateLimiterMemory({
