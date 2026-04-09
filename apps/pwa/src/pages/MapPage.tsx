@@ -18,6 +18,7 @@ import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning, checkUps
 import { GaugeChart, type HistoryPoint } from "../components/map/GaugeChart.js";
 import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory, getRiverLevelForecast, getPrecipitation, getSoilMoisture } from "../services/api.js";
 import type { PrecipitationPoint, SoilMoisturePoint } from "../components/map/geoJsonHelpers.js";
+import { legendGradientCSS, LEGEND_TICKS } from "../components/map/SoilMoistureOverlay.js";
 import { cacheItems, getCachedItems } from "../services/db.js";
 import { useSocketEvent, useSocketSubscription } from "../hooks/useSocket.js";
 import { useGeolocation } from "../hooks/useGeolocation.js";
@@ -308,6 +309,20 @@ export function MapPage() {
         />
       </div>
 
+      {layers.soilMoisture && soilMoisture.length > 0 && (
+        <div className="soil-legend">
+          <div className="soil-legend-title">Влажность почвы</div>
+          <div className="soil-legend-bar" style={{ background: legendGradientCSS() }} />
+          <div className="soil-legend-ticks">
+            {LEGEND_TICKS.map((t) => (
+              <span key={t.val} className="soil-legend-tick">
+                {t.label || `${Math.round(t.val * 100)}%`}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {timelineDates.length >= 2 && (
         <TimelineSlider
           dates={timelineDates}
@@ -441,10 +456,10 @@ function findNearestMoisture(lat: number, lng: number, points: SoilMoisturePoint
 
 /** Soil moisture status label and CSS class */
 function moistureStatus(m: number): { label: string; className: string } {
-  if (m >= 0.45) return { label: "Почва перенасыщена — критический риск", className: "soil-status--critical" };
-  if (m >= 0.38) return { label: "Почва насыщена — высокий риск паводка", className: "soil-status--saturated" };
-  if (m >= 0.30) return { label: "Влажность повышена", className: "soil-status--elevated" };
-  if (m >= 0.20) return { label: "Нормальная влажность", className: "soil-status--normal" };
+  if (m >= 0.42) return { label: "Почва перенасыщена — критический риск паводка", className: "soil-status--critical" };
+  if (m >= 0.36) return { label: "Почва насыщена — высокий риск", className: "soil-status--saturated" };
+  if (m >= 0.28) return { label: "Влажность повышена", className: "soil-status--elevated" };
+  if (m >= 0.18) return { label: "Нормальная влажность", className: "soil-status--normal" };
   return { label: "Сухая почва", className: "soil-status--dry" };
 }
 

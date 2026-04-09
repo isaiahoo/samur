@@ -21,10 +21,10 @@ import {
   toSheltersGeoJSON,
   toRiverLevelsGeoJSON,
   toPrecipitationGeoJSON,
-  toSoilMoistureGeoJSON,
   type PrecipitationPoint,
   type SoilMoisturePoint,
 } from "./geoJsonHelpers.js";
+import { generateSoilMoistureImage, SOIL_BOUNDS } from "./SoilMoistureOverlay.js";
 import { computeTier, trendArrow, checkUpstreamDanger, type GaugeTier } from "./gaugeUtils.js";
 import {
   createMarkerElement,
@@ -174,8 +174,7 @@ export const MapView = memo(function MapView({
       // Precipitation forecast heatmap source
       map.addSource("precipHeatmap", { type: "geojson", data: EMPTY_FC });
 
-      // Soil moisture heatmap source
-      map.addSource("soilMoistureHeatmap", { type: "geojson", data: EMPTY_FC });
+      // Soil moisture: image source (IDW-interpolated canvas, added dynamically)
 
       // ── Incident layers ──────────────────────────────────────────────────
 
@@ -355,69 +354,8 @@ export const MapView = memo(function MapView({
         },
       });
 
-      // ── Soil moisture: colored circles per grid point ──────────────────
-      // 25 grid points — use large soft-edged circles as coverage zones
-      // plus small solid dots at center. Solid colors (no alpha in color),
-      // opacity controlled only via circle-opacity for predictability.
-
-      map.addLayer({
-        id: "soil-moisture-glow",
-        type: "circle",
-        source: "soilMoistureHeatmap",
-        paint: {
-          "circle-radius": [
-            "interpolate", ["linear"], ["zoom"],
-            5, 35,
-            7, 55,
-            9, 85,
-            12, 130,
-          ],
-          // Solid colors — no alpha channel, opacity is separate
-          "circle-color": [
-            "interpolate", ["linear"], ["get", "moisture"],
-            0.10, "#86EFAC",  // light green — dry
-            0.20, "#22D3EE",  // cyan — normal
-            0.30, "#60A5FA",  // blue — elevated
-            0.40, "#A78BFA",  // purple — wet
-            0.50, "#7C3AED",  // deep purple — saturated
-          ],
-          "circle-blur": 0.8,
-          "circle-opacity": [
-            "interpolate", ["linear"], ["zoom"],
-            6, 0.35,
-            9, 0.30,
-            12, 0.25,
-            14, 0.15,
-          ],
-          "circle-stroke-width": 0,
-        },
-      });
-
-      // Center dot: small solid circle at each grid point
-      map.addLayer({
-        id: "soil-moisture-dot",
-        type: "circle",
-        source: "soilMoistureHeatmap",
-        paint: {
-          "circle-radius": [
-            "interpolate", ["linear"], ["zoom"],
-            5, 4,
-            9, 6,
-            12, 9,
-          ],
-          "circle-color": [
-            "interpolate", ["linear"], ["get", "moisture"],
-            0.10, "#22C55E",
-            0.20, "#06B6D4",
-            0.30, "#3B82F6",
-            0.40, "#8B5CF6",
-            0.50, "#6D28D9",
-          ],
-          "circle-opacity": 0.85,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#FFFFFF",
-        },
-      });
+      // Soil moisture overlay is added dynamically as an image source
+      // (IDW-interpolated canvas) — see the soilMoisture useEffect below
 
       // ── Shelter layer ────────────────────────────────────────────────────
 
@@ -572,7 +510,49 @@ export const MapView = memo(function MapView({
   useEffect(() => updateSource("shelters", toSheltersGeoJSON(shelters)), [shelters, updateSource]);
   useEffect(() => updateSource("riverHeatmap", toRiverLevelsGeoJSON(riverLevels)), [riverLevels, updateSource]);
   useEffect(() => updateSource("precipHeatmap", toPrecipitationGeoJSON(precipitation)), [precipitation, updateSource]);
-  useEffect(() => updateSource("soilMoistureHeatmap", toSoilMoistureGeoJSON(soilMoisture)), [soilMoisture, updateSource]);
+
+  // ── Soil moisture: IDW-interpolated canvas overlay ──────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || soilMoisture.length === 0) return;
+
+    const dataUrl = generateSoilMoistureImage(soilMoisture, 160);
+    if (!dataUrl) return;
+
+    const { north, south, east, west } = SOIL_BOUNDS;
+    const coords: [[number, number], [number, number], [number, number], [number, number]] = [
+      [west, north],  // top-left
+      [east, north],  // top-right
+      [east, south],  // bottom-right
+      [west, south],  // bottom-left
+    ];
+
+    const src = map.getSource("soilMoistureImg") as maplibregl.ImageSource | undefined;
+    if (src) {
+      // Update existing source
+      src.updateImage({ url: dataUrl, coordinates: coords });
+    } else {
+      // Create source + layer
+      map.addSource("soilMoistureImg", {
+        type: "image",
+        url: dataUrl,
+        coordinates: coords,
+      });
+      map.addLayer(
+        {
+          id: "soil-moisture-overlay",
+          type: "raster",
+          source: "soilMoistureImg",
+          paint: {
+            "raster-opacity": 0.55,
+            "raster-fade-duration": 0,
+          },
+        },
+        // Insert below shelter/marker layers but above basemap
+        "shelters",
+      );
+    }
+  }, [soilMoisture, mapReady]);
 
   // ── Gauge station HTML markers ──────────────────────────────────────────
 
@@ -721,7 +701,7 @@ export const MapView = memo(function MapView({
       shelters: ["shelters"],
       floodHeatmap: ["river-heatmap"],
       precipitation: ["precip-heatmap"],
-      soilMoisture: ["soil-moisture-glow", "soil-moisture-dot"],
+      soilMoisture: ["soil-moisture-overlay"],
     };
 
     for (const [key, layerIds] of Object.entries(layerGroups)) {
