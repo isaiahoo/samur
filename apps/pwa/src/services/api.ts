@@ -216,6 +216,10 @@ export function getNews(params?: Record<string, string | number | boolean>) {
   return request<PaginatedResponse<unknown>>(`/news${qs}`);
 }
 
+export function getPrecipitation() {
+  return request<ApiResponse<Array<{ lat: number; lng: number; precipitation: number }>>>("/weather/precipitation");
+}
+
 export function getMapClusters(params: Record<string, string | number>) {
   const qs = "?" + new URLSearchParams(toStringRecord(params)).toString();
   return request<ApiResponse>(`/map/clusters${qs}`);

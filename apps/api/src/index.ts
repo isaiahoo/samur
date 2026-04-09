@@ -27,6 +27,7 @@ import statsRouter from "./routes/stats.js";
 import webhooksRouter from "./routes/webhooks.js";
 import channelsRouter from "./routes/channels.js";
 import newsRouter from "./routes/news.js";
+import weatherRouter from "./routes/weather.js";
 import tilesRouter from "./routes/tiles.js";
 import metricsRouter from "./routes/metrics.js";
 
@@ -88,6 +89,7 @@ app.use("/api/v1/stats", statsRouter);
 app.use("/api/v1/webhook", webhooksRouter);
 app.use("/api/v1/channels", channelsRouter);
 app.use("/api/v1/news", newsRouter);
+app.use("/api/v1/weather", weatherRouter);
 app.use(metricsRouter);
 
 app.use(notFoundHandler);

@@ -79,6 +79,14 @@ export function toRiverLevelsGeoJSON(items: RiverLevel[]): FeatureCollection {
         dangerRatio = (r.dischargeCubicM / r.dischargeMean) / 3;
       }
 
+      // Heatmap weight: 0-1 based on discharge/mean ratio (capped at 4x)
+      let heatWeight = 0;
+      if (r.dischargeCubicM !== null && r.dischargeCubicM > 0 && r.dischargeMean && r.dischargeMean > 0) {
+        heatWeight = Math.min((r.dischargeCubicM / r.dischargeMean) / 4, 1.0);
+      } else if (r.levelCm !== null && r.levelCm > 0 && r.dangerLevelCm && r.dangerLevelCm > 0) {
+        heatWeight = Math.min(r.levelCm / r.dangerLevelCm, 1.0);
+      }
+
       return point(r.lng, r.lat, {
         id: r.id,
         riverName: r.riverName,
@@ -90,9 +98,32 @@ export function toRiverLevelsGeoJSON(items: RiverLevel[]): FeatureCollection {
         dischargeMax: r.dischargeMax,
         dataSource: r.dataSource,
         dangerRatio,
+        heatWeight,
         trend: r.trend,
         measuredAt: r.measuredAt,
       });
     }),
+  };
+}
+
+/** GeoJSON for precipitation grid heatmap */
+export interface PrecipitationPoint {
+  lat: number;
+  lng: number;
+  precipitation: number; // mm/h or mm total
+}
+
+export function toPrecipitationGeoJSON(points: PrecipitationPoint[]): FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: points
+      .filter((p) => p.precipitation > 0)
+      .map((p) =>
+        point(p.lng, p.lat, {
+          precipitation: p.precipitation,
+          // Normalize: 0-1 scale, 50mm+ = max intensity
+          intensity: Math.min(p.precipitation / 50, 1.0),
+        }),
+      ),
   };
 }

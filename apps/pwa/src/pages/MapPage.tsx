@@ -15,7 +15,8 @@ import { ReportForm } from "../components/map/ReportForm.js";
 import { UrgencyBadge } from "../components/UrgencyBadge.js";
 import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning } from "../components/map/gaugeUtils.js";
 import { GaugeChart, type HistoryPoint } from "../components/map/GaugeChart.js";
-import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory } from "../services/api.js";
+import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory, getPrecipitation } from "../services/api.js";
+import type { PrecipitationPoint } from "../components/map/geoJsonHelpers.js";
 import { cacheItems, getCachedItems } from "../services/db.js";
 import { useSocketEvent, useSocketSubscription } from "../hooks/useSocket.js";
 import { useGeolocation } from "../hooks/useGeolocation.js";
@@ -28,6 +29,7 @@ export function MapPage() {
   const [helpRequests, setHelpRequests] = useState<HelpRequest[]>([]);
   const [shelters, setShelters] = useState<Shelter[]>([]);
   const [riverLevels, setRiverLevels] = useState<RiverLevel[]>([]);
+  const [precipitation, setPrecipitation] = useState<PrecipitationPoint[]>([]);
   const [showReport, setShowReport] = useState(false);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
 
@@ -36,6 +38,8 @@ export function MapPage() {
     helpRequests: true,
     shelters: true,
     riverLevels: true,
+    floodHeatmap: true,
+    precipitation: false,
   }));
 
   const boundsRef = useRef<MapBounds | null>(null);
@@ -52,6 +56,14 @@ export function MapPage() {
       const rlRes = await getRiverLevels({ latest: true });
       if (rlRes?.data) setRiverLevels(rlRes.data as RiverLevel[]);
     } catch { /* ignore — will retry on next hourly scrape via socket */ }
+  }, []);
+
+  // Precipitation grid — fetch once on mount (cached on backend for 6h)
+  const fetchPrecipData = useCallback(async () => {
+    try {
+      const res = await getPrecipitation();
+      if (res?.data) setPrecipitation(res.data);
+    } catch { /* ignore — optional overlay */ }
   }, []);
 
   // Bounds-dependent data — refetch on map move
@@ -99,12 +111,13 @@ export function MapPage() {
     }
   }, []);
 
-  // Initial data fetch — river levels loaded once, rest refetched on map move
+  // Initial data fetch — river levels + precipitation loaded once, rest refetched on map move
   useEffect(() => {
     fetchData();
     fetchRiverLevels();
+    fetchPrecipData();
     return () => { if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current); };
-  }, [fetchData, fetchRiverLevels]);
+  }, [fetchData, fetchRiverLevels, fetchPrecipData]);
 
   useEffect(() => {
     requestPosition();
@@ -165,6 +178,8 @@ export function MapPage() {
     { key: "helpRequests", label: "Запросы помощи", active: layers.helpRequests },
     { key: "shelters", label: "Убежища", active: layers.shelters },
     { key: "riverLevels", label: "Уровень рек", active: layers.riverLevels },
+    { key: "floodHeatmap", label: "Зона затопления", active: layers.floodHeatmap },
+    { key: "precipitation", label: "Осадки", active: layers.precipitation },
   ];
 
   return (
@@ -174,6 +189,7 @@ export function MapPage() {
         helpRequests={helpRequests}
         shelters={shelters}
         riverLevels={riverLevels}
+        precipitation={precipitation}
         layers={layers}
         onMarkerClick={handleMarkerClick}
         onMapMove={handleMapMove}

@@ -19,6 +19,9 @@ import {
   toIncidentsGeoJSON,
   toHelpRequestsGeoJSON,
   toSheltersGeoJSON,
+  toRiverLevelsGeoJSON,
+  toPrecipitationGeoJSON,
+  type PrecipitationPoint,
 } from "./geoJsonHelpers.js";
 import { computeTier, trendArrow, type GaugeTier } from "./gaugeUtils.js";
 import {
@@ -34,6 +37,7 @@ interface Props {
   helpRequests: HelpRequest[];
   shelters: Shelter[];
   riverLevels: RiverLevel[];
+  precipitation: PrecipitationPoint[];
   layers: Record<string, boolean>;
   onMarkerClick: (type: string, item: unknown) => void;
   onMapMove?: (bounds: { north: number; south: number; east: number; west: number }, zoom: number) => void;
@@ -89,6 +93,7 @@ export const MapView = memo(function MapView({
   helpRequests,
   shelters,
   riverLevels,
+  precipitation,
   layers,
   onMarkerClick,
   onMapMove,
@@ -156,7 +161,12 @@ export const MapView = memo(function MapView({
       });
 
       map.addSource("shelters", { type: "geojson", data: EMPTY_FC });
-      // riverLevels source removed — gauge stations now use HTML markers
+
+      // River flood risk heatmap source (uses same data as HTML markers)
+      map.addSource("riverHeatmap", { type: "geojson", data: EMPTY_FC });
+
+      // Precipitation forecast heatmap source
+      map.addSource("precipHeatmap", { type: "geojson", data: EMPTY_FC });
 
       // ── Incident layers ──────────────────────────────────────────────────
 
@@ -253,6 +263,86 @@ export const MapView = memo(function MapView({
           "circle-radius": 8,
           "circle-stroke-width": 2,
           "circle-stroke-color": "#fff",
+        },
+      });
+
+      // ── River flood risk heatmap (warm: amber -> red) ───────────────────
+
+      map.addLayer({
+        id: "river-heatmap",
+        type: "heatmap",
+        source: "riverHeatmap",
+        paint: {
+          // Weight each point by heatWeight property (0-1)
+          "heatmap-weight": ["get", "heatWeight"],
+          // Intensity ramps up with zoom
+          "heatmap-intensity": [
+            "interpolate", ["linear"], ["zoom"],
+            6, 0.8,
+            10, 1.5,
+            14, 2.0,
+          ],
+          // Radius grows with zoom for coverage
+          "heatmap-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            6, 30,
+            9, 60,
+            12, 80,
+          ],
+          // Warm color ramp: transparent -> amber -> red -> dark red
+          "heatmap-color": [
+            "interpolate", ["linear"], ["heatmap-density"],
+            0, "rgba(0,0,0,0)",
+            0.15, "rgba(254,243,199,0.4)",  // #FEF3C7 light amber
+            0.35, "rgba(245,158,11,0.6)",   // #F59E0B amber
+            0.6, "rgba(239,68,68,0.7)",     // #EF4444 red
+            1.0, "rgba(153,27,27,0.8)",     // #991B1B dark red
+          ],
+          // Fade with zoom so markers stay readable
+          "heatmap-opacity": [
+            "interpolate", ["linear"], ["zoom"],
+            7, 0.6,
+            11, 0.4,
+            14, 0.25,
+          ],
+        },
+      });
+
+      // ── Precipitation forecast heatmap (cool: cyan -> blue) ─────────────
+
+      map.addLayer({
+        id: "precip-heatmap",
+        type: "heatmap",
+        source: "precipHeatmap",
+        paint: {
+          "heatmap-weight": ["get", "intensity"],
+          "heatmap-intensity": [
+            "interpolate", ["linear"], ["zoom"],
+            6, 0.6,
+            10, 1.2,
+            14, 1.8,
+          ],
+          "heatmap-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            6, 25,
+            9, 50,
+            12, 70,
+          ],
+          // Cool color ramp: transparent -> cyan -> blue
+          "heatmap-color": [
+            "interpolate", ["linear"], ["heatmap-density"],
+            0, "rgba(0,0,0,0)",
+            0.15, "rgba(207,250,254,0.3)",  // #CFFAFE light cyan
+            0.35, "rgba(6,182,212,0.4)",    // #06B6D4 cyan
+            0.6, "rgba(30,64,175,0.5)",     // #1E40AF blue
+            1.0, "rgba(30,64,175,0.6)",     // #1E40AF deep blue
+          ],
+          "heatmap-opacity": [
+            "interpolate", ["linear"], ["zoom"],
+            7, 0.4,
+            11, 0.35,
+            14, 0.2,
+          ],
         },
       });
 
@@ -407,6 +497,8 @@ export const MapView = memo(function MapView({
   useEffect(() => updateSource("incidents", toIncidentsGeoJSON(incidents)), [incidents, updateSource]);
   useEffect(() => updateSource("helpRequests", toHelpRequestsGeoJSON(helpRequests)), [helpRequests, updateSource]);
   useEffect(() => updateSource("shelters", toSheltersGeoJSON(shelters)), [shelters, updateSource]);
+  useEffect(() => updateSource("riverHeatmap", toRiverLevelsGeoJSON(riverLevels)), [riverLevels, updateSource]);
+  useEffect(() => updateSource("precipHeatmap", toPrecipitationGeoJSON(precipitation)), [precipitation, updateSource]);
 
   // ── Gauge station HTML markers ──────────────────────────────────────────
 
@@ -551,6 +643,8 @@ export const MapView = memo(function MapView({
       incidents: ["incidents-clusters", "incidents-cluster-count", "incidents-unclustered"],
       helpRequests: ["help-clusters", "help-cluster-count", "help-unclustered"],
       shelters: ["shelters"],
+      floodHeatmap: ["river-heatmap"],
+      precipitation: ["precip-heatmap"],
     };
 
     for (const [key, layerIds] of Object.entries(layerGroups)) {
