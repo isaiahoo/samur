@@ -52,8 +52,8 @@ const CANVAS_H = 220;
 /** Max distance (degrees) from any data point */
 const MAX_INFLUENCE_DIST = 0.8;
 
-/** Minimum risk to show anything — very low threshold so risk is visible early */
-const VISIBLE_THRESHOLD = 8;
+/** Minimum risk to color a pixel — high enough to avoid painting noise */
+const VISIBLE_THRESHOLD = 15;
 
 /**
  * Generate a flood risk overlay using IDW interpolation.
@@ -62,8 +62,9 @@ const VISIBLE_THRESHOLD = 8;
 export function generateRunoffOverlayImage(
   points: RunoffPoint[],
 ): string | null {
-  const activePoints = points.filter((p) => p.riskIndex > 0);
-  if (activePoints.length === 0) return null;
+  // Check if there's any risk at all
+  const hasRisk = points.some((p) => p.riskIndex > 0);
+  if (!hasRisk || points.length === 0) return null;
 
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_W;
@@ -86,7 +87,8 @@ export function generateRunoffOverlayImage(
         continue;
       }
 
-      const { value: risk, minDist } = idw(lat, lng, activePoints);
+      // Use ALL points (including zeros) so zeros dilute risk correctly
+      const { value: risk, minDist } = idw(lat, lng, points);
 
       if (minDist > MAX_INFLUENCE_DIST) {
         imageData.data[idx + 3] = 0;
