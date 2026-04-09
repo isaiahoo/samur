@@ -355,45 +355,45 @@ export const MapView = memo(function MapView({
         },
       });
 
-      // ── Soil moisture: large translucent circles (not heatmap) ─────────
-      // 25 grid points is too sparse for a heatmap — overlapping circles
-      // with blur create a visible, color-coded coverage field.
+      // ── Soil moisture: colored circles per grid point ──────────────────
+      // 25 grid points — use large soft-edged circles as coverage zones
+      // plus small solid dots at center. Solid colors (no alpha in color),
+      // opacity controlled only via circle-opacity for predictability.
 
       map.addLayer({
         id: "soil-moisture-glow",
         type: "circle",
         source: "soilMoistureHeatmap",
         paint: {
-          // Large circles that overlap to form coverage zones
           "circle-radius": [
             "interpolate", ["linear"], ["zoom"],
-            5, 30,
-            7, 50,
-            9, 80,
-            12, 120,
+            5, 35,
+            7, 55,
+            9, 85,
+            12, 130,
           ],
-          // Color by moisture level: green (dry) → cyan (normal) → blue (wet) → purple (saturated)
+          // Solid colors — no alpha channel, opacity is separate
           "circle-color": [
             "interpolate", ["linear"], ["get", "moisture"],
-            0.10, "rgba(34,197,94,0.25)",   // green — dry
-            0.20, "rgba(6,182,212,0.35)",   // cyan — normal
-            0.30, "rgba(59,130,246,0.45)",  // blue — elevated
-            0.40, "rgba(139,92,246,0.55)",  // purple — wet
-            0.50, "rgba(109,40,217,0.65)",  // deep purple — saturated
+            0.10, "#86EFAC",  // light green — dry
+            0.20, "#22D3EE",  // cyan — normal
+            0.30, "#60A5FA",  // blue — elevated
+            0.40, "#A78BFA",  // purple — wet
+            0.50, "#7C3AED",  // deep purple — saturated
           ],
-          "circle-blur": 1, // soft edges so circles blend
+          "circle-blur": 0.8,
           "circle-opacity": [
             "interpolate", ["linear"], ["zoom"],
-            6, 0.8,
-            10, 0.6,
-            14, 0.4,
+            6, 0.35,
+            9, 0.30,
+            12, 0.25,
+            14, 0.15,
           ],
-          // No stroke — pure fill
           "circle-stroke-width": 0,
         },
       });
 
-      // Inner dot: small solid circle at each grid point for clarity
+      // Center dot: small solid circle at each grid point
       map.addLayer({
         id: "soil-moisture-dot",
         type: "circle",
@@ -401,21 +401,21 @@ export const MapView = memo(function MapView({
         paint: {
           "circle-radius": [
             "interpolate", ["linear"], ["zoom"],
-            5, 3,
-            9, 5,
-            12, 7,
+            5, 4,
+            9, 6,
+            12, 9,
           ],
           "circle-color": [
             "interpolate", ["linear"], ["get", "moisture"],
-            0.10, "#22C55E",  // green
-            0.20, "#06B6D4",  // cyan
-            0.30, "#3B82F6",  // blue
-            0.40, "#8B5CF6",  // purple
-            0.50, "#6D28D9",  // deep purple
+            0.10, "#22C55E",
+            0.20, "#06B6D4",
+            0.30, "#3B82F6",
+            0.40, "#8B5CF6",
+            0.50, "#6D28D9",
           ],
-          "circle-opacity": 0.9,
-          "circle-stroke-width": 1.5,
-          "circle-stroke-color": "rgba(255,255,255,0.8)",
+          "circle-opacity": 0.85,
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#FFFFFF",
         },
       });
 
