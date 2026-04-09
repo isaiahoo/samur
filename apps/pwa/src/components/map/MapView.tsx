@@ -653,7 +653,7 @@ export const MapView = memo(function MapView({
         ? `${s.maxSnowDepth.toFixed(1)} м`
         : `${Math.round(s.maxSnowDepth * 100)} см`;
       // Show melt rate + snow depth, not the city name (gauge markers already show it)
-      el.innerHTML = `<span class="melt-risk-icon">🏔</span><span class="melt-risk-label">таяние ${s.meltIndex} мм/с</span>`;
+      el.innerHTML = `<span class="melt-risk-icon">🏔</span><span class="melt-risk-label">таяние ${s.meltIndex} мм/сут</span>`;
       el.title = `${s.name}: таяние ${s.meltIndex} мм/сут, снег до ${depthStr}`;
 
       // Offset slightly above the settlement so it doesn't overlap gauge markers
