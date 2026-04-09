@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { Incident, HelpRequest, Shelter, RiverLevel } from "@samur/shared";
 import {
   INCIDENT_TYPE_LABELS,
   SEVERITY_LABELS,
   HELP_CATEGORY_LABELS,
-  URGENCY_LABELS,
   SHELTER_STATUS_LABELS,
   AMENITY_LABELS,
 } from "@samur/shared";
@@ -14,12 +13,12 @@ import { MapView } from "../components/map/MapView.js";
 import { LayerToggle } from "../components/map/LayerToggle.js";
 import { ReportForm } from "../components/map/ReportForm.js";
 import { UrgencyBadge } from "../components/UrgencyBadge.js";
-import { computeTier, trendArrow, TIER_ACTIONS } from "../components/map/gaugeUtils.js";
+import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning } from "../components/map/gaugeUtils.js";
+import { GaugeChart, type HistoryPoint } from "../components/map/GaugeChart.js";
 import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory } from "../services/api.js";
 import { cacheItems, getCachedItems } from "../services/db.js";
 import { useSocketEvent, useSocketSubscription } from "../hooks/useSocket.js";
 import { useGeolocation } from "../hooks/useGeolocation.js";
-import { useOnline } from "../hooks/useOnline.js";
 import { useUIStore } from "../store/ui.js";
 
 type MapBounds = { north: number; south: number; east: number; west: number };
@@ -31,7 +30,6 @@ export function MapPage() {
   const [riverLevels, setRiverLevels] = useState<RiverLevel[]>([]);
   const [showReport, setShowReport] = useState(false);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<{ type: string; data: unknown } | null>(null);
 
   const [layers, setLayers] = useState(() => ({
     incidents: true,
@@ -42,7 +40,6 @@ export function MapPage() {
 
   const boundsRef = useRef<MapBounds | null>(null);
   const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const online = useOnline();
   const { position, requestPosition } = useGeolocation();
   const openSheet = useUIStore((s) => s.openSheet);
   const closeSheet = useUIStore((s) => s.closeSheet);
@@ -147,7 +144,6 @@ export function MapPage() {
 
   const handleMarkerClick = useCallback(
     (type: string, item: unknown) => {
-      setSelectedItem({ type, data: item });
       openSheet(<DetailPanel type={type} data={item} onClose={closeSheet} />);
     },
     [openSheet, closeSheet],
@@ -289,191 +285,123 @@ function DetailPanel({
   }
 
   if (type === "riverLevel") {
-    const r = data as RiverLevel;
-    const tier = computeTier(r);
-    const arrow = trendArrow(r.trend);
-    const hasLevel = r.levelCm !== null && r.levelCm > 0;
-    const hasDischarge = r.dischargeCubicM !== null && r.dischargeCubicM > 0;
-    const hasData = hasLevel || hasDischarge;
-
-    // Stale check — skip for seed records (no dataSource)
-    const ageMs = Date.now() - new Date(r.measuredAt).getTime();
-    const ageHours = ageMs / (1000 * 60 * 60);
-    const staleThreshold = r.dataSource === "open-meteo" ? 48 : 6;
-    const warnThreshold = r.dataSource === "open-meteo" ? 24 : 2;
-    const isStale = r.dataSource !== null && ageHours > warnThreshold;
-
-    // Technical details
-    let techText = "";
-    if (hasLevel) {
-      techText = `Уровень: ${r.levelCm} / ${r.dangerLevelCm} см`;
-    } else if (hasDischarge) {
-      techText = `Расход: ${r.dischargeCubicM} м³/с`;
-      if (r.dischargeMean) techText += ` (норма: ${r.dischargeMean})`;
-    }
-
-    return (
-      <div className="detail-panel">
-        <h3>{r.riverName} — {r.stationName}</h3>
-
-        {/* Tier banner */}
-        {hasData && (
-          <div className={`tier-banner tier-banner--${tier.tier}`}>
-            {tier.label}
-          </div>
-        )}
-
-        {/* Hero percentage */}
-        {hasData && tier.pctOfMean > 0 && (
-          <div className={`tier-hero tier-hero--${tier.tier}`}>
-            {tier.pctOfMean}%
-            <span style={{ fontSize: 14, fontWeight: 500, color: "#64748b", marginLeft: 6 }}>
-              от нормы {arrow}
-            </span>
-          </div>
-        )}
-
-        {isStale && (
-          <p className="detail-stale">
-            {ageHours > staleThreshold ? "Данные устарели" : "Данные не обновлялись"} ({Math.round(ageHours)}ч назад)
-          </p>
-        )}
-
-        {/* Technical details */}
-        {hasData && <p style={{ fontSize: 13, color: "#475569", margin: "8px 0" }}>{techText}</p>}
-
-        {/* Sparkline */}
-        {hasData && (
-          <RiverSparkline
-            riverName={r.riverName}
-            stationName={r.stationName}
-            dangerLevelCm={r.dangerLevelCm}
-            dischargeMax={r.dischargeMax}
-            mode={hasLevel ? "cm" : "discharge"}
-          />
-        )}
-
-        {/* Action text */}
-        {hasData && (
-          <div className={`tier-action tier-action--${tier.tier}`}>
-            {TIER_ACTIONS[tier.tier]}
-          </div>
-        )}
-
-        {hasData && <p className="detail-meta">{formatRelativeTime(r.measuredAt)}</p>}
-      </div>
-    );
+    return <RiverLevelDetail data={data as RiverLevel} />;
   }
 
   return null;
 }
 
-function RiverSparkline({
-  riverName,
-  stationName,
-  dangerLevelCm,
-  dischargeMax,
-  mode,
-}: {
-  riverName: string;
-  stationName: string;
-  dangerLevelCm: number | null;
-  dischargeMax: number | null;
-  mode: "cm" | "discharge";
-}) {
-  const [points, setPoints] = useState<Array<{
-    levelCm: number | null;
-    dischargeCubicM: number | null;
-    isForecast: boolean;
-    measuredAt: string;
-  }>>([]);
+function RiverLevelDetail({ data: r }: { data: RiverLevel }) {
+  const [history, setHistory] = useState<HistoryPoint[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
 
+  const tier = computeTier(r);
+  const arrow = trendArrow(r.trend);
+  const hasLevel = r.levelCm !== null && r.levelCm > 0;
+  const hasDischarge = r.dischargeCubicM !== null && r.dischargeCubicM > 0;
+  const hasData = hasLevel || hasDischarge;
+  const mode = hasLevel ? "cm" as const : "discharge" as const;
+
+  // Stale check — skip for seed records (no dataSource)
+  const ageMs = Date.now() - new Date(r.measuredAt).getTime();
+  const ageHours = ageMs / (1000 * 60 * 60);
+  const staleThreshold = r.dataSource === "open-meteo" ? 48 : 6;
+  const warnThreshold = r.dataSource === "open-meteo" ? 24 : 2;
+  const isStale = r.dataSource !== null && ageHours > warnThreshold;
+
+  // Single fetch for both chart and forecast warning
   useEffect(() => {
-    getRiverLevelHistory(riverName, stationName, 7)
+    setHistoryLoading(true);
+    getRiverLevelHistory(r.riverName, r.stationName, 7, true)
       .then((res) => {
-        const data = res.data ?? [];
-        setPoints(data.map((d) => ({
+        const data = (res.data ?? []).map((d) => ({
           levelCm: d.levelCm,
+          dangerLevelCm: d.dangerLevelCm,
           dischargeCubicM: d.dischargeCubicM,
+          dischargeMean: d.dischargeMean,
+          dischargeMax: d.dischargeMax,
           isForecast: d.isForecast ?? false,
           measuredAt: d.measuredAt,
-        })));
+        }));
+        setHistory(data);
       })
-      .catch(() => {});
-  }, [riverName, stationName]);
+      .catch(() => {})
+      .finally(() => setHistoryLoading(false));
+  }, [r.riverName, r.stationName]);
 
-  // Extract values based on mode
-  const values = points
-    .map((p) => mode === "cm" ? p.levelCm : p.dischargeCubicM)
-    .filter((v): v is number => v !== null && v > 0);
+  const forecastWarning = useMemo(
+    () => history.length > 0 ? computeForecastWarning(history, mode) : null,
+    [history, mode],
+  );
 
-  if (values.length < 2) return null;
-
-  const W = 240;
-  const H = 60;
-  const pad = 4;
-
-  const dangerVal = mode === "cm" ? (dangerLevelCm ?? 0) : (dischargeMax ?? 0);
-  const minY = Math.min(...values) * 0.9;
-  const maxY = Math.max(...values, dangerVal) * 1.1;
-  const rangeY = maxY - minY || 1;
-
-  // Build polyline from valid points
-  const validPoints = points
-    .map((p) => ({ value: mode === "cm" ? p.levelCm : p.dischargeCubicM, forecast: p.isForecast }))
-    .filter((v): v is { value: number; forecast: boolean } => v.value !== null && v.value > 0);
-
-  const observedPts: string[] = [];
-  const forecastPts: string[] = [];
-
-  validPoints.forEach((p, i) => {
-    const x = pad + (i / (validPoints.length - 1)) * (W - 2 * pad);
-    const y = H - pad - ((p.value - minY) / rangeY) * (H - 2 * pad);
-    const pt = `${x},${y}`;
-    if (p.forecast) {
-      if (forecastPts.length === 0 && observedPts.length > 0) {
-        forecastPts.push(observedPts[observedPts.length - 1]); // connect
-      }
-      forecastPts.push(pt);
-    } else {
-      observedPts.push(pt);
-    }
-  });
-
-  const dangerY = dangerVal > 0 ? H - pad - ((dangerVal - minY) / rangeY) * (H - 2 * pad) : -10;
-  const dangerLabel = mode === "cm" ? "опасный" : "макс.";
-  const valueLabel = mode === "cm" ? "уровень" : "расход";
+  // Technical details
+  let techText = "";
+  if (hasLevel) {
+    techText = `Уровень: ${r.levelCm} / ${r.dangerLevelCm} см`;
+  } else if (hasDischarge) {
+    techText = `Расход: ${r.dischargeCubicM} м³/с`;
+    if (r.dischargeMean) techText += ` (норма: ${r.dischargeMean})`;
+  }
 
   return (
-    <div className="sparkline-container">
-      <p className="sparkline-label">Последние 7 дней:</p>
-      <svg width={W} height={H} className="sparkline-svg">
-        {dangerVal > 0 && (
-          <line
-            x1={pad} y1={dangerY} x2={W - pad} y2={dangerY}
-            stroke="#EF4444" strokeWidth="1" strokeDasharray="4,3" opacity="0.6"
-          />
-        )}
-        {observedPts.length > 1 && (
-          <polyline
-            points={observedPts.join(" ")}
-            fill="none" stroke="#3B82F6" strokeWidth="2"
-            strokeLinejoin="round" strokeLinecap="round"
-          />
-        )}
-        {forecastPts.length > 1 && (
-          <polyline
-            points={forecastPts.join(" ")}
-            fill="none" stroke="#3B82F6" strokeWidth="1.5"
-            strokeLinejoin="round" strokeLinecap="round"
-            strokeDasharray="4,3" opacity="0.6"
-          />
-        )}
-      </svg>
-      <div className="sparkline-legend">
-        <span className="sparkline-legend-line" style={{ borderColor: "#EF4444" }} /> {dangerLabel}
-        <span className="sparkline-legend-line" style={{ borderColor: "#3B82F6", marginLeft: 8 }} /> {valueLabel}
-      </div>
+    <div className="detail-panel">
+      <h3>{r.riverName} — {r.stationName}</h3>
+
+      {/* Tier banner */}
+      {hasData && (
+        <div className={`tier-banner tier-banner--${tier.tier}`}>
+          {tier.label}
+        </div>
+      )}
+
+      {/* Hero percentage */}
+      {hasData && tier.pctOfMean > 0 && (
+        <div className={`tier-hero tier-hero--${tier.tier}`}>
+          {tier.pctOfMean}%
+          <span style={{ fontSize: 14, fontWeight: 500, color: "#64748b", marginLeft: 6 }}>
+            от нормы {arrow}
+          </span>
+        </div>
+      )}
+
+      {isStale && (
+        <p className="detail-stale">
+          {ageHours > staleThreshold ? "Данные устарели" : "Данные не обновлялись"} ({Math.round(ageHours)}ч назад)
+        </p>
+      )}
+
+      {/* Forecast warning */}
+      {forecastWarning && (
+        <div className={`forecast-warning forecast-warning--${forecastWarning.hasDanger ? "danger" : "elevated"}`}>
+          {forecastWarning.text}
+        </div>
+      )}
+
+      {/* Technical details */}
+      {hasData && <p style={{ fontSize: 13, color: "#475569", margin: "8px 0" }}>{techText}</p>}
+
+      {/* Recharts chart — observed + forecast + threshold lines */}
+      {hasData && historyLoading && (
+        <div className="gauge-chart-loading">Загрузка графика...</div>
+      )}
+      {hasData && !historyLoading && history.length > 0 && (
+        <GaugeChart
+          history={history}
+          dangerLevelCm={r.dangerLevelCm}
+          dischargeMax={r.dischargeMax}
+          dischargeMean={r.dischargeMean}
+          mode={mode}
+        />
+      )}
+
+      {/* Action text */}
+      {hasData && (
+        <div className={`tier-action tier-action--${tier.tier}`}>
+          {TIER_ACTIONS[tier.tier]}
+        </div>
+      )}
+
+      {hasData && <p className="detail-meta">{formatRelativeTime(r.measuredAt)}</p>}
     </div>
   );
 }

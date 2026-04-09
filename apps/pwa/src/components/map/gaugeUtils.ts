@@ -107,6 +107,116 @@ export function trendArrow(trend: string): string {
   }
 }
 
+// ── Forecast warning ──────────────────────────────────────────────────────
+
+export interface ForecastWarning {
+  /** Whether a forecast crosses the danger threshold */
+  hasDanger: boolean;
+  /** Days until the danger crossing (0 = today) */
+  daysUntil: number;
+  /** Max forecasted tier */
+  maxTier: 1 | 2 | 3 | 4;
+  /** Max forecasted value (discharge or level) */
+  maxValue: number;
+  /** Human-readable warning text */
+  text: string;
+}
+
+/**
+ * Analyze forecast data to determine if danger thresholds will be crossed.
+ *
+ * @param history Array of history points (observed + forecast), sorted by date ascending
+ * @param dangerDischarge Danger discharge threshold (m³/s)
+ * @param meanDischarge Mean discharge for tier computation
+ * @param mode Whether to use cm or discharge values
+ * @param dangerCm Danger level in cm (for cm mode)
+ */
+export function computeForecastWarning(
+  history: Array<{
+    dischargeCubicM: number | null;
+    dischargeMean: number | null;
+    dischargeMax: number | null;
+    levelCm: number | null;
+    dangerLevelCm: number | null;
+    isForecast: boolean;
+    measuredAt: string;
+  }>,
+  mode: "cm" | "discharge",
+): ForecastWarning | null {
+  const forecastPoints = history.filter((p) => p.isForecast);
+  if (forecastPoints.length === 0) return null;
+
+  const now = Date.now();
+  let maxTier: 1 | 2 | 3 | 4 = 1;
+  let maxValue = 0;
+  /** Days until the FIRST point that crosses each threshold */
+  let elevatedDaysUntil = -1; // first tier >= 2
+  let dangerDaysUntil = -1;   // first tier >= 3
+
+  for (const p of forecastPoints) {
+    let tier: 1 | 2 | 3 | 4 = 1;
+    let value = 0;
+
+    if (mode === "discharge" && p.dischargeCubicM !== null && p.dischargeCubicM > 0) {
+      value = p.dischargeCubicM;
+      const mean = p.dischargeMean ?? 0;
+      const dMax = p.dischargeMax ?? 0;
+
+      if (dMax > 0 && value > dMax) {
+        tier = 4;
+      } else if (mean > 0) {
+        const ratio = value / mean;
+        if (ratio > 3.5) tier = 4;
+        else if (ratio > 2.5) tier = 3;
+        else if (ratio > 1.5) tier = 2;
+      }
+    } else if (mode === "cm" && p.levelCm !== null && p.levelCm > 0) {
+      value = p.levelCm;
+      const dangerCm = p.dangerLevelCm ?? 0;
+      if (dangerCm > 0) {
+        const ratio = value / dangerCm;
+        if (ratio >= 1.0) tier = 4;
+        else if (ratio >= 0.75) tier = 3;
+        else if (ratio >= 0.5) tier = 2;
+      }
+    }
+
+    if (value > maxValue) maxValue = value;
+    if (tier > maxTier) maxTier = tier;
+
+    // Track first crossing of each threshold
+    const daysAhead = Math.max(0, Math.round((new Date(p.measuredAt).getTime() - now) / (1000 * 60 * 60 * 24)));
+    if (tier >= 2 && elevatedDaysUntil < 0) elevatedDaysUntil = daysAhead;
+    if (tier >= 3 && dangerDaysUntil < 0) dangerDaysUntil = daysAhead;
+  }
+
+  if (maxTier < 2) return null;
+
+  // Use danger crossing date if available, else elevated crossing date
+  const targetDays = dangerDaysUntil >= 0 ? dangerDaysUntil : elevatedDaysUntil;
+
+  const daysText = targetDays === 0
+    ? "сегодня"
+    : targetDays === 1
+      ? "через 1 день"
+      : `через ${targetDays} дн.`;
+
+  let text: string;
+  if (maxTier >= 3 && dangerDaysUntil >= 0) {
+    text = `Прогноз: ${TIER_LABELS[maxTier].toLowerCase()} уровень ${daysText}`;
+  } else {
+    text = `Прогноз: повышение ${daysText}`;
+  }
+
+  return {
+    hasDanger: maxTier >= 3,
+    daysUntil: targetDays,
+    maxTier,
+    maxValue,
+    text,
+  };
+}
+
 // ── Heatmap weight (for Phase 3) ───────────────────────────────────────────
 
 export function heatWeight(r: RiverLevel): number {

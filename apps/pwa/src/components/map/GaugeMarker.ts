@@ -9,7 +9,7 @@
  *   - Card (zoom ≥ 10): full info card with tier label + % of mean
  */
 
-import type { GaugeTier } from "./gaugeUtils.js";
+import type { GaugeTier, ForecastWarning } from "./gaugeUtils.js";
 
 export type MarkerVariant = "dot" | "pill" | "card";
 
@@ -39,12 +39,15 @@ function createPillElement(
   riverName: string,
   arrow: string,
   tier: GaugeTier,
+  forecast?: ForecastWarning | null,
 ): HTMLDivElement {
   const el = document.createElement("div");
   el.className = tier.hasData ? `gauge-pill tier-${tier.tier}` : "gauge-pill tier-nodata";
   if (tier.tier >= 3 && tier.hasData) el.className += " gauge-pulse";
 
-  el.textContent = tier.hasData ? `${riverName} ${arrow}` : riverName;
+  const text = tier.hasData ? `${riverName} ${arrow}` : riverName;
+  const warn = forecast?.hasDanger ? " \u26A0" : "";
+  el.textContent = text + warn;
   return el;
 }
 
@@ -55,6 +58,7 @@ function createCardElement(
   stationName: string,
   arrow: string,
   tier: GaugeTier,
+  forecast?: ForecastWarning | null,
 ): HTMLDivElement {
   const el = document.createElement("div");
   el.className = tier.hasData ? `gauge-card tier-${tier.tier}` : "gauge-card tier-nodata";
@@ -62,7 +66,11 @@ function createCardElement(
 
   const pctText = tier.pctOfMean > 0 ? `${tier.pctOfMean}% от нормы` : "Нет данных";
 
-  el.innerHTML = `<div class="gauge-card-header"><span class="gauge-card-river">${esc(riverName)} — ${esc(stationName)}</span></div><div class="gauge-card-body"><span class="gauge-card-tier">${tier.hasData ? esc(tier.label) : "—"} ${esc(arrow)}</span><span class="gauge-card-pct">${esc(pctText)}</span></div>`;
+  const forecastHTML = forecast?.hasDanger
+    ? `<div class="gauge-card-forecast">\u26A0 ${esc(forecast.text)}</div>`
+    : "";
+
+  el.innerHTML = `<div class="gauge-card-header"><span class="gauge-card-river">${esc(riverName)} — ${esc(stationName)}</span></div><div class="gauge-card-body"><span class="gauge-card-tier">${tier.hasData ? esc(tier.label) : "—"} ${esc(arrow)}</span><span class="gauge-card-pct">${esc(pctText)}</span></div>${forecastHTML}`;
   return el;
 }
 
@@ -73,6 +81,7 @@ export interface GaugeMarkerData {
   stationName: string;
   arrow: string;
   tier: GaugeTier;
+  forecast?: ForecastWarning | null;
 }
 
 export function createMarkerElement(
@@ -83,9 +92,9 @@ export function createMarkerElement(
     case "dot":
       return createDotElement(data.tier);
     case "pill":
-      return createPillElement(data.riverName, data.arrow, data.tier);
+      return createPillElement(data.riverName, data.arrow, data.tier, data.forecast);
     case "card":
-      return createCardElement(data.riverName, data.stationName, data.arrow, data.tier);
+      return createCardElement(data.riverName, data.stationName, data.arrow, data.tier, data.forecast);
   }
 }
 
@@ -113,13 +122,17 @@ export function updateMarkerElement(
 
   if (newVariant === "pill") {
     existing.className = `gauge-pill ${tierClass}${pulseClass}`;
-    existing.textContent = data.tier.hasData ? `${data.riverName} ${data.arrow}` : data.riverName;
+    const warn = data.forecast?.hasDanger ? " \u26A0" : "";
+    existing.textContent = (data.tier.hasData ? `${data.riverName} ${data.arrow}` : data.riverName) + warn;
     return false;
   }
 
   // Card — update inner HTML
   existing.className = `gauge-card ${tierClass}${pulseClass}`;
   const pctText = data.tier.pctOfMean > 0 ? `${data.tier.pctOfMean}% от нормы` : "Нет данных";
-  existing.innerHTML = `<div class="gauge-card-header"><span class="gauge-card-river">${esc(data.riverName)} — ${esc(data.stationName)}</span></div><div class="gauge-card-body"><span class="gauge-card-tier">${data.tier.hasData ? esc(data.tier.label) : "—"} ${esc(data.arrow)}</span><span class="gauge-card-pct">${esc(pctText)}</span></div>`;
+  const forecastHTML = data.forecast?.hasDanger
+    ? `<div class="gauge-card-forecast">\u26A0 ${esc(data.forecast.text)}</div>`
+    : "";
+  existing.innerHTML = `<div class="gauge-card-header"><span class="gauge-card-river">${esc(data.riverName)} — ${esc(data.stationName)}</span></div><div class="gauge-card-body"><span class="gauge-card-tier">${data.tier.hasData ? esc(data.tier.label) : "—"} ${esc(data.arrow)}</span><span class="gauge-card-pct">${esc(pctText)}</span></div>${forecastHTML}`;
   return false;
 }
