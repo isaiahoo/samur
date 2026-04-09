@@ -163,35 +163,59 @@ export interface SettlementRunoffRisk {
   level: "moderate" | "high" | "extreme";
 }
 
-/** Lower threshold to catch more at-risk settlements */
-const SETTLEMENT_RISK_THRESHOLD = 20;
+/** Only flag settlements with genuinely nearby, significant runoff */
+const SETTLEMENT_RISK_THRESHOLD = 35;
+/** Max distance (degrees, ~0.4° ≈ 40km) — beyond this, no marker */
+const MAX_SETTLEMENT_DIST = 0.4;
 
 /**
  * Find settlements at risk from surface runoff.
- * Uses IDW interpolation of risk index at each settlement location.
+ * Only flags a settlement if there's a high-risk grid point within ~40km.
+ * Prevents false positives from distant IDW interpolation.
  */
 export function getSettlementsAtRunoffRisk(points: RunoffPoint[]): SettlementRunoffRisk[] {
-  const activePoints = points.filter((p) => p.riskIndex > 5);
+  const activePoints = points.filter((p) => p.riskIndex >= 25);
   if (activePoints.length === 0) return [];
 
   const results: SettlementRunoffRisk[] = [];
 
   for (const s of DAGESTAN_SETTLEMENTS) {
-    const { value: riskIndex } = idw(s.lat, s.lng, activePoints);
-    if (riskIndex < SETTLEMENT_RISK_THRESHOLD) continue;
-
-    // Also interpolate runoff depth for the label
-    let sumW = 0, sumD = 0;
+    // Find the nearest active runoff point
+    let nearestDist = Infinity;
+    let nearestRunoff = 0;
+    let nearestRisk = 0;
     for (const p of activePoints) {
       const dlat = p.lat - s.lat;
       const dlng = p.lng - s.lng;
       const dist = Math.sqrt(dlat * dlat + dlng * dlng);
-      if (dist < 0.001) { sumD = p.runoffDepth; sumW = 1; break; }
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestRunoff = p.runoffDepth;
+        nearestRisk = p.riskIndex;
+      }
+    }
+
+    // Skip if no significant runoff point is close enough
+    if (nearestDist > MAX_SETTLEMENT_DIST) continue;
+    if (nearestRisk < SETTLEMENT_RISK_THRESHOLD) continue;
+
+    // Use distance-weighted average from nearby points only
+    let sumW = 0, sumR = 0, sumD = 0;
+    for (const p of activePoints) {
+      const dlat = p.lat - s.lat;
+      const dlng = p.lng - s.lng;
+      const dist = Math.sqrt(dlat * dlat + dlng * dlng);
+      if (dist > MAX_SETTLEMENT_DIST) continue;
+      if (dist < 0.001) { sumR = p.riskIndex; sumD = p.runoffDepth; sumW = 1; break; }
       const w = 1 / (dist ** 3);
       sumW += w;
+      sumR += w * p.riskIndex;
       sumD += w * p.runoffDepth;
     }
+
+    const riskIndex = sumW > 0 ? Math.round(sumR / sumW) : 0;
     const runoffDepth = sumW > 0 ? Math.round((sumD / sumW) * 10) / 10 : 0;
+    if (riskIndex < SETTLEMENT_RISK_THRESHOLD) continue;
 
     let level: SettlementRunoffRisk["level"] = "moderate";
     if (riskIndex >= 65) level = "extreme";
@@ -202,7 +226,7 @@ export function getSettlementsAtRunoffRisk(points: RunoffPoint[]): SettlementRun
       lat: s.lat,
       lng: s.lng,
       pop: s.pop,
-      riskIndex: Math.round(riskIndex),
+      riskIndex,
       runoffDepth,
       level,
     });
