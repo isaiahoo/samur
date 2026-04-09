@@ -224,3 +224,101 @@ export function heatWeight(r: RiverLevel): number {
   if (!r.dischargeMean || r.dischargeMean <= 0) return 0;
   return Math.min((r.dischargeCubicM / r.dischargeMean) / 4, 1.0);
 }
+
+// ── Upstream-downstream early warning (Phase 5) ──────────────────────────
+
+/**
+ * River chain config: stations ordered upstream → downstream.
+ * Key = main river name, value = station names in upstream-first order.
+ */
+export const RIVER_CHAINS: Record<string, string[]> = {
+  "Самур": ["Усухчай", "Ахты", "Лучек", "Устье (дельта)"],
+  "Сулак": ["Красный Мост", "Чиркота", "Миатлы", "Языковка", "Сулак"],
+  "Терек": ["Хангаш-Юрт", "Аликазган", "Каргалинский гидроузел"],
+};
+
+/** Tributaries that feed into a main river */
+export const TRIBUTARY_MAP: Record<string, string> = {
+  "Аварское Койсу": "Сулак",
+  "Андийское Койсу": "Сулак",
+};
+
+export interface UpstreamWarning {
+  /** Name of the upstream station with danger */
+  upstreamStation: string;
+  /** Name of the upstream river (may differ for tributaries) */
+  upstreamRiver: string;
+  /** Tier of the upstream station */
+  upstreamTier: 1 | 2 | 3 | 4;
+  /** Warning text for display */
+  text: string;
+}
+
+/**
+ * Check if any upstream station has dangerous levels that could
+ * propagate downstream to the given station.
+ *
+ * Returns a warning if an upstream station is tier >= 3 AND
+ * the current station is tier <= 2 (i.e. danger hasn't arrived yet).
+ */
+export function checkUpstreamDanger(
+  riverName: string,
+  stationName: string,
+  currentTier: GaugeTier,
+  allLevels: RiverLevel[],
+): UpstreamWarning | null {
+  // Only warn if this station is NOT already in danger
+  if (currentTier.tier >= 3) return null;
+
+  // Resolve the main river (tributaries map to their main river)
+  const mainRiver = TRIBUTARY_MAP[riverName] ?? riverName;
+  const chain = RIVER_CHAINS[mainRiver];
+  if (!chain) return null;
+
+  // Find this station's position in the chain
+  const myIndex = chain.indexOf(stationName);
+  if (myIndex < 0) return null; // station not in chain (e.g. tributaries themselves)
+
+  // Check all upstream stations (lower index = further upstream)
+  for (let i = 0; i < myIndex; i++) {
+    const upStation = chain[i];
+    // Find this upstream station's data — check main river first, then tributaries
+    const upLevel = allLevels.find(
+      (r) => r.stationName === upStation && (r.riverName === mainRiver || TRIBUTARY_MAP[r.riverName] === mainRiver),
+    );
+    if (!upLevel) continue;
+
+    const upTier = computeTier(upLevel);
+    if (upTier.tier >= 3) {
+      const upRiver = upLevel.riverName;
+      return {
+        upstreamStation: upStation,
+        upstreamRiver: upRiver,
+        upstreamTier: upTier.tier,
+        text: `Выше по течению: ${TIER_LABELS[upTier.tier].toLowerCase()} уровень (${upRiver} — ${upStation})`,
+      };
+    }
+  }
+
+  // Also check tributary stations feeding into this river
+  if (mainRiver === riverName) {
+    for (const [tribRiver, mainTarget] of Object.entries(TRIBUTARY_MAP)) {
+      if (mainTarget !== mainRiver) continue;
+      // Find any station on this tributary
+      for (const r of allLevels) {
+        if (r.riverName !== tribRiver) continue;
+        const tribTier = computeTier(r);
+        if (tribTier.tier >= 3) {
+          return {
+            upstreamStation: r.stationName,
+            upstreamRiver: tribRiver,
+            upstreamTier: tribTier.tier,
+            text: `Приток ${tribRiver}: ${TIER_LABELS[tribTier.tier].toLowerCase()} уровень (${r.stationName})`,
+          };
+        }
+      }
+    }
+  }
+
+  return null;
+}

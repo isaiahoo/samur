@@ -1019,3 +1019,44 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   color: #3B82F6;
   font-weight: 600;
 }
+
+/* ── Upstream Warning ─────────────────────────────────────────────────── */
+
+/* Dashed amber outline ring on markers with upstream danger */
+.gauge-upstream-ring {
+  outline: 2px dashed #F59E0B;
+  outline-offset: 3px;
+}
+.gauge-dot.gauge-upstream-ring { border-radius: 50%; }
+.gauge-pill.gauge-upstream-ring { outline-offset: 2px; }
+
+/* Card upstream warning line */
+.gauge-card-upstream {
+  font-size: 11px;
+  font-weight: 600;
+  color: #D97706;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid #FDE68A;
+}
+
+/* Detail panel upstream warning */
+.upstream-warning {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin: 8px 0;
+  background: #FFFBEB;
+  color: #92400E;
+  border-left: 3px solid #F59E0B;
+}
+.upstream-warning-icon {
+  margin-right: 4px;
+}
+.upstream-warning-eta {
+  font-size: 12px;
+  font-weight: 400;
+  color: #A16207;
+  margin-top: 2px;
+}

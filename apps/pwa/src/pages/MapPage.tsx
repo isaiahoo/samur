@@ -14,7 +14,7 @@ import { LayerToggle } from "../components/map/LayerToggle.js";
 import { TimelineSlider } from "../components/map/TimelineSlider.js";
 import { ReportForm } from "../components/map/ReportForm.js";
 import { UrgencyBadge } from "../components/UrgencyBadge.js";
-import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning } from "../components/map/gaugeUtils.js";
+import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning, checkUpstreamDanger } from "../components/map/gaugeUtils.js";
 import { GaugeChart, type HistoryPoint } from "../components/map/GaugeChart.js";
 import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory, getRiverLevelForecast, getPrecipitation } from "../services/api.js";
 import type { PrecipitationPoint } from "../components/map/geoJsonHelpers.js";
@@ -233,9 +233,9 @@ export function MapPage() {
 
   const handleMarkerClick = useCallback(
     (type: string, item: unknown) => {
-      openSheet(<DetailPanel type={type} data={item} onClose={closeSheet} />);
+      openSheet(<DetailPanel type={type} data={item} allRiverLevels={effectiveRiverLevels} onClose={closeSheet} />);
     },
-    [openSheet, closeSheet],
+    [openSheet, closeSheet, effectiveRiverLevels],
   );
 
   const handleMapMove = useCallback((newBounds: MapBounds, _zoom: number) => {
@@ -310,10 +310,12 @@ export function MapPage() {
 function DetailPanel({
   type,
   data,
+  allRiverLevels,
   onClose,
 }: {
   type: string;
   data: unknown;
+  allRiverLevels?: RiverLevel[];
   onClose: () => void;
 }) {
   if (type === "incident") {
@@ -384,18 +386,22 @@ function DetailPanel({
   }
 
   if (type === "riverLevel") {
-    return <RiverLevelDetail data={data as RiverLevel} />;
+    return <RiverLevelDetail data={data as RiverLevel} allLevels={allRiverLevels ?? []} />;
   }
 
   return null;
 }
 
-function RiverLevelDetail({ data: r }: { data: RiverLevel }) {
+function RiverLevelDetail({ data: r, allLevels }: { data: RiverLevel; allLevels: RiverLevel[] }) {
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
 
   const tier = computeTier(r);
   const arrow = trendArrow(r.trend);
+  const upstreamWarning = useMemo(
+    () => checkUpstreamDanger(r.riverName, r.stationName, tier, allLevels),
+    [r.riverName, r.stationName, tier, allLevels],
+  );
   const hasLevel = r.levelCm !== null && r.levelCm > 0;
   const hasDischarge = r.dischargeCubicM !== null && r.dischargeCubicM > 0;
   const hasData = hasLevel || hasDischarge;
@@ -473,6 +479,15 @@ function RiverLevelDetail({ data: r }: { data: RiverLevel }) {
       {forecastWarning && (
         <div className={`forecast-warning forecast-warning--${forecastWarning.hasDanger ? "danger" : "elevated"}`}>
           {forecastWarning.text}
+        </div>
+      )}
+
+      {/* Upstream danger warning */}
+      {upstreamWarning && (
+        <div className="upstream-warning">
+          <span className="upstream-warning-icon">{"\u25B2"}</span>
+          {upstreamWarning.text}
+          <div className="upstream-warning-eta">Вода может дойти за 6-12 часов</div>
         </div>
       )}
 

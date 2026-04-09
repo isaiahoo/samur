@@ -23,7 +23,7 @@ import {
   toPrecipitationGeoJSON,
   type PrecipitationPoint,
 } from "./geoJsonHelpers.js";
-import { computeTier, trendArrow, type GaugeTier } from "./gaugeUtils.js";
+import { computeTier, trendArrow, checkUpstreamDanger, type GaugeTier } from "./gaugeUtils.js";
 import {
   createMarkerElement,
   updateMarkerElement,
@@ -530,11 +530,13 @@ export const MapView = memo(function MapView({
 
       const tier = computeTier(r);
       const arrow = trendArrow(r.trend);
+      const upstream = checkUpstreamDanger(r.riverName, r.stationName, tier, riverLevels);
       const markerData: GaugeMarkerData = {
         riverName: r.riverName,
         stationName: r.stationName,
         arrow,
         tier,
+        upstream,
       };
 
       const entry = existing.get(key);
