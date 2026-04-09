@@ -188,7 +188,7 @@ export const LEGEND_TICKS = [
 // ── Settlement risk assessment ──────────────────────────────────────────
 
 /** Key settlements in Dagestan with populations */
-const DAGESTAN_SETTLEMENTS: { name: string; lat: number; lng: number; pop: number }[] = [
+export const DAGESTAN_SETTLEMENTS: { name: string; lat: number; lng: number; pop: number }[] = [
   { name: "Махачкала", lat: 42.98, lng: 47.50, pop: 600000 },
   { name: "Хасавюрт", lat: 43.25, lng: 46.59, pop: 142000 },
   { name: "Дербент", lat: 42.07, lng: 48.29, pop: 124000 },

@@ -1243,6 +1243,51 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   50% { box-shadow: 0 2px 16px rgba(220, 38, 38, 0.6); }
 }
 
+/* ── Snowmelt risk markers ──────────────────────────────────────────────── */
+
+.melt-risk {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 6px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: default;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  pointer-events: auto;
+  transition: transform 0.15s;
+}
+.melt-risk:hover {
+  transform: scale(1.08);
+}
+.melt-risk-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+.melt-risk-name {
+  line-height: 1;
+}
+.melt-risk--moderate {
+  background: rgba(253, 174, 97, 0.9);
+  color: #422006;
+}
+.melt-risk--high {
+  background: rgba(244, 109, 67, 0.92);
+  color: #fff;
+}
+.melt-risk--critical {
+  background: rgba(215, 48, 39, 0.95);
+  color: #fff;
+  animation: melt-pulse 2s ease-in-out infinite;
+}
+@keyframes melt-pulse {
+  0%, 100% { box-shadow: 0 2px 8px rgba(215, 48, 39, 0.3); }
+  50% { box-shadow: 0 2px 16px rgba(215, 48, 39, 0.6); }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Phase 6 — NERV-Style Crisis Escalation + Controls Redesign
    ═══════════════════════════════════════════════════════════════════════════ */

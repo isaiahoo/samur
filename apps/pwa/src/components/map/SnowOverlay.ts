@@ -15,6 +15,7 @@
  */
 
 import type { SnowPoint } from "./geoJsonHelpers.js";
+import { DAGESTAN_SETTLEMENTS } from "./SoilMoistureOverlay.js";
 
 // ── Geographic bounds for mountain coverage ────────────────────────────
 
@@ -218,37 +219,83 @@ export const SNOW_LEGEND_TICKS = [
   { pos: "100%", label: "30+", desc: "Критическое" },
 ];
 
-// ── Mountain station risk assessment ────────────────────────────────────
+// ── Settlement snowmelt risk assessment ─────────────────────────────────
+//
+// Snowmelt risk for a settlement depends on mountain melt UPSTREAM, not
+// at the settlement itself (lowland towns have no snow). Algorithm:
+// 1. For each settlement, find all mountain grid points within search radius
+// 2. Prefer points that are upstream (west/south = higher elevation in Dagestan)
+// 3. Weight by inverse distance with upstream directional bias
+// 4. The settlement's risk = weighted melt contribution from nearby mountains
 
-export interface MountainMeltRisk {
+/** Max search radius (degrees) for upstream mountain influence */
+const UPSTREAM_SEARCH_RADIUS = 1.5;
+/** Minimum weighted melt to flag a settlement (mm/day) */
+const SETTLEMENT_MELT_THRESHOLD = 2.0;
+
+export interface SettlementMeltRisk {
+  name: string;
   lat: number;
   lng: number;
-  snowDepthM: number;
-  temperatureC: number;
-  meltIndex: number;
-  rain24hMm: number;
-  level: "low" | "moderate" | "high" | "critical";
+  pop: number;
+  meltIndex: number;    // weighted upstream melt (mm/day)
+  maxSnowDepth: number; // deepest upstream snow (m)
+  level: "moderate" | "high" | "critical";
 }
 
-/** Identify grid points with active snowmelt for upstream badges */
-export function getActiveMeltPoints(points: SnowPoint[]): MountainMeltRisk[] {
-  const results: MountainMeltRisk[] = [];
+/**
+ * Find settlements at risk from upstream snowmelt.
+ * Works for any settlement/mountain grid combination — not location-hardcoded.
+ * Uses directional weighting: mountain points to the west or south of a
+ * settlement (upstream in Dagestan's river topology) get higher influence.
+ */
+export function getSettlementsAtMeltRisk(points: SnowPoint[]): SettlementMeltRisk[] {
+  const meltingPoints = points.filter((p) => p.meltIndex > 0.5);
+  if (meltingPoints.length === 0) return [];
 
-  for (const p of points) {
-    if (p.meltIndex < 0.5) continue;
+  const results: SettlementMeltRisk[] = [];
 
-    let level: MountainMeltRisk["level"] = "low";
-    if (p.meltIndex >= MELT_HIGH) level = "critical";
-    else if (p.meltIndex >= MELT_MODERATE) level = "high";
-    else if (p.meltIndex >= MELT_LOW) level = "moderate";
+  for (const s of DAGESTAN_SETTLEMENTS) {
+    let weightedMelt = 0;
+    let totalWeight = 0;
+    let maxSnowDepth = 0;
+
+    for (const mp of meltingPoints) {
+      const dlat = mp.lat - s.lat;
+      const dlng = mp.lng - s.lng;
+      const dist = Math.sqrt(dlat * dlat + dlng * dlng);
+
+      if (dist > UPSTREAM_SEARCH_RADIUS) continue;
+
+      // Directional bias: mountain points west or south of settlement
+      // are more likely upstream (rivers flow east/north to Caspian).
+      // Boost weight for points in the upstream quadrant.
+      const isUpstream = dlng < 0 || dlat < 0;
+      const dirBias = isUpstream ? 1.5 : 0.5;
+
+      const w = dirBias / Math.max(dist, 0.05);
+      weightedMelt += w * mp.meltIndex;
+      totalWeight += w;
+
+      if (mp.snowDepthM > maxSnowDepth) maxSnowDepth = mp.snowDepthM;
+    }
+
+    if (totalWeight === 0) continue;
+
+    const avgMelt = weightedMelt / totalWeight;
+    if (avgMelt < SETTLEMENT_MELT_THRESHOLD) continue;
+
+    let level: SettlementMeltRisk["level"] = "moderate";
+    if (avgMelt >= MELT_HIGH) level = "critical";
+    else if (avgMelt >= MELT_MODERATE) level = "high";
 
     results.push({
-      lat: p.lat,
-      lng: p.lng,
-      snowDepthM: p.snowDepthM,
-      temperatureC: p.temperatureC,
-      meltIndex: p.meltIndex,
-      rain24hMm: p.rain24hMm,
+      name: s.name,
+      lat: s.lat,
+      lng: s.lng,
+      pop: s.pop,
+      meltIndex: Math.round(avgMelt * 10) / 10,
+      maxSnowDepth: Math.round(maxSnowDepth * 100) / 100,
       level,
     });
   }

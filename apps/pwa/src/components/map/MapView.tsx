@@ -26,7 +26,7 @@ import {
   type SnowPoint,
 } from "./geoJsonHelpers.js";
 import { generateSoilMoistureImage, SOIL_BOUNDS, getSettlementsAtRisk, type SettlementRisk } from "./SoilMoistureOverlay.js";
-import { generateSnowOverlayImage, SNOW_BOUNDS } from "./SnowOverlay.js";
+import { generateSnowOverlayImage, SNOW_BOUNDS, getSettlementsAtMeltRisk } from "./SnowOverlay.js";
 import { computeTier, trendArrow, checkUpstreamDanger, type GaugeTier } from "./gaugeUtils.js";
 import {
   createMarkerElement,
@@ -627,6 +627,41 @@ export const MapView = memo(function MapView({
       );
     }
   }, [snowData, mapReady, styleVersion]);
+
+  // ── Snowmelt settlement risk markers ──────────────────────────────────
+
+  const meltMarkersRef = useRef<maplibregl.Marker[]>([]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    // Remove old markers
+    for (const m of meltMarkersRef.current) m.remove();
+    meltMarkersRef.current = [];
+
+    if (snowData.length === 0 || !layers.snow) return;
+
+    const atRisk = getSettlementsAtMeltRisk(snowData);
+    if (atRisk.length === 0) return;
+
+    for (const s of atRisk) {
+      const el = document.createElement("div");
+      el.className = `melt-risk melt-risk--${s.level}`;
+      el.innerHTML = `<span class="melt-risk-icon">🏔</span><span class="melt-risk-name">${s.name}</span>`;
+
+      const depthStr = s.maxSnowDepth >= 1
+        ? `${s.maxSnowDepth.toFixed(1)} м`
+        : `${Math.round(s.maxSnowDepth * 100)} см`;
+      el.title = `${s.name}: таяние ${s.meltIndex} мм/сут, снег до ${depthStr}`;
+
+      const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
+        .setLngLat([s.lng, s.lat])
+        .addTo(map);
+
+      meltMarkersRef.current.push(marker);
+    }
+  }, [snowData, mapReady, layers.snow, styleVersion]);
 
   // ── Gauge station HTML markers ──────────────────────────────────────────
 
