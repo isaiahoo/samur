@@ -229,9 +229,9 @@ export const SNOW_LEGEND_TICKS = [
 // 4. The settlement's risk = weighted melt contribution from nearby mountains
 
 /** Max search radius (degrees) for upstream mountain influence */
-const UPSTREAM_SEARCH_RADIUS = 1.5;
+const UPSTREAM_SEARCH_RADIUS = 0.8;
 /** Minimum weighted melt to flag a settlement (mm/day) */
-const SETTLEMENT_MELT_THRESHOLD = 2.0;
+const SETTLEMENT_MELT_THRESHOLD = 3.0;
 
 export interface SettlementMeltRisk {
   name: string;

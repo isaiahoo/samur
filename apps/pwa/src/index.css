@@ -1267,7 +1267,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   font-size: 12px;
   line-height: 1;
 }
-.melt-risk-name {
+.melt-risk-label {
   line-height: 1;
 }
 .melt-risk--moderate {

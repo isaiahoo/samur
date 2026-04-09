@@ -648,14 +648,16 @@ export const MapView = memo(function MapView({
     for (const s of atRisk) {
       const el = document.createElement("div");
       el.className = `melt-risk melt-risk--${s.level}`;
-      el.innerHTML = `<span class="melt-risk-icon">🏔</span><span class="melt-risk-name">${s.name}</span>`;
 
       const depthStr = s.maxSnowDepth >= 1
         ? `${s.maxSnowDepth.toFixed(1)} м`
         : `${Math.round(s.maxSnowDepth * 100)} см`;
+      // Show melt rate + snow depth, not the city name (gauge markers already show it)
+      el.innerHTML = `<span class="melt-risk-icon">🏔</span><span class="melt-risk-label">таяние ${s.meltIndex} мм/с</span>`;
       el.title = `${s.name}: таяние ${s.meltIndex} мм/сут, снег до ${depthStr}`;
 
-      const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
+      // Offset slightly above the settlement so it doesn't overlap gauge markers
+      const marker = new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, -20] })
         .setLngLat([s.lng, s.lat])
         .addTo(map);
 
