@@ -730,8 +730,9 @@ export const MapView = memo(function MapView({
     for (const s of atRisk) {
       const el = document.createElement("div");
       el.className = `runoff-risk runoff-risk--${s.level}`;
-      el.innerHTML = `<span class="runoff-risk-icon">🌊</span><span class="runoff-risk-label">сток ${s.runoffDepth} мм</span>`;
-      el.title = `${s.name}: сток ${s.runoffDepth} мм, риск ${s.riskIndex}%`;
+      const actionLabel = s.level === "extreme" ? "Эвакуация!" : s.level === "high" ? "Опасно!" : "Внимание";
+      el.innerHTML = `<span class="runoff-risk-icon">⚠️</span><span class="runoff-risk-label">${actionLabel}</span>`;
+      el.title = `${s.name}: риск затопления ${s.riskIndex}%, сток ${s.runoffDepth} мм`;
 
       const marker = new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, -30] })
         .setLngLat([s.lng, s.lat])

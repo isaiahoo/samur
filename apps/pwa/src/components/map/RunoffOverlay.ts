@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * Surface runoff IDW overlay — flash flood risk visualization.
+ * Flood risk overlay — shows where water pools and flows into rivers.
  *
- * Design: warm color ramp (green → yellow → orange → red) by risk index.
- * Risk index computed from SCS Curve Number method on the backend:
- *   0–20   = low (transparent)
- *   20–50  = moderate (yellow-green)
- *   50–80  = high (orange)
- *   80–100 = extreme (red)
+ * Renamed from "surface runoff" to "flood risk" for clarity.
+ * Color ramp: yellow → orange → red → dark red.
+ * Designed so any person immediately understands: colored area = danger.
  *
- * Caspian Sea clipped via shared coastline approximation.
+ * Risk index (0–100) from SCS Curve Number method:
+ *   0–8    = safe (transparent)
+ *   8–35   = watch (yellow-amber)
+ *   35–65  = danger (orange)
+ *   65–100 = evacuate (deep red)
  */
 
 import type { RunoffPoint } from "./geoJsonHelpers.js";
@@ -48,15 +49,15 @@ function idw(
 const CANVAS_W = 280;
 const CANVAS_H = 220;
 
-/** Max distance (degrees) from any data point — beyond this, pixel is transparent */
+/** Max distance (degrees) from any data point */
 const MAX_INFLUENCE_DIST = 0.8;
 
-/** Minimum risk index to render (below = transparent) */
-const VISIBLE_THRESHOLD = 20;
+/** Minimum risk to show anything — very low threshold so risk is visible early */
+const VISIBLE_THRESHOLD = 8;
 
 /**
- * Generate a surface runoff risk overlay using IDW interpolation.
- * Color ramp: yellow-green → yellow → orange → red.
+ * Generate a flood risk overlay using IDW interpolation.
+ * Clear, bold colors: yellow → orange → red.
  */
 export function generateRunoffOverlayImage(
   points: RunoffPoint[],
@@ -87,46 +88,44 @@ export function generateRunoffOverlayImage(
 
       const { value: risk, minDist } = idw(lat, lng, activePoints);
 
-      // Skip pixels too far from any data point
       if (minDist > MAX_INFLUENCE_DIST) {
         imageData.data[idx + 3] = 0;
         continue;
       }
 
-      // Below threshold = transparent
       if (risk < VISIBLE_THRESHOLD) {
         imageData.data[idx + 3] = 0;
         continue;
       }
 
-      // Fade out near the edge of influence radius
+      // Fade at edges of influence radius
       const distFade = minDist > MAX_INFLUENCE_DIST * 0.6
         ? 1 - (minDist - MAX_INFLUENCE_DIST * 0.6) / (MAX_INFLUENCE_DIST * 0.4)
         : 1;
 
       let r: number, g: number, b: number, a: number;
 
-      if (risk < 50) {
-        // Moderate: yellow-green → yellow
-        const t = (risk - VISIBLE_THRESHOLD) / (50 - VISIBLE_THRESHOLD);
-        r = 160 + Math.round(t * 60);   // 160 → 220
-        g = 200 - Math.round(t * 10);   // 200 → 190
-        b = 60 - Math.round(t * 20);    // 60 → 40
-        a = 90 + Math.round(t * 50);    // 90 → 140
-      } else if (risk < 80) {
-        // High: yellow → orange
-        const t = (risk - 50) / 30;
-        r = 220 + Math.round(t * 25);   // 220 → 245
-        g = 190 - Math.round(t * 90);   // 190 → 100
-        b = 40 + Math.round(t * 10);    // 40 → 50
-        a = 140 + Math.round(t * 40);   // 140 → 180
+      if (risk < 35) {
+        // Watch: amber-yellow — "be alert"
+        const t = (risk - VISIBLE_THRESHOLD) / (35 - VISIBLE_THRESHOLD);
+        r = 240;
+        g = 200 - Math.round(t * 40);   // 200 → 160
+        b = 20;
+        a = 120 + Math.round(t * 50);   // 120 → 170
+      } else if (risk < 65) {
+        // Danger: orange — "stay away from rivers"
+        const t = (risk - 35) / 30;
+        r = 240 - Math.round(t * 10);   // 240 → 230
+        g = 160 - Math.round(t * 80);   // 160 → 80
+        b = 20 + Math.round(t * 10);    // 20 → 30
+        a = 170 + Math.round(t * 30);   // 170 → 200
       } else {
-        // Extreme: orange → deep red
-        const t = Math.min((risk - 80) / 20, 1.0);
-        r = 245 - Math.round(t * 45);   // 245 → 200
-        g = 100 - Math.round(t * 60);   // 100 → 40
-        b = 50 - Math.round(t * 20);    // 50 → 30
-        a = 180 + Math.round(t * 40);   // 180 → 220
+        // Evacuate: deep red — "leave the area"
+        const t = Math.min((risk - 65) / 35, 1.0);
+        r = 230 - Math.round(t * 30);   // 230 → 200
+        g = 80 - Math.round(t * 50);    // 80 → 30
+        b = 30 - Math.round(t * 10);    // 30 → 20
+        a = 200 + Math.round(t * 30);   // 200 → 230
       }
 
       imageData.data[idx] = r;
@@ -143,16 +142,16 @@ export function generateRunoffOverlayImage(
 // ── Legend ───────────────────────────────────────────────────────────────
 
 export function runoffLegendGradientCSS(): string {
-  return "linear-gradient(to right, rgba(160,200,60,0.5) 0%, rgba(220,190,40,0.65) 33%, rgba(245,130,50,0.8) 66%, rgba(200,40,30,0.9) 100%)";
+  return "linear-gradient(to right, rgba(240,200,20,0.7) 0%, rgba(235,120,25,0.85) 50%, rgba(200,30,20,0.95) 100%)";
 }
 
 export const RUNOFF_LEGEND_TICKS = [
-  { pos: "0%", label: "10", desc: "Умеренный" },
-  { pos: "50%", label: "25", desc: "Высокий" },
-  { pos: "100%", label: "40+", desc: "Критический" },
+  { pos: "0%", label: "Внимание" },
+  { pos: "50%", label: "Опасно" },
+  { pos: "100%", label: "Эвакуация" },
 ];
 
-// ── Settlement runoff risk assessment ──────────────────────────────────
+// ── Settlement flood risk assessment ──────────────────────────────────
 
 export interface SettlementRunoffRisk {
   name: string;
@@ -164,15 +163,15 @@ export interface SettlementRunoffRisk {
   level: "moderate" | "high" | "extreme";
 }
 
-/** Minimum risk index to flag a settlement */
-const SETTLEMENT_RISK_THRESHOLD = 40;
+/** Lower threshold to catch more at-risk settlements */
+const SETTLEMENT_RISK_THRESHOLD = 20;
 
 /**
  * Find settlements at risk from surface runoff.
  * Uses IDW interpolation of risk index at each settlement location.
  */
 export function getSettlementsAtRunoffRisk(points: RunoffPoint[]): SettlementRunoffRisk[] {
-  const activePoints = points.filter((p) => p.riskIndex > 10);
+  const activePoints = points.filter((p) => p.riskIndex > 5);
   if (activePoints.length === 0) return [];
 
   const results: SettlementRunoffRisk[] = [];
@@ -195,8 +194,8 @@ export function getSettlementsAtRunoffRisk(points: RunoffPoint[]): SettlementRun
     const runoffDepth = sumW > 0 ? Math.round((sumD / sumW) * 10) / 10 : 0;
 
     let level: SettlementRunoffRisk["level"] = "moderate";
-    if (riskIndex >= 80) level = "extreme";
-    else if (riskIndex >= 50) level = "high";
+    if (riskIndex >= 65) level = "extreme";
+    else if (riskIndex >= 35) level = "high";
 
     results.push({
       name: s.name,

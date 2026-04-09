@@ -1287,14 +1287,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   50% { box-shadow: 0 2px 16px rgba(215, 48, 39, 0.6); }
 }
 
-/* ── Runoff legend ─────────────────────────────────────────────────────── */
+/* ── Runoff / flood risk legend ────────────────────────────────────────── */
 .runoff-legend {
-  background: rgba(20, 25, 20, 0.88);
+  background: rgba(30, 20, 10, 0.92);
   backdrop-filter: blur(8px);
   border-radius: 10px;
   padding: 10px 14px;
   color: #e2e8f0;
-  border: 1px solid rgba(160, 200, 60, 0.3);
+  border: 1px solid rgba(240, 180, 20, 0.4);
   min-width: 220px;
   pointer-events: auto;
 }
@@ -1308,21 +1308,21 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   font-size: 14px;
 }
 .runoff-legend-title {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #a8d538;
+  color: #f0c030;
 }
 .runoff-legend-bar {
-  height: 10px;
-  border-radius: 5px;
+  height: 12px;
+  border-radius: 6px;
   margin-bottom: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 .runoff-legend-ticks {
   position: relative;
-  height: 28px;
+  height: 18px;
   margin-bottom: 4px;
 }
 .runoff-legend-tick {
@@ -1336,24 +1336,18 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .runoff-legend-tick:last-child { align-items: flex-end; }
 .runoff-legend-tick-val {
   font-size: 11px;
-  font-weight: 600;
-  color: #e2e8f0;
-  line-height: 1;
-}
-.runoff-legend-tick-desc {
-  font-size: 9px;
-  color: #94a3b8;
-  margin-top: 1px;
+  font-weight: 700;
+  color: #fde68a;
   line-height: 1;
 }
 .runoff-legend-hint {
   font-size: 10px;
-  color: #64748b;
+  color: #94a3b8;
   text-align: center;
   margin-top: 2px;
 }
 .crisis-mode .runoff-legend {
-  border-color: rgba(220, 50, 30, 0.4);
+  border-color: rgba(220, 50, 30, 0.5);
 }
 
 /* ── Runoff risk markers ────────────────────────────────────────────────── */
@@ -1382,12 +1376,12 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   line-height: 1;
 }
 .runoff-risk--moderate {
-  background: rgba(160, 200, 60, 0.92);
-  color: #1a2e05;
+  background: rgba(240, 190, 20, 0.95);
+  color: #3d2800;
 }
 .runoff-risk--high {
-  background: rgba(245, 160, 50, 0.95);
-  color: #3d1e00;
+  background: rgba(235, 100, 25, 0.95);
+  color: #fff;
 }
 .runoff-risk--extreme {
   background: rgba(220, 50, 30, 0.95);

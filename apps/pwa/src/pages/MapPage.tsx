@@ -308,7 +308,7 @@ export function MapPage() {
     { key: "precipitation", label: "Осадки", active: layers.precipitation },
     { key: "soilMoisture", label: "Влажность почвы", active: layers.soilMoisture },
     { key: "snow", label: "Снег / таяние", active: layers.snow },
-    { key: "runoff", label: "Сток", active: layers.runoff },
+    { key: "runoff", label: "Риск затопления", active: layers.runoff },
   ];
 
   return (
@@ -380,19 +380,18 @@ export function MapPage() {
           {layers.runoff && runoffData.length > 0 && (
             <div className="runoff-legend">
               <div className="runoff-legend-header">
-                <span className="runoff-legend-icon">🌊</span>
-                <span className="runoff-legend-title">Поверхностный сток</span>
+                <span className="runoff-legend-icon">⚠️</span>
+                <span className="runoff-legend-title">Риск затопления</span>
               </div>
               <div className="runoff-legend-bar" style={{ background: runoffLegendGradientCSS() }} />
               <div className="runoff-legend-ticks">
                 {RUNOFF_LEGEND_TICKS.map((t, i) => (
                   <div key={i} className="runoff-legend-tick" style={{ left: t.pos }}>
                     <span className="runoff-legend-tick-val">{t.label}</span>
-                    <span className="runoff-legend-tick-desc">{t.desc}</span>
                   </div>
                 ))}
               </div>
-              <div className="runoff-legend-hint">мм — вода, стекающая в реки</div>
+              <div className="runoff-legend-hint">Цветные зоны — вода не впитывается, уходит в реки</div>
             </div>
           )}
         </div>
