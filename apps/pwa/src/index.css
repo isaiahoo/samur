@@ -1287,6 +1287,118 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   50% { box-shadow: 0 2px 16px rgba(215, 48, 39, 0.6); }
 }
 
+/* ── Runoff legend ─────────────────────────────────────────────────────── */
+.runoff-legend {
+  background: rgba(20, 25, 20, 0.88);
+  backdrop-filter: blur(8px);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: #e2e8f0;
+  border: 1px solid rgba(160, 200, 60, 0.3);
+  min-width: 220px;
+  pointer-events: auto;
+}
+.runoff-legend-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.runoff-legend-icon {
+  font-size: 14px;
+}
+.runoff-legend-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #a8d538;
+}
+.runoff-legend-bar {
+  height: 10px;
+  border-radius: 5px;
+  margin-bottom: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.runoff-legend-ticks {
+  position: relative;
+  height: 28px;
+  margin-bottom: 4px;
+}
+.runoff-legend-tick {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateX(-50%);
+}
+.runoff-legend-tick:first-child { align-items: flex-start; }
+.runoff-legend-tick:last-child { align-items: flex-end; }
+.runoff-legend-tick-val {
+  font-size: 11px;
+  font-weight: 600;
+  color: #e2e8f0;
+  line-height: 1;
+}
+.runoff-legend-tick-desc {
+  font-size: 9px;
+  color: #94a3b8;
+  margin-top: 1px;
+  line-height: 1;
+}
+.runoff-legend-hint {
+  font-size: 10px;
+  color: #64748b;
+  text-align: center;
+  margin-top: 2px;
+}
+.crisis-mode .runoff-legend {
+  border-color: rgba(220, 50, 30, 0.4);
+}
+
+/* ── Runoff risk markers ────────────────────────────────────────────────── */
+.runoff-risk {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: default;
+  white-space: nowrap;
+  pointer-events: auto;
+  transition: transform 0.15s ease;
+}
+.runoff-risk:hover {
+  transform: scale(1.08);
+}
+.runoff-risk-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+.runoff-risk-label {
+  line-height: 1;
+}
+.runoff-risk--moderate {
+  background: rgba(160, 200, 60, 0.92);
+  color: #1a2e05;
+}
+.runoff-risk--high {
+  background: rgba(245, 160, 50, 0.95);
+  color: #3d1e00;
+}
+.runoff-risk--extreme {
+  background: rgba(220, 50, 30, 0.95);
+  color: #fff;
+  animation: runoff-pulse 2s ease-in-out infinite;
+}
+@keyframes runoff-pulse {
+  0%, 100% { box-shadow: 0 2px 8px rgba(220, 50, 30, 0.3); }
+  50% { box-shadow: 0 2px 16px rgba(220, 50, 30, 0.6); }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    Phase 6 — NERV-Style Crisis Escalation + Controls Redesign
    ═══════════════════════════════════════════════════════════════════════════ */

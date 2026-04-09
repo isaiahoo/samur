@@ -6,6 +6,7 @@ import { fetchAllNewsFeeds } from "./newsFetcher.js";
 import { fetchPrecipitationGrid, isCacheStale } from "./precipitationClient.js";
 import { fetchSoilMoistureGrid, isSoilMoistureCacheStale } from "./soilMoistureClient.js";
 import { fetchSnowGrid, isSnowCacheStale } from "./snowClient.js";
+import { computeRunoffGrid } from "./runoffClient.js";
 
 const log = logger.child({ service: "scheduler" });
 
@@ -74,6 +75,8 @@ async function runPrecipFetch(): Promise<void> {
   try {
     const data = await fetchPrecipitationGrid();
     log.info({ points: data.length }, "Precipitation grid updated");
+    // Recompute runoff (derived from precip + soil moisture)
+    computeRunoffGrid();
   } catch (err) {
     log.error({ err }, "Precipitation fetch failed");
   } finally {
@@ -89,6 +92,8 @@ async function runSoilMoistureFetch(): Promise<void> {
   try {
     const data = await fetchSoilMoistureGrid();
     log.info({ points: data.length }, "Soil moisture grid updated");
+    // Recompute runoff (derived from precip + soil moisture)
+    computeRunoffGrid();
   } catch (err) {
     log.error({ err }, "Soil moisture fetch failed");
   } finally {
@@ -153,6 +158,11 @@ export async function startScheduler(): Promise<void> {
   setTimeout(() => {
     runSnowFetch();
   }, 30_000);
+
+  // Run initial runoff computation after 35 seconds (after precip + soil moisture)
+  setTimeout(() => {
+    computeRunoffGrid();
+  }, 35_000);
 
   // Schedule hourly scrapes
   scrapeTimer = setInterval(runScrape, SCRAPE_INTERVAL_MS);

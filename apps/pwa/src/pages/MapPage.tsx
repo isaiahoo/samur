@@ -16,10 +16,11 @@ import { ReportForm } from "../components/map/ReportForm.js";
 import { UrgencyBadge } from "../components/UrgencyBadge.js";
 import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning, checkUpstreamDanger } from "../components/map/gaugeUtils.js";
 import { GaugeChart, type HistoryPoint } from "../components/map/GaugeChart.js";
-import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory, getRiverLevelForecast, getPrecipitation, getSoilMoisture, getSnowData } from "../services/api.js";
-import type { PrecipitationPoint, SoilMoisturePoint, SnowPoint } from "../components/map/geoJsonHelpers.js";
+import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory, getRiverLevelForecast, getPrecipitation, getSoilMoisture, getSnowData, getRunoffData } from "../services/api.js";
+import type { PrecipitationPoint, SoilMoisturePoint, SnowPoint, RunoffPoint } from "../components/map/geoJsonHelpers.js";
 import { legendGradientCSS, LEGEND_TICKS } from "../components/map/SoilMoistureOverlay.js";
 import { snowLegendGradientCSS, SNOW_LEGEND_TICKS } from "../components/map/SnowOverlay.js";
+import { runoffLegendGradientCSS, RUNOFF_LEGEND_TICKS } from "../components/map/RunoffOverlay.js";
 import { cacheItems, getCachedItems } from "../services/db.js";
 import { useSocketEvent, useSocketSubscription } from "../hooks/useSocket.js";
 import { useGeolocation } from "../hooks/useGeolocation.js";
@@ -35,6 +36,7 @@ export function MapPage() {
   const [precipitation, setPrecipitation] = useState<PrecipitationPoint[]>([]);
   const [soilMoisture, setSoilMoisture] = useState<SoilMoisturePoint[]>([]);
   const [snowData, setSnowData] = useState<SnowPoint[]>([]);
+  const [runoffData, setRunoffData] = useState<RunoffPoint[]>([]);
   const [showReport, setShowReport] = useState(false);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
 
@@ -57,6 +59,7 @@ export function MapPage() {
     precipitation: false,
     soilMoisture: false,
     snow: false,
+    runoff: false,
   }));
 
   const boundsRef = useRef<MapBounds | null>(null);
@@ -98,6 +101,14 @@ export function MapPage() {
     try {
       const res = await getSnowData();
       if (res?.data) setSnowData(res.data);
+    } catch { /* ignore — optional overlay */ }
+  }, []);
+
+  // Surface runoff risk — fetch once on mount (derived from precip + soil moisture)
+  const fetchRunoffData = useCallback(async () => {
+    try {
+      const res = await getRunoffData();
+      if (res?.data) setRunoffData(res.data);
     } catch { /* ignore — optional overlay */ }
   }, []);
 
@@ -168,9 +179,10 @@ export function MapPage() {
     fetchPrecipData();
     fetchSoilMoistureData();
     fetchSnowData();
+    fetchRunoffData();
     fetchForecastData();
     return () => { if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current); };
-  }, [fetchData, fetchRiverLevels, fetchPrecipData, fetchSoilMoistureData, fetchSnowData, fetchForecastData]);
+  }, [fetchData, fetchRiverLevels, fetchPrecipData, fetchSoilMoistureData, fetchSnowData, fetchRunoffData, fetchForecastData]);
 
   useEffect(() => {
     requestPosition();
@@ -296,6 +308,7 @@ export function MapPage() {
     { key: "precipitation", label: "Осадки", active: layers.precipitation },
     { key: "soilMoisture", label: "Влажность почвы", active: layers.soilMoisture },
     { key: "snow", label: "Снег / таяние", active: layers.snow },
+    { key: "runoff", label: "Сток", active: layers.runoff },
   ];
 
   return (
@@ -308,6 +321,7 @@ export function MapPage() {
         precipitation={precipitation}
         soilMoisture={soilMoisture}
         snowData={snowData}
+        runoffData={runoffData}
         layers={layers}
         crisisMode={crisisMode}
         onMarkerClick={handleMarkerClick}
@@ -323,7 +337,7 @@ export function MapPage() {
         />
       </div>
 
-      {((layers.soilMoisture && soilMoisture.length > 0) || (layers.snow && snowData.length > 0)) && (
+      {((layers.soilMoisture && soilMoisture.length > 0) || (layers.snow && snowData.length > 0) || (layers.runoff && runoffData.length > 0)) && (
         <div className="map-legends">
           {layers.soilMoisture && soilMoisture.length > 0 && (
             <div className="soil-legend">
@@ -360,6 +374,25 @@ export function MapPage() {
                 ))}
               </div>
               <div className="snow-legend-hint">мм/сут — скорость таяния горного снега</div>
+            </div>
+          )}
+
+          {layers.runoff && runoffData.length > 0 && (
+            <div className="runoff-legend">
+              <div className="runoff-legend-header">
+                <span className="runoff-legend-icon">🌊</span>
+                <span className="runoff-legend-title">Поверхностный сток</span>
+              </div>
+              <div className="runoff-legend-bar" style={{ background: runoffLegendGradientCSS() }} />
+              <div className="runoff-legend-ticks">
+                {RUNOFF_LEGEND_TICKS.map((t, i) => (
+                  <div key={i} className="runoff-legend-tick" style={{ left: t.pos }}>
+                    <span className="runoff-legend-tick-val">{t.label}</span>
+                    <span className="runoff-legend-tick-desc">{t.desc}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="runoff-legend-hint">мм — вода, стекающая в реки</div>
             </div>
           )}
         </div>

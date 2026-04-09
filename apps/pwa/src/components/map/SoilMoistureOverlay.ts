@@ -55,7 +55,7 @@ const COAST_SEGMENTS: [number, number][] = [
   [41.00, 48.60], // South border
 ];
 
-function coastlineLng(lat: number): number {
+export function coastlineLng(lat: number): number {
   // Interpolate between coast segments
   if (lat >= COAST_SEGMENTS[0][0]) return COAST_SEGMENTS[0][1];
   if (lat <= COAST_SEGMENTS[COAST_SEGMENTS.length - 1][0]) return COAST_SEGMENTS[COAST_SEGMENTS.length - 1][1];

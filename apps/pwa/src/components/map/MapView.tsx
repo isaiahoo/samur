@@ -24,9 +24,11 @@ import {
   type PrecipitationPoint,
   type SoilMoisturePoint,
   type SnowPoint,
+  type RunoffPoint,
 } from "./geoJsonHelpers.js";
 import { generateSoilMoistureImage, SOIL_BOUNDS, getSettlementsAtRisk, type SettlementRisk } from "./SoilMoistureOverlay.js";
 import { generateSnowOverlayImage, SNOW_BOUNDS, getSettlementsAtMeltRisk } from "./SnowOverlay.js";
+import { generateRunoffOverlayImage, getSettlementsAtRunoffRisk } from "./RunoffOverlay.js";
 import { computeTier, trendArrow, checkUpstreamDanger, type GaugeTier } from "./gaugeUtils.js";
 import {
   createMarkerElement,
@@ -44,6 +46,7 @@ interface Props {
   precipitation: PrecipitationPoint[];
   soilMoisture: SoilMoisturePoint[];
   snowData: SnowPoint[];
+  runoffData: RunoffPoint[];
   layers: Record<string, boolean>;
   crisisMode?: boolean;
   onMarkerClick: (type: string, item: unknown) => void;
@@ -103,6 +106,7 @@ export const MapView = memo(function MapView({
   precipitation,
   soilMoisture,
   snowData,
+  runoffData,
   layers,
   crisisMode,
   onMarkerClick,
@@ -665,6 +669,78 @@ export const MapView = memo(function MapView({
     }
   }, [snowData, mapReady, layers.snow, styleVersion]);
 
+  // ── Surface runoff: IDW-interpolated canvas overlay ────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || runoffData.length === 0) return;
+
+    const dataUrl = generateRunoffOverlayImage(runoffData);
+    if (!dataUrl) return;
+
+    const { north, south, east, west } = SOIL_BOUNDS;
+    const coords: [[number, number], [number, number], [number, number], [number, number]] = [
+      [west, north],
+      [east, north],
+      [east, south],
+      [west, south],
+    ];
+
+    const src = map.getSource("runoffOverlayImg") as maplibregl.ImageSource | undefined;
+    if (src) {
+      src.updateImage({ url: dataUrl, coordinates: coords });
+    } else {
+      map.addSource("runoffOverlayImg", {
+        type: "image",
+        url: dataUrl,
+        coordinates: coords,
+      });
+      const beforeLayer = map.getLayer("shelters") ? "shelters" : undefined;
+      map.addLayer(
+        {
+          id: "runoff-overlay",
+          type: "raster",
+          source: "runoffOverlayImg",
+          paint: {
+            "raster-opacity": 0.6,
+            "raster-fade-duration": 0,
+          },
+        },
+        beforeLayer,
+      );
+    }
+  }, [runoffData, mapReady, styleVersion]);
+
+  // ── Runoff settlement risk markers ──────────────────────────────────────
+
+  const runoffMarkersRef = useRef<maplibregl.Marker[]>([]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    // Remove old markers
+    for (const m of runoffMarkersRef.current) m.remove();
+    runoffMarkersRef.current = [];
+
+    if (runoffData.length === 0 || !layers.runoff) return;
+
+    const atRisk = getSettlementsAtRunoffRisk(runoffData);
+    if (atRisk.length === 0) return;
+
+    for (const s of atRisk) {
+      const el = document.createElement("div");
+      el.className = `runoff-risk runoff-risk--${s.level}`;
+      el.innerHTML = `<span class="runoff-risk-icon">🌊</span><span class="runoff-risk-label">сток ${s.runoffDepth} мм</span>`;
+      el.title = `${s.name}: сток ${s.runoffDepth} мм, риск ${s.riskIndex}%`;
+
+      const marker = new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, -30] })
+        .setLngLat([s.lng, s.lat])
+        .addTo(map);
+
+      runoffMarkersRef.current.push(marker);
+    }
+  }, [runoffData, mapReady, layers.runoff, styleVersion]);
+
   // ── Gauge station HTML markers ──────────────────────────────────────────
 
   const gaugeMarkersRef = useRef<Map<string, {
@@ -814,6 +890,7 @@ export const MapView = memo(function MapView({
       precipitation: ["precip-heatmap"],
       soilMoisture: ["soil-moisture-overlay"],
       snow: ["snow-overlay"],
+      runoff: ["runoff-overlay"],
     };
 
     for (const [key, layerIds] of Object.entries(layerGroups)) {

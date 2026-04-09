@@ -150,6 +150,15 @@ export function toSoilMoistureGeoJSON(points: SoilMoisturePoint[]): FeatureColle
   };
 }
 
+/** Surface runoff risk point (SCS-CN derived) */
+export interface RunoffPoint {
+  lat: number;
+  lng: number;
+  runoffDepth: number;  // mm
+  riskIndex: number;    // 0–100
+  riskLevel: string;    // "low" | "moderate" | "high" | "extreme"
+}
+
 /** Snow data point from the mountain grid */
 export interface SnowForecastDay {
   date: string;

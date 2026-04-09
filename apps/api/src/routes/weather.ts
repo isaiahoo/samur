@@ -4,6 +4,7 @@ import { Router } from "express";
 import { getCachedPrecipitation } from "../services/precipitationClient.js";
 import { getCachedSoilMoisture } from "../services/soilMoistureClient.js";
 import { getCachedSnowData } from "../services/snowClient.js";
+import { getCachedRunoff } from "../services/runoffClient.js";
 
 const router = Router();
 
@@ -79,6 +80,32 @@ router.get("/snow", (_req, res) => {
     meta: {
       points: data.length,
       units: { snow: "m", temp: "°C", melt: "mm/day" },
+    },
+  });
+});
+
+/**
+ * GET /api/v1/weather/runoff
+ *
+ * Returns surface runoff risk computed via SCS Curve Number method.
+ * Derived from cached precipitation + soil moisture data — no external API call.
+ * Recomputed whenever precipitation or soil moisture data refreshes.
+ */
+router.get("/runoff", (_req, res) => {
+  const data = getCachedRunoff();
+
+  res.json({
+    success: true,
+    data: data.map((p) => ({
+      lat: p.lat,
+      lng: p.lng,
+      runoffDepth: p.runoffDepth,
+      riskIndex: p.riskIndex,
+      riskLevel: p.riskLevel,
+    })),
+    meta: {
+      points: data.length,
+      units: { runoff: "mm", risk: "0-100" },
     },
   });
 });

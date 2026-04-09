@@ -255,6 +255,15 @@ export function getSnowData() {
   }>>>("/weather/snow");
 }
 
+export function getRunoffData() {
+  return request<ApiResponse<Array<{
+    lat: number; lng: number;
+    runoffDepth: number;
+    riskIndex: number;
+    riskLevel: string;
+  }>>>("/weather/runoff");
+}
+
 export function getMapClusters(params: Record<string, string | number>) {
   const qs = "?" + new URLSearchParams(toStringRecord(params)).toString();
   return request<ApiResponse>(`/map/clusters${qs}`);
