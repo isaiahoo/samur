@@ -455,9 +455,9 @@ function findNearestMoisture(lat: number, lng: number, points: SoilMoisturePoint
 
 /** Soil moisture status label and CSS class */
 function moistureStatus(m: number): { label: string; className: string } {
-  if (m >= 0.42) return { label: "Почва перенасыщена — критический риск паводка", className: "soil-status--critical" };
-  if (m >= 0.36) return { label: "Почва насыщена — высокий риск", className: "soil-status--saturated" };
-  if (m >= 0.28) return { label: "Влажность повышена", className: "soil-status--elevated" };
+  if (m >= 0.50) return { label: "Почва перенасыщена — критический риск паводка", className: "soil-status--critical" };
+  if (m >= 0.42) return { label: "Почва насыщена — высокий риск", className: "soil-status--saturated" };
+  if (m >= 0.35) return { label: "Влажность повышена", className: "soil-status--elevated" };
   if (m >= 0.18) return { label: "Нормальная влажность", className: "soil-status--normal" };
   return { label: "Сухая почва", className: "soil-status--dry" };
 }

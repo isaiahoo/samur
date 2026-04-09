@@ -23,9 +23,11 @@ export const SOIL_BOUNDS = {
 } as const;
 
 // ── Threshold: below this = dry/normal = invisible ──────────────────────
+// April spring baseline in Dagestan is ~0.28-0.35 (normal snowmelt moisture).
+// Only highlight genuinely elevated moisture that signals flood risk.
 
-const WET_THRESHOLD = 0.26; // below = transparent (no flood concern)
-const SATURATED = 0.45;      // above = max intensity
+const WET_THRESHOLD = 0.35; // below = transparent (normal for season)
+const SATURATED = 0.50;      // above = max intensity (critical)
 
 // ── Approximate Caspian coastline (to avoid painting over sea) ──────────
 // Linear approximation: lng = f(lat) for the Dagestan coast
@@ -73,7 +75,9 @@ const CANVAS_H = 100;
 export function generateSoilMoistureImage(
   points: SoilMoisturePoint[],
 ): string | null {
-  if (points.length === 0) return null;
+  // Filter out zero/missing values (likely sea points or data gaps)
+  const validPoints = points.filter((p) => p.moisture > 0.05);
+  if (validPoints.length === 0) return null;
 
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_W;
@@ -96,7 +100,7 @@ export function generateSoilMoistureImage(
         continue;
       }
 
-      const moisture = idw(lat, lng, points);
+      const moisture = idw(lat, lng, validPoints);
 
       // Below threshold = invisible (dry/normal ground, no concern)
       if (moisture < WET_THRESHOLD) {
