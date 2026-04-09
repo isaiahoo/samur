@@ -23,8 +23,10 @@ import {
   toPrecipitationGeoJSON,
   type PrecipitationPoint,
   type SoilMoisturePoint,
+  type SnowPoint,
 } from "./geoJsonHelpers.js";
 import { generateSoilMoistureImage, SOIL_BOUNDS, getSettlementsAtRisk, type SettlementRisk } from "./SoilMoistureOverlay.js";
+import { generateSnowOverlayImage, SNOW_BOUNDS } from "./SnowOverlay.js";
 import { computeTier, trendArrow, checkUpstreamDanger, type GaugeTier } from "./gaugeUtils.js";
 import {
   createMarkerElement,
@@ -41,6 +43,7 @@ interface Props {
   riverLevels: RiverLevel[];
   precipitation: PrecipitationPoint[];
   soilMoisture: SoilMoisturePoint[];
+  snowData: SnowPoint[];
   layers: Record<string, boolean>;
   crisisMode?: boolean;
   onMarkerClick: (type: string, item: unknown) => void;
@@ -99,6 +102,7 @@ export const MapView = memo(function MapView({
   riverLevels,
   precipitation,
   soilMoisture,
+  snowData,
   layers,
   crisisMode,
   onMarkerClick,
@@ -583,6 +587,47 @@ export const MapView = memo(function MapView({
     }
   }, [soilMoisture, mapReady, layers.soilMoisture, styleVersion]);
 
+  // ── Snow/snowmelt: IDW-interpolated canvas overlay ────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || snowData.length === 0) return;
+
+    const dataUrl = generateSnowOverlayImage(snowData, "melt");
+    if (!dataUrl) return;
+
+    const { north, south, east, west } = SNOW_BOUNDS;
+    const coords: [[number, number], [number, number], [number, number], [number, number]] = [
+      [west, north],
+      [east, north],
+      [east, south],
+      [west, south],
+    ];
+
+    const src = map.getSource("snowOverlayImg") as maplibregl.ImageSource | undefined;
+    if (src) {
+      src.updateImage({ url: dataUrl, coordinates: coords });
+    } else {
+      map.addSource("snowOverlayImg", {
+        type: "image",
+        url: dataUrl,
+        coordinates: coords,
+      });
+      const beforeLayer = map.getLayer("shelters") ? "shelters" : undefined;
+      map.addLayer(
+        {
+          id: "snow-overlay",
+          type: "raster",
+          source: "snowOverlayImg",
+          paint: {
+            "raster-opacity": 0.7,
+            "raster-fade-duration": 0,
+          },
+        },
+        beforeLayer,
+      );
+    }
+  }, [snowData, mapReady, styleVersion]);
+
   // ── Gauge station HTML markers ──────────────────────────────────────────
 
   const gaugeMarkersRef = useRef<Map<string, {
@@ -731,6 +776,7 @@ export const MapView = memo(function MapView({
       floodHeatmap: ["river-heatmap"],
       precipitation: ["precip-heatmap"],
       soilMoisture: ["soil-moisture-overlay"],
+      snow: ["snow-overlay"],
     };
 
     for (const [key, layerIds] of Object.entries(layerGroups)) {

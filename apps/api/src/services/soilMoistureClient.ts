@@ -127,9 +127,7 @@ export async function fetchSoilMoistureGrid(): Promise<SoilMoistureReading[]> {
     return cachedData;
   }
 
-  // Current hour index (0-23) to pick the most recent reading
-  const currentHour = new Date().getHours();
-
+  const nowMs = Date.now();
   const readings: SoilMoistureReading[] = [];
 
   for (let i = 0; i < grid.length; i++) {
@@ -138,6 +136,19 @@ export async function fetchSoilMoistureGrid(): Promise<SoilMoistureReading[]> {
     const h = resp?.hourly;
 
     if (!h) continue;
+
+    // Find closest hour by parsing the API's own timestamps
+    // (avoids timezone mismatch between server clock and API response)
+    let currentHour = 0;
+    const times = h.time ?? [];
+    let closestDiff = Infinity;
+    for (let j = 0; j < times.length; j++) {
+      const diff = Math.abs(new Date(times[j]).getTime() - nowMs);
+      if (diff < closestDiff) {
+        closestDiff = diff;
+        currentHour = j;
+      }
+    }
 
     // Get the value at the current hour for each depth layer
     const layers = [

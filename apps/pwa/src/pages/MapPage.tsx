@@ -16,9 +16,10 @@ import { ReportForm } from "../components/map/ReportForm.js";
 import { UrgencyBadge } from "../components/UrgencyBadge.js";
 import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning, checkUpstreamDanger } from "../components/map/gaugeUtils.js";
 import { GaugeChart, type HistoryPoint } from "../components/map/GaugeChart.js";
-import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory, getRiverLevelForecast, getPrecipitation, getSoilMoisture } from "../services/api.js";
-import type { PrecipitationPoint, SoilMoisturePoint } from "../components/map/geoJsonHelpers.js";
+import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory, getRiverLevelForecast, getPrecipitation, getSoilMoisture, getSnowData } from "../services/api.js";
+import type { PrecipitationPoint, SoilMoisturePoint, SnowPoint } from "../components/map/geoJsonHelpers.js";
 import { legendGradientCSS, LEGEND_TICKS } from "../components/map/SoilMoistureOverlay.js";
+import { snowLegendGradientCSS, SNOW_LEGEND_TICKS } from "../components/map/SnowOverlay.js";
 import { cacheItems, getCachedItems } from "../services/db.js";
 import { useSocketEvent, useSocketSubscription } from "../hooks/useSocket.js";
 import { useGeolocation } from "../hooks/useGeolocation.js";
@@ -33,6 +34,7 @@ export function MapPage() {
   const [riverLevels, setRiverLevels] = useState<RiverLevel[]>([]);
   const [precipitation, setPrecipitation] = useState<PrecipitationPoint[]>([]);
   const [soilMoisture, setSoilMoisture] = useState<SoilMoisturePoint[]>([]);
+  const [snowData, setSnowData] = useState<SnowPoint[]>([]);
   const [showReport, setShowReport] = useState(false);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
 
@@ -54,6 +56,7 @@ export function MapPage() {
     floodHeatmap: true,
     precipitation: false,
     soilMoisture: false,
+    snow: false,
   }));
 
   const boundsRef = useRef<MapBounds | null>(null);
@@ -87,6 +90,14 @@ export function MapPage() {
     try {
       const res = await getSoilMoisture();
       if (res?.data) setSoilMoisture(res.data);
+    } catch { /* ignore — optional overlay */ }
+  }, []);
+
+  // Snow/snowmelt grid — fetch once on mount (cached on backend for 6h)
+  const fetchSnowData = useCallback(async () => {
+    try {
+      const res = await getSnowData();
+      if (res?.data) setSnowData(res.data);
     } catch { /* ignore — optional overlay */ }
   }, []);
 
@@ -150,15 +161,16 @@ export function MapPage() {
     }
   }, []);
 
-  // Initial data fetch — river levels + precipitation + soil moisture + forecast loaded once, rest refetched on map move
+  // Initial data fetch — river levels + precipitation + soil moisture + snow + forecast loaded once, rest refetched on map move
   useEffect(() => {
     fetchData();
     fetchRiverLevels();
     fetchPrecipData();
     fetchSoilMoistureData();
+    fetchSnowData();
     fetchForecastData();
     return () => { if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current); };
-  }, [fetchData, fetchRiverLevels, fetchPrecipData, fetchSoilMoistureData, fetchForecastData]);
+  }, [fetchData, fetchRiverLevels, fetchPrecipData, fetchSoilMoistureData, fetchSnowData, fetchForecastData]);
 
   useEffect(() => {
     requestPosition();
@@ -283,6 +295,7 @@ export function MapPage() {
     { key: "floodHeatmap", label: "Зона затопления", active: layers.floodHeatmap },
     { key: "precipitation", label: "Осадки", active: layers.precipitation },
     { key: "soilMoisture", label: "Влажность почвы", active: layers.soilMoisture },
+    { key: "snow", label: "Снег / таяние", active: layers.snow },
   ];
 
   return (
@@ -294,6 +307,7 @@ export function MapPage() {
         riverLevels={effectiveRiverLevels}
         precipitation={precipitation}
         soilMoisture={soilMoisture}
+        snowData={snowData}
         layers={layers}
         crisisMode={crisisMode}
         onMarkerClick={handleMarkerClick}
@@ -309,22 +323,45 @@ export function MapPage() {
         />
       </div>
 
-      {layers.soilMoisture && soilMoisture.length > 0 && (
-        <div className="soil-legend">
-          <div className="soil-legend-header">
-            <span className="soil-legend-icon">💧</span>
-            <span className="soil-legend-title">Влажность почвы</span>
-          </div>
-          <div className="soil-legend-bar" style={{ background: legendGradientCSS() }} />
-          <div className="soil-legend-ticks">
-            {LEGEND_TICKS.map((t, i) => (
-              <div key={i} className="soil-legend-tick" style={{ left: t.pos }}>
-                <span className="soil-legend-tick-val">{t.label}</span>
-                <span className="soil-legend-tick-desc">{t.desc}</span>
+      {((layers.soilMoisture && soilMoisture.length > 0) || (layers.snow && snowData.length > 0)) && (
+        <div className="map-legends">
+          {layers.soilMoisture && soilMoisture.length > 0 && (
+            <div className="soil-legend">
+              <div className="soil-legend-header">
+                <span className="soil-legend-icon">💧</span>
+                <span className="soil-legend-title">Влажность почвы</span>
               </div>
-            ))}
-          </div>
-          <div className="soil-legend-hint">Синие зоны — мокрый грунт, повышен риск паводка</div>
+              <div className="soil-legend-bar" style={{ background: legendGradientCSS() }} />
+              <div className="soil-legend-ticks">
+                {LEGEND_TICKS.map((t, i) => (
+                  <div key={i} className="soil-legend-tick" style={{ left: t.pos }}>
+                    <span className="soil-legend-tick-val">{t.label}</span>
+                    <span className="soil-legend-tick-desc">{t.desc}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="soil-legend-hint">Синие зоны — мокрый грунт, повышен риск паводка</div>
+            </div>
+          )}
+
+          {layers.snow && snowData.length > 0 && (
+            <div className="snow-legend">
+              <div className="snow-legend-header">
+                <span className="snow-legend-icon">🏔️</span>
+                <span className="snow-legend-title">Таяние снега</span>
+              </div>
+              <div className="snow-legend-bar" style={{ background: snowLegendGradientCSS() }} />
+              <div className="snow-legend-ticks">
+                {SNOW_LEGEND_TICKS.map((t, i) => (
+                  <div key={i} className="snow-legend-tick" style={{ left: t.pos }}>
+                    <span className="snow-legend-tick-val">{t.label}</span>
+                    <span className="snow-legend-tick-desc">{t.desc}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="snow-legend-hint">мм/сут — скорость таяния горного снега</div>
+            </div>
+          )}
         </div>
       )}
 

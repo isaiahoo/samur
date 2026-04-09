@@ -5,6 +5,7 @@ import { scrapeAllStations, seedGaugeStations } from "./riverScraper.js";
 import { fetchAllNewsFeeds } from "./newsFetcher.js";
 import { fetchPrecipitationGrid, isCacheStale } from "./precipitationClient.js";
 import { fetchSoilMoistureGrid, isSoilMoistureCacheStale } from "./soilMoistureClient.js";
+import { fetchSnowGrid, isSnowCacheStale } from "./snowClient.js";
 
 const log = logger.child({ service: "scheduler" });
 
@@ -16,10 +17,12 @@ let scrapeTimer: ReturnType<typeof setInterval> | null = null;
 let newsTimer: ReturnType<typeof setInterval> | null = null;
 let precipTimer: ReturnType<typeof setInterval> | null = null;
 let soilMoistureTimer: ReturnType<typeof setInterval> | null = null;
+let snowTimer: ReturnType<typeof setInterval> | null = null;
 let isRunning = false;
 let isNewsFetching = false;
 let isPrecipFetching = false;
 let isSoilMoistureFetching = false;
+let isSnowFetching = false;
 
 async function runScrape(): Promise<void> {
   if (isRunning) {
@@ -93,6 +96,21 @@ async function runSoilMoistureFetch(): Promise<void> {
   }
 }
 
+async function runSnowFetch(): Promise<void> {
+  if (isSnowFetching) return;
+  if (!isSnowCacheStale()) return;
+
+  isSnowFetching = true;
+  try {
+    const data = await fetchSnowGrid();
+    log.info({ points: data.length }, "Snow grid updated");
+  } catch (err) {
+    log.error({ err }, "Snow fetch failed");
+  } finally {
+    isSnowFetching = false;
+  }
+}
+
 /**
  * Start the river level scraping scheduler and news feed fetcher.
  * Seeds gauge stations on first run, then scrapes every hour.
@@ -131,6 +149,11 @@ export async function startScheduler(): Promise<void> {
     runSoilMoistureFetch();
   }, 25_000);
 
+  // Run first snow fetch after 30 seconds
+  setTimeout(() => {
+    runSnowFetch();
+  }, 30_000);
+
   // Schedule hourly scrapes
   scrapeTimer = setInterval(runScrape, SCRAPE_INTERVAL_MS);
   log.info({ intervalMs: SCRAPE_INTERVAL_MS }, "Scrape scheduler started");
@@ -146,6 +169,10 @@ export async function startScheduler(): Promise<void> {
   // Schedule soil moisture fetches every 6 hours (same interval as precipitation)
   soilMoistureTimer = setInterval(runSoilMoistureFetch, PRECIP_INTERVAL_MS);
   log.info({ intervalMs: PRECIP_INTERVAL_MS }, "Soil moisture scheduler started");
+
+  // Schedule snow fetches every 6 hours
+  snowTimer = setInterval(runSnowFetch, PRECIP_INTERVAL_MS);
+  log.info({ intervalMs: PRECIP_INTERVAL_MS }, "Snow scheduler started");
 }
 
 export function stopScheduler(): void {
@@ -164,6 +191,10 @@ export function stopScheduler(): void {
   if (soilMoistureTimer) {
     clearInterval(soilMoistureTimer);
     soilMoistureTimer = null;
+  }
+  if (snowTimer) {
+    clearInterval(snowTimer);
+    snowTimer = null;
   }
   log.info("Schedulers stopped");
 }

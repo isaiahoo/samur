@@ -1038,12 +1038,24 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 /* ── Soil moisture legend (map overlay) ──────────────────────────────────── */
 
-.soil-legend {
+/* ── Legends container (stacks soil + snow legends) ─────────────────────── */
+
+.map-legends {
   position: absolute;
   bottom: 80px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 8px;
+  pointer-events: none;
+}
+.map-legends > * {
+  pointer-events: auto;
+}
+
+.soil-legend {
   background: rgba(15, 23, 42, 0.88);
   backdrop-filter: blur(12px);
   border-radius: 10px;
@@ -1109,6 +1121,81 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   margin-top: 6px;
   text-align: center;
   line-height: 1.3;
+}
+
+/* ── Snow / snowmelt legend ─────────────────────────────────────────────── */
+
+.snow-legend {
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(12px);
+  border-radius: 10px;
+  padding: 10px 16px 8px;
+  min-width: 240px;
+  max-width: 300px;
+  border: 1px solid rgba(253, 174, 97, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+.snow-legend-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.snow-legend-icon {
+  font-size: 14px;
+}
+.snow-legend-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #E2E8F0;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+.snow-legend-bar {
+  height: 8px;
+  border-radius: 4px;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.snow-legend-ticks {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding: 0 2px;
+}
+.snow-legend-tick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.snow-legend-tick:first-child { align-items: flex-start; }
+.snow-legend-tick:last-child { align-items: flex-end; }
+.snow-legend-tick-val {
+  font-size: 11px;
+  font-weight: 600;
+  color: #CBD5E1;
+  font-variant-numeric: tabular-nums;
+}
+.snow-legend-tick-desc {
+  font-size: 9px;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.snow-legend-hint {
+  font-size: 10px;
+  color: rgba(148, 163, 184, 0.7);
+  margin-top: 6px;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* Crisis mode variant */
+.crisis-mode .snow-legend {
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 /* ── Settlement risk markers (soil moisture) ─────────────────────────────── */

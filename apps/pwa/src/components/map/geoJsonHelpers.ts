@@ -149,3 +149,25 @@ export function toSoilMoistureGeoJSON(points: SoilMoisturePoint[]): FeatureColle
       ),
   };
 }
+
+/** Snow data point from the mountain grid */
+export interface SnowForecastDay {
+  date: string;
+  snowDepthM: number;
+  tempMaxC: number;
+  tempMinC: number;
+  snowfallCm: number;
+  rainMm: number;
+  meltIndex: number;
+}
+
+export interface SnowPoint {
+  lat: number;
+  lng: number;
+  snowDepthM: number;     // meters
+  temperatureC: number;   // °C
+  snowfall24hCm: number;  // cm
+  rain24hMm: number;      // mm
+  meltIndex: number;      // mm water equiv/day
+  forecast: SnowForecastDay[];
+}

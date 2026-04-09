@@ -242,6 +242,19 @@ export function getSoilMoisture() {
   return request<ApiResponse<Array<{ lat: number; lng: number; moisture: number }>>>("/weather/soil-moisture");
 }
 
+export function getSnowData() {
+  return request<ApiResponse<Array<{
+    lat: number; lng: number;
+    snowDepthM: number; temperatureC: number;
+    snowfall24hCm: number; rain24hMm: number;
+    meltIndex: number;
+    forecast: Array<{
+      date: string; snowDepthM: number; tempMaxC: number; tempMinC: number;
+      snowfallCm: number; rainMm: number; meltIndex: number;
+    }>;
+  }>>>("/weather/snow");
+}
+
 export function getMapClusters(params: Record<string, string | number>) {
   const qs = "?" + new URLSearchParams(toStringRecord(params)).toString();
   return request<ApiResponse>(`/map/clusters${qs}`);
