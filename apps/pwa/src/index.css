@@ -1350,46 +1350,39 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   border-color: rgba(220, 50, 30, 0.5);
 }
 
-/* ── Runoff risk markers ────────────────────────────────────────────────── */
-.runoff-risk {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 11px;
+/* ── Runoff data-point labels — evidence cards on the map ──────────────── */
+.runoff-data-label {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  line-height: 1.4;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
   cursor: default;
   white-space: nowrap;
   pointer-events: auto;
-  transition: transform 0.15s ease;
 }
-.runoff-risk:hover {
-  transform: scale(1.08);
+.runoff-data-label--moderate {
+  background: rgba(60, 50, 10, 0.92);
+  color: #fde68a;
+  border: 1px solid rgba(240, 200, 20, 0.5);
 }
-.runoff-risk-icon {
-  font-size: 12px;
-  line-height: 1;
+.runoff-data-label--high {
+  background: rgba(60, 25, 5, 0.92);
+  color: #fdba74;
+  border: 1px solid rgba(235, 120, 25, 0.6);
 }
-.runoff-risk-label {
-  line-height: 1;
-}
-.runoff-risk--moderate {
-  background: rgba(240, 190, 20, 0.95);
-  color: #3d2800;
-}
-.runoff-risk--high {
-  background: rgba(235, 100, 25, 0.95);
-  color: #fff;
-}
-.runoff-risk--extreme {
-  background: rgba(220, 50, 30, 0.95);
-  color: #fff;
+.runoff-data-label--extreme {
+  background: rgba(60, 10, 10, 0.92);
+  color: #fca5a5;
+  border: 1px solid rgba(220, 50, 30, 0.6);
   animation: runoff-pulse 2s ease-in-out infinite;
 }
+.runoff-data-line {
+  padding: 1px 0;
+}
 @keyframes runoff-pulse {
-  0%, 100% { box-shadow: 0 2px 8px rgba(220, 50, 30, 0.3); }
+  0%, 100% { box-shadow: 0 2px 10px rgba(220, 50, 30, 0.3); }
   50% { box-shadow: 0 2px 16px rgba(220, 50, 30, 0.6); }
 }
 

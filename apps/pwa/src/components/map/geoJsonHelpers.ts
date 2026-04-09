@@ -154,9 +154,11 @@ export function toSoilMoistureGeoJSON(points: SoilMoisturePoint[]): FeatureColle
 export interface RunoffPoint {
   lat: number;
   lng: number;
-  runoffDepth: number;  // mm
-  riskIndex: number;    // 0–100
-  riskLevel: string;    // "low" | "moderate" | "high" | "extreme"
+  runoffDepth: number;       // mm
+  riskIndex: number;         // 0–100
+  riskLevel: string;         // "low" | "moderate" | "high" | "extreme"
+  precipitation24h: number;  // mm — input evidence
+  soilMoisture: number;      // m³/m³ — input evidence
 }
 
 /** Snow data point from the mountain grid */

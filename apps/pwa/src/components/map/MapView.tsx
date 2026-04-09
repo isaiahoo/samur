@@ -28,7 +28,7 @@ import {
 } from "./geoJsonHelpers.js";
 import { generateSoilMoistureImage, SOIL_BOUNDS, getSettlementsAtRisk, type SettlementRisk } from "./SoilMoistureOverlay.js";
 import { generateSnowOverlayImage, SNOW_BOUNDS, getSettlementsAtMeltRisk } from "./SnowOverlay.js";
-import { generateRunoffOverlayImage, getSettlementsAtRunoffRisk } from "./RunoffOverlay.js";
+import { generateRunoffOverlayImage } from "./RunoffOverlay.js";
 import { computeTier, trendArrow, checkUpstreamDanger, type GaugeTier } from "./gaugeUtils.js";
 import {
   createMarkerElement,
@@ -712,6 +712,8 @@ export const MapView = memo(function MapView({
 
   // ── Runoff settlement risk markers ──────────────────────────────────────
 
+  // ── Runoff data-point labels — show evidence at each risky grid point ──
+
   const runoffMarkersRef = useRef<maplibregl.Marker[]>([]);
 
   useEffect(() => {
@@ -724,18 +726,25 @@ export const MapView = memo(function MapView({
 
     if (runoffData.length === 0 || !layers.runoff) return;
 
-    const atRisk = getSettlementsAtRunoffRisk(runoffData);
-    if (atRisk.length === 0) return;
+    // Show a data label at each grid point that has risk
+    const riskyPoints = runoffData.filter((p) => p.riskIndex >= 15);
 
-    for (const s of atRisk) {
+    for (const p of riskyPoints) {
       const el = document.createElement("div");
-      el.className = `runoff-risk runoff-risk--${s.level}`;
-      const actionLabel = s.level === "extreme" ? "Эвакуация!" : s.level === "high" ? "Опасно!" : "Внимание";
-      el.innerHTML = `<span class="runoff-risk-icon">⚠️</span><span class="runoff-risk-label">${actionLabel}</span>`;
-      el.title = `${s.name}: риск затопления ${s.riskIndex}%, сток ${s.runoffDepth} мм`;
+      const level = p.riskIndex >= 65 ? "extreme" : p.riskIndex >= 35 ? "high" : "moderate";
+      el.className = `runoff-data-label runoff-data-label--${level}`;
 
-      const marker = new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, -30] })
-        .setLngLat([s.lng, s.lat])
+      // Build evidence lines — show WHY this area is flagged
+      const lines: string[] = [];
+      if (p.precipitation24h > 0) lines.push(`🌧 ${p.precipitation24h} мм осадков`);
+      if (p.soilMoisture > 0.3) lines.push(`💧 почва ${Math.round(p.soilMoisture * 100)}%`);
+      lines.push(`⚠️ сток ${p.runoffDepth} мм`);
+
+      el.innerHTML = lines.map((l) => `<div class="runoff-data-line">${l}</div>`).join("");
+      el.title = `Риск: ${p.riskIndex}%, сток ${p.runoffDepth} мм`;
+
+      const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+        .setLngLat([p.lng, p.lat])
         .addTo(map);
 
       runoffMarkersRef.current.push(marker);

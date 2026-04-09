@@ -102,6 +102,8 @@ router.get("/runoff", (_req, res) => {
       runoffDepth: p.runoffDepth,
       riskIndex: p.riskIndex,
       riskLevel: p.riskLevel,
+      precipitation24h: p.precipitation24h,
+      soilMoisture: p.soilMoisture,
     })),
     meta: {
       points: data.length,

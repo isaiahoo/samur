@@ -261,6 +261,8 @@ export function getRunoffData() {
     runoffDepth: number;
     riskIndex: number;
     riskLevel: string;
+    precipitation24h: number;
+    soilMoisture: number;
   }>>>("/weather/runoff");
 }
 
