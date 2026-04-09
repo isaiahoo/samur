@@ -63,7 +63,7 @@ const corsOrigins = config.CORS_ORIGINS.split(",").map((s) => s.trim());
 app.use("/api/v1/tiles", cors({ origin: corsOrigins }), tilesRouter);
 
 app.use(helmet());
-app.use(cors({ origin: corsOrigins, credentials: true }));
+app.use(cors({ origin: corsOrigins, credentials: true, maxAge: 3600 }));
 app.use(express.json({ limit: "5mb" }));
 
 // Parse JWT early so rate limiter can use role-based limits
@@ -121,3 +121,12 @@ function shutdown(signal: string) {
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
+
+process.on("unhandledRejection", (reason) => {
+  logger.error({ err: reason }, "Unhandled promise rejection");
+});
+
+process.on("uncaughtException", (err) => {
+  logger.fatal({ err }, "Uncaught exception — shutting down");
+  shutdown("uncaughtException");
+});

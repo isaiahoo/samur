@@ -25,6 +25,15 @@ export const useAuthStore = create<AuthState>()(
         return user !== null && roles.includes(user.role);
       },
     }),
-    { name: "auth" },
+    {
+      name: "auth",
+      onRehydrateStorage: () => (state) => {
+        // Validate rehydrated state — clear if corrupted
+        if (state && state.token && typeof state.token !== "string") {
+          state.token = null;
+          state.user = null;
+        }
+      },
+    },
   ),
 );

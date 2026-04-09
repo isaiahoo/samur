@@ -191,9 +191,9 @@ export function ReportForm({ onClose }: { onClose: () => void }) {
               Координаты: {position.lat.toFixed(4)}, {position.lng.toFixed(4)}
             </p>
           )}
-          {!position && !geoLoading && (
-            <button className="btn btn-secondary" onClick={requestPosition}>
-              Определить местоположение
+          {!position && (
+            <button className="btn btn-secondary" onClick={requestPosition} disabled={geoLoading}>
+              {geoLoading ? "Определяем..." : "Определить местоположение"}
             </button>
           )}
 

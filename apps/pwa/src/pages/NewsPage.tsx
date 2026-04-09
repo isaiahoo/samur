@@ -22,12 +22,14 @@ const FEED_COLORS: Record<string, string> = {
 export function NewsPage() {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [activeFeed, setActiveFeed] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
   const fetchNews = useCallback(async (p = 1, feed: string | null = null) => {
     setLoading(true);
+    setError(false);
     try {
       const params: Record<string, string | number | boolean> = {
         limit: 20,
@@ -42,7 +44,7 @@ export function NewsPage() {
       setArticles(p === 1 ? items : (prev) => [...prev, ...items]);
       setTotal(res.meta?.total ?? 0);
     } catch {
-      // silent
+      if (p === 1) setError(true);
     } finally {
       setLoading(false);
     }
@@ -81,7 +83,12 @@ export function NewsPage() {
         ))}
       </div>
 
-      {loading && articles.length === 0 ? (
+      {error && articles.length === 0 ? (
+        <div className="empty-state">
+          <p>Не удалось загрузить новости</p>
+          <button className="btn btn-secondary" onClick={() => fetchNews(1, activeFeed)}>Повторить</button>
+        </div>
+      ) : loading && articles.length === 0 ? (
         <Spinner />
       ) : articles.length === 0 ? (
         <div className="empty-state">

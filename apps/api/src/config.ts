@@ -6,7 +6,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().default("redis://localhost:6379"),
-  JWT_SECRET: z.string().min(16),
+  JWT_SECRET: z.string().min(32),
   JWT_EXPIRES_IN: z.string().default("7d"),
   CORS_ORIGINS: z.string().default("http://localhost:5173"),
   VK_SECRET: z.string().default(""),
@@ -21,8 +21,9 @@ const envSchema = z.object({
 function loadConfig() {
   const result = envSchema.safeParse(process.env);
   if (!result.success) {
-    console.error("❌ Invalid environment variables:");
-    console.error(result.error.format());
+    // Logger not yet available at config time — use stderr directly
+    process.stderr.write("Invalid environment variables:\n");
+    process.stderr.write(JSON.stringify(result.error.format(), null, 2) + "\n");
     process.exit(1);
   }
   return result.data;

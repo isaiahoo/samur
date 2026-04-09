@@ -41,7 +41,9 @@ export function initSocketIO(
     socket.on("subscribe:area", (sub) => {
       if (
         typeof sub.lat !== "number" || typeof sub.lng !== "number" ||
-        typeof sub.radius !== "number" || sub.radius <= 0
+        typeof sub.radius !== "number" || sub.radius <= 0 ||
+        Math.abs(sub.lat) > 90 || Math.abs(sub.lng) > 180 ||
+        sub.radius > 50_000_000
       ) {
         return;
       }

@@ -26,4 +26,7 @@ COPY --from=base /app/apps/telegram/dist ./apps/telegram/dist
 COPY --from=base /app/apps/telegram/package.json ./apps/telegram/
 COPY --from=base /app/package.json ./
 
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+USER nodejs
+
 CMD ["node", "apps/telegram/dist/index.js"]

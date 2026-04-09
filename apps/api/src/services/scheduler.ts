@@ -20,6 +20,7 @@ let newsTimer: ReturnType<typeof setInterval> | null = null;
 let precipTimer: ReturnType<typeof setInterval> | null = null;
 let soilMoistureTimer: ReturnType<typeof setInterval> | null = null;
 let snowTimer: ReturnType<typeof setInterval> | null = null;
+const initialTimeouts: ReturnType<typeof setTimeout>[] = [];
 let isRunning = false;
 let isNewsFetching = false;
 let isPrecipFetching = false;
@@ -135,35 +136,15 @@ export async function startScheduler(): Promise<void> {
     log.error({ err }, "Failed to seed gauge stations");
   }
 
-  // Run first scrape after a short delay (let the API finish starting)
-  setTimeout(() => {
-    runScrape();
-  }, 10_000);
-
-  // Run first news fetch after 15 seconds
-  setTimeout(() => {
-    runNewsFetch();
-  }, 15_000);
-
-  // Run first precipitation fetch after 20 seconds
-  setTimeout(() => {
-    runPrecipFetch();
-  }, 20_000);
-
-  // Run first soil moisture fetch after 25 seconds
-  setTimeout(() => {
-    runSoilMoistureFetch();
-  }, 25_000);
-
-  // Run first snow fetch after 30 seconds
-  setTimeout(() => {
-    runSnowFetch();
-  }, 30_000);
-
-  // Run initial runoff computation after 35 seconds (after precip + soil moisture)
-  setTimeout(() => {
-    computeRunoffGrid();
-  }, 35_000);
+  // Run first fetches after staggered delays (let the API finish starting)
+  initialTimeouts.push(
+    setTimeout(() => { runScrape(); }, 10_000),
+    setTimeout(() => { runNewsFetch(); }, 15_000),
+    setTimeout(() => { runPrecipFetch(); }, 20_000),
+    setTimeout(() => { runSoilMoistureFetch(); }, 25_000),
+    setTimeout(() => { runSnowFetch(); }, 30_000),
+    setTimeout(() => { computeRunoffGrid(); }, 35_000),
+  );
 
   // Schedule hourly scrapes
   scrapeTimer = setInterval(runScrape, SCRAPE_INTERVAL_MS);
@@ -187,6 +168,8 @@ export async function startScheduler(): Promise<void> {
 }
 
 export function stopScheduler(): void {
+  for (const t of initialTimeouts) clearTimeout(t);
+  initialTimeouts.length = 0;
   if (scrapeTimer) {
     clearInterval(scrapeTimer);
     scrapeTimer = null;

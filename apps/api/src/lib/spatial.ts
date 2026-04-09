@@ -107,6 +107,8 @@ export async function getMapClusters(
   north: number,
   east: number
 ): Promise<{ clusters: ClusterRow[]; points: PointRow[] }> {
+  // Clamp zoom to valid range to prevent Infinity/0 in epsilon calc
+  zoom = Math.min(Math.max(zoom, 0), 22);
   if (zoom >= 12) {
     const points = await prisma.$queryRaw<PointRow[]>`
       SELECT id, lat, lng, 'incident' as source_type, type::text as sub_type,

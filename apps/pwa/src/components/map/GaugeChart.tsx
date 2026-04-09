@@ -11,7 +11,7 @@
  * - Threshold labels on the chart, not in a separate legend
  */
 
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -123,7 +123,7 @@ function createTooltip(mode: "cm" | "discharge", meanVal: number, dangerVal: num
 
 // ── Chart component ─────────────────────────────────────────────────────
 
-export function GaugeChart({
+export const GaugeChart = memo(function GaugeChart({
   history,
   dangerLevelCm,
   dischargeMax,
@@ -420,4 +420,4 @@ export function GaugeChart({
       </div>
     </div>
   );
-}
+});

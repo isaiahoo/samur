@@ -36,5 +36,8 @@ COPY --from=base /app/apps/api/dist ./apps/api/dist
 COPY --from=base /app/apps/api/package.json ./apps/api/
 COPY --from=base /app/package.json ./
 
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+USER nodejs
+
 EXPOSE 3000
 CMD ["node", "apps/api/dist/index.js"]

@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuthStore } from "../../store/auth.js";
-import { VerificationQueue } from "./VerificationQueue.js";
-import { HelpManagement } from "./HelpManagement.js";
-import { AlertComposer } from "./AlertComposer.js";
-import { StatsDashboard } from "./StatsDashboard.js";
-import { RiverLevelsEditor } from "./RiverLevelsEditor.js";
+import { Spinner } from "../../components/Spinner.js";
+
+const VerificationQueue = lazy(() => import("./VerificationQueue.js").then((m) => ({ default: m.VerificationQueue })));
+const HelpManagement = lazy(() => import("./HelpManagement.js").then((m) => ({ default: m.HelpManagement })));
+const AlertComposer = lazy(() => import("./AlertComposer.js").then((m) => ({ default: m.AlertComposer })));
+const StatsDashboard = lazy(() => import("./StatsDashboard.js").then((m) => ({ default: m.StatsDashboard })));
+const RiverLevelsEditor = lazy(() => import("./RiverLevelsEditor.js").then((m) => ({ default: m.RiverLevelsEditor })));
 
 type AdminTab = "verify" | "help" | "alert" | "stats" | "rivers";
 
@@ -41,11 +43,13 @@ export function AdminPage() {
       </div>
 
       <div className="admin-content">
-        {tab === "verify" && <VerificationQueue />}
-        {tab === "help" && <HelpManagement />}
-        {tab === "alert" && <AlertComposer />}
-        {tab === "stats" && <StatsDashboard />}
-        {tab === "rivers" && <RiverLevelsEditor />}
+        <Suspense fallback={<Spinner />}>
+          {tab === "verify" && <VerificationQueue />}
+          {tab === "help" && <HelpManagement />}
+          {tab === "alert" && <AlertComposer />}
+          {tab === "stats" && <StatsDashboard />}
+          {tab === "rivers" && <RiverLevelsEditor />}
+        </Suspense>
       </div>
     </div>
   );

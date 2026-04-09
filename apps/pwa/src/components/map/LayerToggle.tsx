@@ -25,18 +25,20 @@ export function LayerToggle({ layers, onToggle, open, onOpenChange }: Props) {
         className="nerv-layers-trigger"
         onClick={() => onOpenChange?.(!open)}
         aria-label="Слои карты"
+        aria-expanded={open ?? false}
       >
         <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
           <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
         </svg>
       </button>
       {open && (
-        <div className="nerv-layers-panel">
+        <div className="nerv-layers-panel" role="region" aria-label="Слои карты">
           {layers.map((l) => (
             <button
               key={l.key}
               className={`nerv-layer-item${l.active ? " nerv-layer-item--on" : ""}`}
               onClick={() => onToggle(l.key)}
+              aria-pressed={l.active}
             >
               <span className="nerv-layer-indicator" />
               <span className="nerv-layer-label">{l.label}</span>

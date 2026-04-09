@@ -12,11 +12,14 @@ export function Layout() {
   const crisisMode = useUIStore((s) => s.crisisMode);
   const crisisRivers = useUIStore((s) => s.crisisRivers);
   const online = useOnline();
+  const socketConnected = useUIStore((s) => s.socketConnected);
 
   return (
     <div className={`app-layout${crisisMode ? " crisis-mode" : ""}`}>
+      <a href="#app-main" className="skip-link">Перейти к содержимому</a>
       <header className="app-header">
         <h1 className="app-title">Самур</h1>
+        {online && <span className={`conn-dot ${socketConnected ? "conn-dot--ok" : "conn-dot--off"}`} title={socketConnected ? "Подключено" : "Нет связи с сервером"} />}
         {!online && <span className="offline-badge">Офлайн</span>}
       </header>
 
@@ -30,7 +33,7 @@ export function Layout() {
         </div>
       )}
 
-      <main className="app-main">
+      <main className="app-main" id="app-main">
         <Outlet />
       </main>
 

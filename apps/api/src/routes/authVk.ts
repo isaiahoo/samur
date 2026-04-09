@@ -69,7 +69,6 @@ router.post("/vk", async (req, res, next) => {
       throw new AppError(400, "INVALID_PARAMS", "launchParams обязателен");
     }
 
-    // In development, skip signature verification if no VK_SECRET configured
     let vkUserId: string | null = null;
 
     if (config.VK_SECRET) {
@@ -78,10 +77,12 @@ router.post("/vk", async (req, res, next) => {
         throw new AppError(403, "INVALID_SIGNATURE", "Неверная подпись VK");
       }
       vkUserId = result.vkUserId;
-    } else {
-      // Dev mode: extract vk_user_id without verification
+    } else if (config.NODE_ENV === "development") {
+      // Dev mode only: extract vk_user_id without verification
       const params = new URLSearchParams(launchParams);
       vkUserId = params.get("vk_user_id");
+    } else {
+      throw new AppError(500, "VK_NOT_CONFIGURED", "VK_SECRET не настроен");
     }
 
     if (!vkUserId) {

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { io, Socket } from "socket.io-client";
 import type { ServerToClientEvents, ClientToServerEvents } from "@samur/shared";
+import { useUIStore } from "../store/ui.js";
 
 export type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -24,6 +25,14 @@ export function getSocket(): TypedSocket {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 10000,
+    });
+
+    socket.on("connect", () => {
+      useUIStore.getState().setSocketConnected(true);
+    });
+
+    socket.on("disconnect", () => {
+      useUIStore.getState().setSocketConnected(false);
     });
   }
   return socket;

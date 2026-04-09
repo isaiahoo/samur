@@ -3,6 +3,8 @@ import { Router } from "express";
 import { prisma, Prisma } from "@samur/db";
 import { validateQuery } from "../middleware/validate.js";
 import { NewsArticleQuerySchema } from "@samur/shared";
+import { AppError } from "../middleware/error.js";
+import { paramId } from "../lib/params.js";
 import { NEWS_FEEDS } from "../services/newsFeeds.js";
 
 const router = Router();
@@ -83,16 +85,13 @@ router.get("/feeds", (_req, res) => {
 
 router.get("/:id", async (req, res, next) => {
   try {
+    const id = paramId(req);
     const article = await prisma.newsArticle.findFirst({
-      where: { id: req.params.id, deletedAt: null },
+      where: { id, deletedAt: null },
     });
 
     if (!article) {
-      res.status(404).json({
-        success: false,
-        error: { code: "NOT_FOUND", message: "Статья не найдена" },
-      });
-      return;
+      throw new AppError(404, "NOT_FOUND", "Статья не найдена");
     }
 
     res.json({ success: true, data: article });

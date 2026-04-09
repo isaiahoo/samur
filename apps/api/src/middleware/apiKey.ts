@@ -11,6 +11,10 @@ export function requireApiKey(req: Request, res: Response, next: NextFunction): 
   const key = req.headers["x-api-key"];
 
   if (!config.WEBHOOK_API_KEY) {
+    if (config.NODE_ENV === "development") {
+      next();
+      return;
+    }
     res.status(500).json({
       success: false,
       error: { code: "SERVER_CONFIG_ERROR", message: "WEBHOOK_API_KEY не настроен" },

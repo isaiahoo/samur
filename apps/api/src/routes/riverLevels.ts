@@ -115,7 +115,8 @@ router.get("/stations", (_req, res) => {
 router.get("/history/:riverName/:stationName", async (req, res, next) => {
   try {
     const { riverName, stationName } = req.params;
-    const days = Math.min(Math.max(parseInt(req.query.days as string) || 7, 1), 30);
+    const parsedDays = parseInt(req.query.days as string, 10);
+    const days = Math.min(Math.max(Number.isNaN(parsedDays) ? 7 : parsedDays, 1), 30);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
     const includeForecast = req.query.includeForecast === "true";

@@ -38,6 +38,9 @@ import {
   type MarkerVariant,
 } from "./GaugeMarker.js";
 
+type MarkerType = "incident" | "helpRequest" | "shelter" | "riverLevel";
+type LayerKey = "incidents" | "helpRequests" | "shelters" | "riverLevels" | "floodHeatmap" | "precipitation" | "soilMoisture" | "snow" | "runoff";
+
 interface Props {
   incidents: Incident[];
   helpRequests: HelpRequest[];
@@ -47,9 +50,9 @@ interface Props {
   soilMoisture: SoilMoisturePoint[];
   snowData: SnowPoint[];
   runoffData: RunoffPoint[];
-  layers: Record<string, boolean>;
+  layers: Record<LayerKey, boolean>;
   crisisMode?: boolean;
-  onMarkerClick: (type: string, item: unknown) => void;
+  onMarkerClick: (type: MarkerType, item: Incident | HelpRequest | Shelter | RiverLevel | Record<string, unknown>) => void;
   onMapMove?: (bounds: { north: number; south: number; east: number; west: number }, zoom: number) => void;
 }
 
@@ -333,7 +336,7 @@ export const MapView = memo(function MapView({
     map.on("click", "incidents-clusters", handleClusterClick("incidents"));
     map.on("click", "help-clusters", handleClusterClick("helpRequests"));
 
-    function showPopup(layerId: string, builder: (p: Record<string, unknown>) => string, markerType: string) {
+    function showPopup(layerId: string, builder: (p: Record<string, unknown>) => string, markerType: MarkerType) {
       map.on("click", layerId, (e: maplibregl.MapLayerMouseEvent) => {
         const f = e.features?.[0];
         if (!f) return;
@@ -902,7 +905,7 @@ export const MapView = memo(function MapView({
     };
 
     for (const [key, layerIds] of Object.entries(layerGroups)) {
-      const vis = layers[key] ? "visible" : "none";
+      const vis = layers[key as LayerKey] ? "visible" : "none";
       for (const id of layerIds) {
         if (map.getLayer(id)) {
           map.setLayoutProperty(id, "visibility", vis);

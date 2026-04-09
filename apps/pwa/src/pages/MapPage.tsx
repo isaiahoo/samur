@@ -66,6 +66,8 @@ export function MapPage() {
 
   const boundsRef = useRef<MapBounds | null>(null);
   const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const effectiveRiverLevelsRef = useRef<RiverLevel[]>([]);
+  const soilMoistureRef = useRef<SoilMoisturePoint[]>([]);
   const { position, requestPosition } = useGeolocation();
   const openSheet = useUIStore((s) => s.openSheet);
   const closeSheet = useUIStore((s) => s.closeSheet);
@@ -283,11 +285,15 @@ export function MapPage() {
     setTimelineIndex(index);
   }, []);
 
+  // Keep refs in sync for stable callback
+  effectiveRiverLevelsRef.current = effectiveRiverLevels;
+  soilMoistureRef.current = soilMoisture;
+
   const handleMarkerClick = useCallback(
-    (type: string, item: unknown) => {
-      openSheet(<DetailPanel type={type} data={item} allRiverLevels={effectiveRiverLevels} soilMoisture={soilMoisture} onClose={closeSheet} />);
+    (type: string, item: Incident | HelpRequest | Shelter | RiverLevel | Record<string, unknown>) => {
+      openSheet(<DetailPanel type={type} data={item} allRiverLevels={effectiveRiverLevelsRef.current} soilMoisture={soilMoistureRef.current} onClose={closeSheet} />);
     },
-    [openSheet, closeSheet, effectiveRiverLevels, soilMoisture],
+    [openSheet, closeSheet],
   );
 
   const handleMapMove = useCallback((newBounds: MapBounds, _zoom: number) => {
