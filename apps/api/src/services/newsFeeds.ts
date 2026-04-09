@@ -28,6 +28,8 @@ export interface NewsFeed {
   categoryFilter?: string[];
   /** If set, only keep articles whose title/summary matches at least one keyword */
   keywordFilter?: string[];
+  /** If set, reject articles whose title/summary matches any of these (applied after keywordFilter) */
+  excludeKeywords?: string[];
   /** Whether this feed is currently enabled */
   enabled: boolean;
 }
@@ -80,6 +82,21 @@ export const NEWS_FEEDS: NewsFeed[] = [
     keywordFilter: [
       "Дагестан", "Дербент", "Махачкал", "Каспийск",
     ],
+    excludeKeywords: [
+      // Sports
+      "футбол", "матч", "тренер", "игрок", "чемпионат", "турнир", "лига",
+      "Динамо", "Анжи", "Легион", "сборн", "гол ", "счёт ", "стадион",
+      "оштрафова", "дисквалиф", "трансфер", "болельщик", "спортсмен",
+      "борец", "боец", "UFC", "MMA", "ММА", "бокс", "самб", "дзюдо",
+      // Entertainment / culture
+      "концерт", "фестиваль", "кинотеатр", "фильм", "актёр", "актрис",
+      "певец", "певиц", "шоу-бизнес", "клип", "альбом", "премьер",
+      // Politics (non-emergency)
+      "выбор", "депутат", "голосован", "партия", "фракци", "парламент",
+      "законопроект", "сенатор",
+      // Business / economy (non-emergency)
+      "акци", "инвестиц", "биржа", "курс валют", "дивиденд",
+    ],
     enabled: true,
   },
   {
@@ -91,6 +108,21 @@ export const NEWS_FEEDS: NewsFeed[] = [
     priority: 4,
     keywordFilter: [
       "Дагестан", "Дербент", "Махачкал", "Каспийск",
+    ],
+    excludeKeywords: [
+      // Sports
+      "футбол", "матч", "тренер", "игрок", "чемпионат", "турнир", "лига",
+      "Динамо", "Анжи", "Легион", "сборн", "гол ", "счёт ", "стадион",
+      "оштрафова", "дисквалиф", "трансфер", "болельщик", "спортсмен",
+      "борец", "боец", "UFC", "MMA", "ММА", "бокс", "самб", "дзюдо",
+      // Entertainment / culture
+      "концерт", "фестиваль", "кинотеатр", "фильм", "актёр", "актрис",
+      "певец", "певиц", "шоу-бизнес", "клип", "альбом", "премьер",
+      // Politics (non-emergency)
+      "выбор", "депутат", "голосован", "партия", "фракци", "парламент",
+      "законопроект", "сенатор",
+      // Business / economy (non-emergency)
+      "акци", "инвестиц", "биржа", "курс валют", "дивиденд",
     ],
     enabled: true,
   },

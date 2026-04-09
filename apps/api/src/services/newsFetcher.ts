@@ -112,6 +112,13 @@ async function fetchFeed(feed: NewsFeed): Promise<number> {
         }
       }
 
+      // Exclusion filter — reject articles matching any exclude keyword
+      if (feed.excludeKeywords && feed.excludeKeywords.length > 0) {
+        if (matchesKeywords(`${item.title} ${item.contentSnippet ?? ""}`, feed.excludeKeywords)) {
+          continue;
+        }
+      }
+
       // Parse date
       const publishedAt = item.pubDate
         ? new Date(item.pubDate)
