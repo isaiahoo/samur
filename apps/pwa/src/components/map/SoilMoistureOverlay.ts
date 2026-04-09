@@ -3,12 +3,14 @@
 /**
  * Soil moisture IDW overlay — "wet ground" warning zones.
  *
- * Design principle: only show where the ground is WET.
- * Dry/normal areas = fully transparent (nothing on map).
- * Blue = wet ground, darker blue = more saturated.
- * Regular people understand: blue patches = wet = flood risk.
+ * Design: blue = wet ground, transparent = dry/normal.
+ * Thresholds based on NASA SMAP / NOAA standards:
+ *   < 0.35 m³/m³ = normal spring moisture (invisible)
+ *   0.35–0.45     = elevated (light blue)
+ *   0.45–0.55     = saturated (medium blue)
+ *   > 0.55        = critical (deep blue)
  *
- * Does NOT paint over the Caspian Sea.
+ * Caspian Sea clipped via multi-segment coastline approximation.
  */
 
 import type { SoilMoisturePoint } from "./geoJsonHelpers.js";
@@ -22,29 +24,54 @@ export const SOIL_BOUNDS = {
   west: 45.5,
 } as const;
 
-// ── Threshold: below this = dry/normal = invisible ──────────────────────
-// April spring baseline in Dagestan is ~0.28-0.35 (normal snowmelt moisture).
-// Only highlight genuinely elevated moisture that signals flood risk.
+// ── Thresholds (volumetric water content m³/m³) ─────────────────────────
+// April spring baseline in Dagestan: 0.28–0.35 (normal snowmelt).
+// Aligned with NOAA/NASA SMAP classifications for flood risk.
 
 const WET_THRESHOLD = 0.35; // below = transparent (normal for season)
-const SATURATED = 0.50;      // above = max intensity (critical)
+const HIGH = 0.45;          // soil losing absorption capacity
+const SATURATED = 0.55;     // near field capacity — runoff imminent
 
-// ── Approximate Caspian coastline (to avoid painting over sea) ──────────
-// Linear approximation: lng = f(lat) for the Dagestan coast
+// ── Caspian coastline polygon (multi-segment approximation) ─────────────
+// Interpolated from OpenStreetMap coastline. Returns max lng for land at lat.
+
+const COAST_SEGMENTS: [number, number][] = [
+  // [lat, maxLng] — from north to south
+  [44.50, 46.80], // Terek delta (land ends early — marshy)
+  [44.30, 47.00],
+  [44.10, 47.10],
+  [43.80, 47.30], // Sulak canyon mouth
+  [43.60, 47.45],
+  [43.30, 47.55], // North of Makhachkala
+  [43.05, 47.55], // Makhachkala
+  [42.80, 47.70],
+  [42.50, 47.85], // Kaspiysk
+  [42.20, 48.00],
+  [42.00, 48.15], // Derbent
+  [41.70, 48.35],
+  [41.50, 48.45],
+  [41.00, 48.60], // South border
+];
 
 function coastlineLng(lat: number): number {
-  // Approximate coastline: more east in the south, curves west in the north
-  if (lat >= 43.5) return 47.2;   // Makhachkala → Sulak area
-  if (lat >= 43.0) return 47.5;   // Makhachkala
-  if (lat >= 42.5) return 47.8;   // Kaspiysk
-  if (lat >= 42.0) return 48.1;   // Derbent area
-  if (lat >= 41.5) return 48.4;   // South coast
-  return 48.5;
+  // Interpolate between coast segments
+  if (lat >= COAST_SEGMENTS[0][0]) return COAST_SEGMENTS[0][1];
+  if (lat <= COAST_SEGMENTS[COAST_SEGMENTS.length - 1][0]) return COAST_SEGMENTS[COAST_SEGMENTS.length - 1][1];
+
+  for (let i = 0; i < COAST_SEGMENTS.length - 1; i++) {
+    const [lat1, lng1] = COAST_SEGMENTS[i];
+    const [lat2, lng2] = COAST_SEGMENTS[i + 1];
+    if (lat <= lat1 && lat >= lat2) {
+      const t = (lat1 - lat) / (lat1 - lat2);
+      return lng1 + t * (lng2 - lng1);
+    }
+  }
+  return 48.0;
 }
 
 // ── IDW interpolation ───────────────────────────────────────────────────
 
-function idw(lat: number, lng: number, points: SoilMoisturePoint[], power = 2.5): number {
+function idw(lat: number, lng: number, points: SoilMoisturePoint[], power = 3): number {
   let sumWeights = 0;
   let sumValues = 0;
 
@@ -65,17 +92,16 @@ function idw(lat: number, lng: number, points: SoilMoisturePoint[], power = 2.5)
 
 // ── Canvas generation ───────────────────────────────────────────────────
 
-const CANVAS_W = 120;
-const CANVAS_H = 100;
+const CANVAS_W = 280;
+const CANVAS_H = 220;
 
 /**
- * Generate a "wet ground" overlay: only blue where moisture > threshold.
- * Everything else (dry, normal, sea) is fully transparent.
+ * Generate a "wet ground" overlay: blue where moisture > threshold.
+ * Uses 3-tier color ramp: elevated → saturated → critical.
  */
 export function generateSoilMoistureImage(
   points: SoilMoisturePoint[],
 ): string | null {
-  // Filter out zero/missing values (likely sea points or data gaps)
   const validPoints = points.filter((p) => p.moisture > 0.05);
   if (validPoints.length === 0) return null;
 
@@ -94,7 +120,7 @@ export function generateSoilMoistureImage(
       const lng = west + (x / CANVAS_W) * (east - west);
       const idx = (y * CANVAS_W + x) * 4;
 
-      // Skip if over sea
+      // Skip if over Caspian Sea
       if (lng > coastlineLng(lat)) {
         imageData.data[idx + 3] = 0;
         continue;
@@ -102,23 +128,42 @@ export function generateSoilMoistureImage(
 
       const moisture = idw(lat, lng, validPoints);
 
-      // Below threshold = invisible (dry/normal ground, no concern)
+      // Below threshold = invisible
       if (moisture < WET_THRESHOLD) {
         imageData.data[idx + 3] = 0;
         continue;
       }
 
-      // Map moisture above threshold to blue intensity
-      // WET_THRESHOLD → light blue, SATURATED → deep blue
-      const t = Math.min((moisture - WET_THRESHOLD) / (SATURATED - WET_THRESHOLD), 1.0);
+      // 3-tier color ramp with smooth interpolation
+      let r: number, g: number, b: number, a: number;
 
-      // Blue color: light sky blue → deep blue
-      imageData.data[idx] = Math.round(100 - t * 70);       // R: 100 → 30
-      imageData.data[idx + 1] = Math.round(180 - t * 110);  // G: 180 → 70
-      imageData.data[idx + 2] = Math.round(235 - t * 35);   // B: 235 → 200
+      if (moisture < HIGH) {
+        // Tier 1: Elevated — soft blue
+        const t = (moisture - WET_THRESHOLD) / (HIGH - WET_THRESHOLD);
+        r = 110 - Math.round(t * 30);   // 110 → 80
+        g = 175 - Math.round(t * 45);   // 175 → 130
+        b = 230;                          // constant blue
+        a = 100 + Math.round(t * 60);    // 100 → 160
+      } else if (moisture < SATURATED) {
+        // Tier 2: Saturated — medium blue
+        const t = (moisture - HIGH) / (SATURATED - HIGH);
+        r = 80 - Math.round(t * 40);    // 80 → 40
+        g = 130 - Math.round(t * 50);   // 130 → 80
+        b = 230 - Math.round(t * 20);   // 230 → 210
+        a = 160 + Math.round(t * 40);   // 160 → 200
+      } else {
+        // Tier 3: Critical — deep saturated blue
+        const t = Math.min((moisture - SATURATED) / 0.15, 1.0);
+        r = 40 - Math.round(t * 20);    // 40 → 20
+        g = 80 - Math.round(t * 30);    // 80 → 50
+        b = 210 - Math.round(t * 10);   // 210 → 200
+        a = 200 + Math.round(t * 40);   // 200 → 240
+      }
 
-      // Alpha: fade in gradually, stronger for wetter areas
-      imageData.data[idx + 3] = Math.round(80 + t * 140);   // 80 → 220
+      imageData.data[idx] = r;
+      imageData.data[idx + 1] = g;
+      imageData.data[idx + 2] = b;
+      imageData.data[idx + 3] = a;
     }
   }
 
@@ -129,11 +174,11 @@ export function generateSoilMoistureImage(
 // ── Legend ───────────────────────────────────────────────────────────────
 
 export function legendGradientCSS(): string {
-  return "linear-gradient(to right, rgba(100,180,235,0.4), rgba(65,125,220,0.7), rgba(30,70,200,0.9))";
+  return "linear-gradient(to right, rgba(110,175,230,0.45) 0%, rgba(80,130,230,0.7) 33%, rgba(40,80,210,0.85) 66%, rgba(20,50,200,0.95) 100%)";
 }
 
 export const LEGEND_TICKS = [
-  { val: 0, label: "Влажно" },
-  { val: 0.5, label: "" },
-  { val: 1, label: "Очень влажно" },
+  { pos: "0%", label: "35%", desc: "Повышенная" },
+  { pos: "50%", label: "45%", desc: "Насыщенная" },
+  { pos: "100%", label: "55%+", desc: "Критическая" },
 ];

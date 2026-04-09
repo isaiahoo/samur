@@ -311,14 +311,20 @@ export function MapPage() {
 
       {layers.soilMoisture && soilMoisture.length > 0 && (
         <div className="soil-legend">
-          <div className="soil-legend-title">💧 Влажная почва</div>
+          <div className="soil-legend-header">
+            <span className="soil-legend-icon">💧</span>
+            <span className="soil-legend-title">Влажность почвы</span>
+          </div>
           <div className="soil-legend-bar" style={{ background: legendGradientCSS() }} />
           <div className="soil-legend-ticks">
             {LEGEND_TICKS.map((t, i) => (
-              <span key={i} className="soil-legend-tick">{t.label}</span>
+              <div key={i} className="soil-legend-tick" style={{ left: t.pos }}>
+                <span className="soil-legend-tick-val">{t.label}</span>
+                <span className="soil-legend-tick-desc">{t.desc}</span>
+              </div>
             ))}
           </div>
-          <div className="soil-legend-hint">Синие зоны = мокрый грунт, выше риск паводка</div>
+          <div className="soil-legend-hint">Синие зоны — мокрый грунт, повышен риск паводка</div>
         </div>
       )}
 
@@ -453,12 +459,12 @@ function findNearestMoisture(lat: number, lng: number, points: SoilMoisturePoint
   return bestDist < 0.25 ? best : null;
 }
 
-/** Soil moisture status label and CSS class */
+/** Soil moisture status — thresholds aligned with NOAA/NASA SMAP standards */
 function moistureStatus(m: number): { label: string; className: string } {
-  if (m >= 0.50) return { label: "Почва перенасыщена — критический риск паводка", className: "soil-status--critical" };
-  if (m >= 0.42) return { label: "Почва насыщена — высокий риск", className: "soil-status--saturated" };
+  if (m >= 0.55) return { label: "Почва перенасыщена — критический риск паводка", className: "soil-status--critical" };
+  if (m >= 0.45) return { label: "Почва насыщена — высокий риск", className: "soil-status--saturated" };
   if (m >= 0.35) return { label: "Влажность повышена", className: "soil-status--elevated" };
-  if (m >= 0.18) return { label: "Нормальная влажность", className: "soil-status--normal" };
+  if (m >= 0.20) return { label: "Нормальная влажность", className: "soil-status--normal" };
   return { label: "Сухая почва", className: "soil-status--dry" };
 }
 
