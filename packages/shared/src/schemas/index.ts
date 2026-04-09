@@ -180,6 +180,7 @@ export const CreateRiverLevelSchema = z.object({
   dischargeMin: z.number().nonnegative().nullable().optional(),
   dischargeP25: z.number().nonnegative().nullable().optional(),
   dischargeP75: z.number().nonnegative().nullable().optional(),
+  dischargeAnnualMean: z.number().nonnegative().nullable().optional(),
   dataSource: z.string().max(50).nullable().optional(),
   isForecast: z.boolean().optional().default(false),
   trend: RiverTrendSchema,

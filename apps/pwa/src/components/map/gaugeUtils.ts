@@ -50,7 +50,8 @@ export const TIER_ACTIONS: Record<number, string> = {
 
 export function computeTier(r: RiverLevel): GaugeTier {
   const discharge = r.dischargeCubicM;
-  const mean = r.dischargeMean;
+  const annualMean = r.dischargeAnnualMean;
+  const dailyMean = r.dischargeMean;
   const levelCm = r.levelCm;
   const dangerCm = r.dangerLevelCm;
 
@@ -72,7 +73,11 @@ export function computeTier(r: RiverLevel): GaugeTier {
     return { tier: 1, label: TIER_LABELS[1], color: TIER_COLORS[1], pctOfMean: pct, hasData: true };
   }
 
-  // Discharge-based calculation
+  // Discharge-based calculation — prefer annual mean over daily mean
+  // Daily mean tracks seasonal patterns so closely that ratio is always ~1.0
+  // Annual mean shows meaningful seasonal variation
+  const mean = (annualMean && annualMean > 0) ? annualMean : (dailyMean && dailyMean > 0 ? dailyMean : null);
+
   if (discharge !== null && discharge > 0 && mean && mean > 0) {
     const ratio = discharge / mean;
     const pct = Math.round(ratio * 100);
@@ -136,6 +141,7 @@ export function computeForecastWarning(
     dischargeCubicM: number | null;
     dischargeMean: number | null;
     dischargeMax: number | null;
+    dischargeAnnualMean?: number | null;
     levelCm: number | null;
     dangerLevelCm: number | null;
     isForecast: boolean;
@@ -159,7 +165,9 @@ export function computeForecastWarning(
 
     if (mode === "discharge" && p.dischargeCubicM !== null && p.dischargeCubicM > 0) {
       value = p.dischargeCubicM;
-      const mean = p.dischargeMean ?? 0;
+      const annualMean = p.dischargeAnnualMean ?? 0;
+      const dailyMean = p.dischargeMean ?? 0;
+      const mean = annualMean > 0 ? annualMean : dailyMean;
       const dMax = p.dischargeMax ?? 0;
 
       if (dMax > 0 && value > dMax) {

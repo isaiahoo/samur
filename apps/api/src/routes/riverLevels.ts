@@ -43,6 +43,7 @@ router.get(
             discharge_min as "dischargeMin",
             discharge_p25 as "dischargeP25",
             discharge_p75 as "dischargeP75",
+            discharge_annual_mean as "dischargeAnnualMean",
             data_source as "dataSource",
             is_forecast as "isForecast",
             trend, measured_at as "measuredAt", created_at as "createdAt"
@@ -138,6 +139,7 @@ router.get("/history/:riverName/:stationName", async (req, res, next) => {
         dischargeMin: true,
         dischargeP25: true,
         dischargeP75: true,
+        dischargeAnnualMean: true,
         dataSource: true,
         isForecast: true,
         trend: true,
@@ -177,6 +179,7 @@ router.get("/forecast", async (_req, res, next) => {
         dischargeMin: true,
         dischargeP25: true,
         dischargeP75: true,
+        dischargeAnnualMean: true,
         dataSource: true,
         isForecast: true,
         trend: true,

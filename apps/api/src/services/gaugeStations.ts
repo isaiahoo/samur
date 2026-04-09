@@ -151,7 +151,7 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     roshydrometId: "84822",
     openMeteoLat: 43.475, // calibrated 2026-04-08
     openMeteoLng: 46.325,
-    meanDischarge: 300,
+    meanDischarge: 850, // GloFAS grid captures full lower Терек basin (winter ~400, spring ~1400)
     dangerDischarge: 2000,
   },
   {
@@ -165,7 +165,7 @@ export const DAGESTAN_GAUGES: GaugeStation[] = [
     roshydrometId: "84803",
     openMeteoLat: 43.525, // calibrated 2026-04-08: 1412 m³/s
     openMeteoLng: 46.375,
-    meanDischarge: 300,
+    meanDischarge: 850, // GloFAS grid captures full lower Терек basin (winter ~400, spring ~1400)
     dangerDischarge: 2000,
   },
 
