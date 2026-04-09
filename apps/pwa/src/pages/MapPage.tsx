@@ -32,6 +32,7 @@ export function MapPage() {
   const [riverLevels, setRiverLevels] = useState<RiverLevel[]>([]);
   const [precipitation, setPrecipitation] = useState<PrecipitationPoint[]>([]);
   const [showReport, setShowReport] = useState(false);
+  const [layerMenuOpen, setLayerMenuOpen] = useState(false);
 
   // Timeline scrubber state
   type ForecastReading = {
@@ -289,6 +290,8 @@ export function MapPage() {
         <LayerToggle
           layers={layerConfigs}
           onToggle={toggleLayer}
+          open={layerMenuOpen}
+          onOpenChange={setLayerMenuOpen}
         />
       </div>
 

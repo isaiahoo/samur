@@ -370,21 +370,23 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .gauge-pill {
   display: flex;
   align-items: center;
-  padding: 5px 12px;
-  border-radius: 14px;
-  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 2px;
+  font-size: 12px;
   font-weight: 700;
   color: #fff;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
   cursor: pointer;
   transition: transform 0.15s;
-  letter-spacing: -0.2px;
+  letter-spacing: 0.3px;
   pointer-events: auto;
   line-height: 1;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  text-shadow: 0 0 4px rgba(0,0,0,0.3);
+  text-transform: uppercase;
+  font-family: "Courier New", Courier, monospace;
 }
-.gauge-pill:hover { transform: scale(1.08); }
+.gauge-pill:hover { transform: scale(1.06); }
 
 /* Card variant (zoom ≥ 10) */
 .gauge-card {
@@ -1052,15 +1054,13 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 /* ── NERV Controls: Layer Toggle ──────────────────────────────────────────── */
 .nerv-layers {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  position: relative;
 }
-.nerv-layer-btn {
+.nerv-layers-trigger {
   width: 36px;
   height: 36px;
   border-radius: 2px;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.65);
   border: 1px solid rgba(148, 163, 184, 0.3);
   color: #94A3B8;
   backdrop-filter: blur(4px);
@@ -1071,23 +1071,72 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   cursor: pointer;
   transition: all 0.15s;
 }
-.nerv-layer-btn:active {
-  background: rgba(148, 163, 184, 0.15);
-}
-.nerv-layer-btn--on {
+.nerv-layers-trigger:active {
   border-color: #06B6D4;
   color: #06B6D4;
-  background: rgba(6, 182, 212, 0.1);
-  box-shadow: 0 0 6px rgba(6, 182, 212, 0.2);
 }
-.crisis-mode .nerv-layer-btn {
+.nerv-layers-panel {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 2px;
+  padding: 4px 0;
+  min-width: 170px;
+  z-index: 10;
+}
+.nerv-layer-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 12px;
+  font-family: "Courier New", Courier, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  text-align: left;
+}
+.nerv-layer-item:active {
+  background: rgba(148, 163, 184, 0.1);
+}
+.nerv-layer-item--on {
+  color: #06B6D4;
+}
+.nerv-layer-item--on .nerv-layer-indicator {
+  background: #06B6D4;
+  box-shadow: 0 0 4px rgba(6, 182, 212, 0.4);
+}
+.nerv-layer-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  background: #475569;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.nerv-layer-label {
+  flex: 1;
+}
+.crisis-mode .nerv-layers-trigger {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.crisis-mode .nerv-layers-panel {
   border-color: rgba(239, 68, 68, 0.2);
 }
-.crisis-mode .nerv-layer-btn--on {
-  border-color: #EF4444;
+.crisis-mode .nerv-layer-item--on {
   color: #EF4444;
-  background: rgba(239, 68, 68, 0.1);
-  box-shadow: 0 0 6px rgba(239, 68, 68, 0.2);
+}
+.crisis-mode .nerv-layer-item--on .nerv-layer-indicator {
+  background: #EF4444;
+  box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
 }
 
 /* ── NERV Controls: Timeline Slider ───────────────────────────────────────── */
@@ -1096,9 +1145,10 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   align-items: center;
   gap: 8px;
   padding: 6px 12px 10px;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
-  border-top: 1px solid rgba(6, 182, 212, 0.3);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.35) 70%, transparent 100%);
+  backdrop-filter: blur(4px);
+  border-top: none;
+  padding-top: 16px;
 }
 .timeline-play-btn {
   flex-shrink: 0;
@@ -1167,8 +1217,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 .timeline-banner {
   text-align: center;
-  padding: 4px 12px;
-  background: rgba(0, 0, 0, 0.85);
+  padding: 3px 12px;
+  background: rgba(0, 0, 0, 0.55);
   color: #F59E0B;
   font-family: "Courier New", Courier, monospace;
   font-size: 11px;
@@ -1176,11 +1226,13 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   text-transform: uppercase;
   letter-spacing: 1px;
   backdrop-filter: blur(4px);
-  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+  border-bottom: none;
 }
 
 /* Crisis overrides for timeline */
-.crisis-mode .timeline-controls { border-top-color: rgba(239, 68, 68, 0.4); }
+.crisis-mode .timeline-controls {
+  background: linear-gradient(to top, rgba(50, 0, 0, 0.6) 0%, rgba(30, 0, 0, 0.35) 70%, transparent 100%);
+}
 .crisis-mode .timeline-play-btn {
   border-color: rgba(239, 68, 68, 0.5);
   color: #EF4444;
