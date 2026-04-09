@@ -36,19 +36,21 @@ const SATURATED = 0.55;     // near field capacity — runoff imminent
 // Interpolated from OpenStreetMap coastline. Returns max lng for land at lat.
 
 const COAST_SEGMENTS: [number, number][] = [
-  // [lat, maxLng] — from north to south
-  [44.50, 46.80], // Terek delta (land ends early — marshy)
-  [44.30, 47.00],
-  [44.10, 47.10],
-  [43.80, 47.30], // Sulak canyon mouth
-  [43.60, 47.45],
-  [43.30, 47.55], // North of Makhachkala
-  [43.05, 47.55], // Makhachkala
-  [42.80, 47.70],
-  [42.50, 47.85], // Kaspiysk
-  [42.20, 48.00],
-  [42.00, 48.15], // Derbent
-  [41.70, 48.35],
+  // [lat, maxLng] — from north to south, based on OSM coastline
+  [44.50, 46.40], // Far north — Terek delta marshes end early
+  [44.35, 46.55], // Kochubey area
+  [44.20, 46.70], // Terek mouth
+  [44.00, 46.90], // South of Terek delta
+  [43.80, 47.10], // Sulak canyon mouth
+  [43.60, 47.35],
+  [43.40, 47.48], // Sulak town
+  [43.20, 47.50], // North of Makhachkala
+  [43.05, 47.52], // Makhachkala
+  [42.88, 47.63], // Kaspiysk
+  [42.60, 47.78],
+  [42.30, 47.95],
+  [42.07, 48.10], // Derbent
+  [41.80, 48.30],
   [41.50, 48.45],
   [41.00, 48.60], // South border
 ];
