@@ -311,15 +311,14 @@ export function MapPage() {
 
       {layers.soilMoisture && soilMoisture.length > 0 && (
         <div className="soil-legend">
-          <div className="soil-legend-title">Влажность почвы</div>
+          <div className="soil-legend-title">💧 Влажная почва</div>
           <div className="soil-legend-bar" style={{ background: legendGradientCSS() }} />
           <div className="soil-legend-ticks">
-            {LEGEND_TICKS.map((t) => (
-              <span key={t.val} className="soil-legend-tick">
-                {t.label || `${Math.round(t.val * 100)}%`}
-              </span>
+            {LEGEND_TICKS.map((t, i) => (
+              <span key={i} className="soil-legend-tick">{t.label}</span>
             ))}
           </div>
+          <div className="soil-legend-hint">Синие зоны = мокрый грунт, выше риск паводка</div>
         </div>
       )}
 

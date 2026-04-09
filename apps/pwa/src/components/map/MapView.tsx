@@ -544,7 +544,7 @@ export const MapView = memo(function MapView({
           type: "raster",
           source: "soilMoistureImg",
           paint: {
-            "raster-opacity": 0.5,
+            "raster-opacity": 0.7,
             "raster-fade-duration": 0,
           },
         },

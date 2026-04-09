@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * Soil moisture IDW (Inverse Distance Weighting) overlay.
+ * Soil moisture IDW overlay — "wet ground" warning zones.
  *
- * Takes 25 sparse grid points and generates a smooth, continuous
- * color surface via spatial interpolation — the same technique
- * used by NASA SMAP, Windy, and Copernicus for environmental data.
+ * Design principle: only show where the ground is WET.
+ * Dry/normal areas = fully transparent (nothing on map).
+ * Blue = wet ground, darker blue = more saturated.
+ * Regular people understand: blue patches = wet = flood risk.
  *
- * Color scheme: Amber (dry) → Green (normal) → Blue (wet) → Indigo (saturated)
- * Vivid, high-contrast palette designed for map overlays (no washed-out midpoints).
+ * Does NOT paint over the Caspian Sea.
  */
 
 import type { SoilMoisturePoint } from "./geoJsonHelpers.js";
@@ -22,42 +22,22 @@ export const SOIL_BOUNDS = {
   west: 45.5,
 } as const;
 
-// ── Vivid color ramp for map overlay ────────────────────────────────────
-// No white/gray midpoints — every stop is a saturated, visible color.
-// Amber → Yellow-Green → Green → Teal → Blue → Indigo
+// ── Threshold: below this = dry/normal = invisible ──────────────────────
 
-interface RGB { r: number; g: number; b: number }
+const WET_THRESHOLD = 0.26; // below = transparent (no flood concern)
+const SATURATED = 0.45;      // above = max intensity
 
-const COLOR_STOPS: Array<{ val: number; color: RGB }> = [
-  { val: 0.08, color: { r: 180, g: 83, b: 9 } },    // #B45309 — very dry (burnt amber)
-  { val: 0.14, color: { r: 217, g: 119, b: 6 } },    // #D97706 — dry (amber)
-  { val: 0.20, color: { r: 234, g: 179, b: 8 } },    // #EAB308 — warm (yellow)
-  { val: 0.26, color: { r: 132, g: 204, b: 22 } },   // #84CC16 — normal-dry (lime)
-  { val: 0.32, color: { r: 34, g: 197, b: 94 } },    // #22C55E — normal (green)
-  { val: 0.38, color: { r: 20, g: 184, b: 166 } },   // #14B8A6 — moist (teal)
-  { val: 0.44, color: { r: 59, g: 130, b: 246 } },   // #3B82F6 — wet (blue)
-  { val: 0.50, color: { r: 79, g: 70, b: 229 } },    // #4F46E5 — saturated (indigo)
-];
+// ── Approximate Caspian coastline (to avoid painting over sea) ──────────
+// Linear approximation: lng = f(lat) for the Dagestan coast
 
-function moistureToRGB(moisture: number): RGB {
-  // Clamp
-  const m = Math.max(COLOR_STOPS[0].val, Math.min(moisture, COLOR_STOPS[COLOR_STOPS.length - 1].val));
-
-  // Find surrounding stops
-  for (let i = 0; i < COLOR_STOPS.length - 1; i++) {
-    const lo = COLOR_STOPS[i];
-    const hi = COLOR_STOPS[i + 1];
-    if (m >= lo.val && m <= hi.val) {
-      const t = (m - lo.val) / (hi.val - lo.val);
-      return {
-        r: Math.round(lo.color.r + t * (hi.color.r - lo.color.r)),
-        g: Math.round(lo.color.g + t * (hi.color.g - lo.color.g)),
-        b: Math.round(lo.color.b + t * (hi.color.b - lo.color.b)),
-      };
-    }
-  }
-
-  return COLOR_STOPS[COLOR_STOPS.length - 1].color;
+function coastlineLng(lat: number): number {
+  // Approximate coastline: more east in the south, curves west in the north
+  if (lat >= 43.5) return 47.2;   // Makhachkala → Sulak area
+  if (lat >= 43.0) return 47.5;   // Makhachkala
+  if (lat >= 42.5) return 47.8;   // Kaspiysk
+  if (lat >= 42.0) return 48.1;   // Derbent area
+  if (lat >= 41.5) return 48.4;   // South coast
+  return 48.5;
 }
 
 // ── IDW interpolation ───────────────────────────────────────────────────
@@ -71,7 +51,7 @@ function idw(lat: number, lng: number, points: SoilMoisturePoint[], power = 2.5)
     const dlng = p.lng - lng;
     const dist = Math.sqrt(dlat * dlat + dlng * dlng);
 
-    if (dist < 0.001) return p.moisture; // exact match
+    if (dist < 0.001) return p.moisture;
 
     const w = 1 / (dist ** power);
     sumWeights += w;
@@ -83,16 +63,15 @@ function idw(lat: number, lng: number, points: SoilMoisturePoint[], power = 2.5)
 
 // ── Canvas generation ───────────────────────────────────────────────────
 
-const CANVAS_W = 120; // grid resolution — 120x100 ≈ 12k pixels, fast enough
+const CANVAS_W = 120;
 const CANVAS_H = 100;
 
 /**
- * Generate a data URL for an IDW-interpolated soil moisture overlay.
- * Returns a PNG data URL that can be used as a MapLibre image source.
+ * Generate a "wet ground" overlay: only blue where moisture > threshold.
+ * Everything else (dry, normal, sea) is fully transparent.
  */
 export function generateSoilMoistureImage(
   points: SoilMoisturePoint[],
-  alpha = 255, // full opacity — transparency controlled by MapLibre raster-opacity
 ): string | null {
   if (points.length === 0) return null;
 
@@ -109,14 +88,33 @@ export function generateSoilMoistureImage(
     const lat = north - (y / CANVAS_H) * (north - south);
     for (let x = 0; x < CANVAS_W; x++) {
       const lng = west + (x / CANVAS_W) * (east - west);
-      const moisture = idw(lat, lng, points);
-      const { r, g, b } = moistureToRGB(moisture);
-
       const idx = (y * CANVAS_W + x) * 4;
-      imageData.data[idx] = r;
-      imageData.data[idx + 1] = g;
-      imageData.data[idx + 2] = b;
-      imageData.data[idx + 3] = alpha;
+
+      // Skip if over sea
+      if (lng > coastlineLng(lat)) {
+        imageData.data[idx + 3] = 0;
+        continue;
+      }
+
+      const moisture = idw(lat, lng, points);
+
+      // Below threshold = invisible (dry/normal ground, no concern)
+      if (moisture < WET_THRESHOLD) {
+        imageData.data[idx + 3] = 0;
+        continue;
+      }
+
+      // Map moisture above threshold to blue intensity
+      // WET_THRESHOLD → light blue, SATURATED → deep blue
+      const t = Math.min((moisture - WET_THRESHOLD) / (SATURATED - WET_THRESHOLD), 1.0);
+
+      // Blue color: light sky blue → deep blue
+      imageData.data[idx] = Math.round(100 - t * 70);       // R: 100 → 30
+      imageData.data[idx + 1] = Math.round(180 - t * 110);  // G: 180 → 70
+      imageData.data[idx + 2] = Math.round(235 - t * 35);   // B: 235 → 200
+
+      // Alpha: fade in gradually, stronger for wetter areas
+      imageData.data[idx + 3] = Math.round(80 + t * 140);   // 80 → 220
     }
   }
 
@@ -124,19 +122,14 @@ export function generateSoilMoistureImage(
   return canvas.toDataURL("image/png");
 }
 
-// ── Legend gradient (CSS-compatible) ─────────────────────────────────────
+// ── Legend ───────────────────────────────────────────────────────────────
 
 export function legendGradientCSS(): string {
-  const stops = COLOR_STOPS.map(
-    (s) => `rgb(${s.color.r},${s.color.g},${s.color.b})`,
-  );
-  return `linear-gradient(to right, ${stops.join(", ")})`;
+  return "linear-gradient(to right, rgba(100,180,235,0.4), rgba(65,125,220,0.7), rgba(30,70,200,0.9))";
 }
 
 export const LEGEND_TICKS = [
-  { val: 0.10, label: "Сухая" },
-  { val: 0.20, label: "" },
-  { val: 0.30, label: "Норма" },
-  { val: 0.40, label: "" },
-  { val: 0.50, label: "Насыщ." },
+  { val: 0, label: "Влажно" },
+  { val: 0.5, label: "" },
+  { val: 1, label: "Очень влажно" },
 ];

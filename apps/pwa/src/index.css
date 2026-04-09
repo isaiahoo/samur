@@ -1054,6 +1054,12 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   color: #94A3B8;
   font-family: 'Courier New', monospace;
 }
+.soil-legend-hint {
+  font-size: 10px;
+  color: #64748B;
+  margin-top: 4px;
+  text-align: center;
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Phase 6 — NERV-Style Crisis Escalation + Controls Redesign
