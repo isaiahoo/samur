@@ -20,7 +20,7 @@ import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLev
 import type { PrecipitationPoint, SoilMoisturePoint, SnowPoint, RunoffPoint } from "../components/map/geoJsonHelpers.js";
 import { legendGradientCSS, LEGEND_TICKS } from "../components/map/SoilMoistureOverlay.js";
 import { snowLegendGradientCSS, SNOW_LEGEND_TICKS } from "../components/map/SnowOverlay.js";
-import { runoffLegendGradientCSS, RUNOFF_LEGEND_TICKS } from "../components/map/RunoffOverlay.js";
+import { runoffLegendGradientCSS } from "../components/map/RunoffOverlay.js";
 import { cacheItems, getCachedItems } from "../services/db.js";
 import { useSocketEvent, useSocketSubscription } from "../hooks/useSocket.js";
 import { useGeolocation } from "../hooks/useGeolocation.js";
@@ -379,19 +379,12 @@ export function MapPage() {
 
           {layers.runoff && runoffData.length > 0 && (
             <div className="runoff-legend">
-              <div className="runoff-legend-header">
-                <span className="runoff-legend-icon">⚠️</span>
-                <span className="runoff-legend-title">Риск затопления</span>
-              </div>
               <div className="runoff-legend-bar" style={{ background: runoffLegendGradientCSS() }} />
-              <div className="runoff-legend-ticks">
-                {RUNOFF_LEGEND_TICKS.map((t, i) => (
-                  <div key={i} className="runoff-legend-tick" style={{ left: t.pos }}>
-                    <span className="runoff-legend-tick-val">{t.label}</span>
-                  </div>
-                ))}
+              <div className="runoff-legend-labels">
+                <span>Низкий</span>
+                <span className="runoff-legend-center">Риск затопления</span>
+                <span>Высокий</span>
               </div>
-              <div className="runoff-legend-hint">Цветные зоны — вода не впитывается, уходит в реки</div>
             </div>
           )}
         </div>

@@ -1292,59 +1292,31 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   background: rgba(30, 20, 10, 0.92);
   backdrop-filter: blur(8px);
   border-radius: 10px;
-  padding: 10px 14px;
+  padding: 8px 12px;
   color: #e2e8f0;
-  border: 1px solid rgba(240, 180, 20, 0.4);
-  min-width: 220px;
+  border: 1px solid rgba(240, 180, 20, 0.35);
+  width: 200px;
   pointer-events: auto;
 }
-.runoff-legend-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
-}
-.runoff-legend-icon {
-  font-size: 14px;
-}
-.runoff-legend-title {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #f0c030;
-}
 .runoff-legend-bar {
-  height: 12px;
-  border-radius: 6px;
-  margin-bottom: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  height: 10px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
-.runoff-legend-ticks {
-  position: relative;
-  height: 18px;
-  margin-bottom: 4px;
-}
-.runoff-legend-tick {
-  position: absolute;
+.runoff-legend-labels {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  transform: translateX(-50%);
-}
-.runoff-legend-tick:first-child { align-items: flex-start; }
-.runoff-legend-tick:last-child { align-items: flex-end; }
-.runoff-legend-tick-val {
-  font-size: 11px;
-  font-weight: 700;
-  color: #fde68a;
-  line-height: 1;
-}
-.runoff-legend-hint {
+  margin-top: 4px;
   font-size: 10px;
   color: #94a3b8;
-  text-align: center;
-  margin-top: 2px;
+}
+.runoff-legend-center {
+  font-size: 11px;
+  font-weight: 700;
+  color: #f0c030;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 .crisis-mode .runoff-legend {
   border-color: rgba(220, 50, 30, 0.5);
