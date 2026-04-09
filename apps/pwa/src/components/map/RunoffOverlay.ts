@@ -49,22 +49,20 @@ function idw(
 const CANVAS_W = 280;
 const CANVAS_H = 220;
 
-/** Max distance (degrees) from any data point */
-const MAX_INFLUENCE_DIST = 0.8;
 
-/** Minimum risk to color a pixel — high enough to avoid painting noise */
-const VISIBLE_THRESHOLD = 15;
+/** Radius around each data point (degrees, ~0.3° ≈ 30km) */
+const POINT_RADIUS = 0.3;
 
 /**
- * Generate a flood risk overlay using IDW interpolation.
- * Clear, bold colors: yellow → orange → red.
+ * Generate a flood risk overlay — one circle per risky grid point.
+ * No IDW interpolation (which creates false widespread blobs from sparse data).
+ * Each circle is centered on the actual data point, sized proportionally.
  */
 export function generateRunoffOverlayImage(
   points: RunoffPoint[],
 ): string | null {
-  // Check if there's any risk at all
-  const hasRisk = points.some((p) => p.riskIndex > 0);
-  if (!hasRisk || points.length === 0) return null;
+  const riskyPoints = points.filter((p) => p.riskIndex >= 15);
+  if (riskyPoints.length === 0) return null;
 
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_W;
@@ -82,58 +80,51 @@ export function generateRunoffOverlayImage(
       const idx = (y * CANVAS_W + x) * 4;
 
       // Skip pixels over Caspian Sea
-      if (lng > coastlineLng(lat)) {
-        imageData.data[idx + 3] = 0;
-        continue;
+      if (lng > coastlineLng(lat)) continue;
+
+      // Find the nearest risky point and its distance
+      let bestRisk = 0;
+      let bestDist = Infinity;
+      for (const p of riskyPoints) {
+        const dlat = p.lat - lat;
+        const dlng = p.lng - lng;
+        const dist = Math.sqrt(dlat * dlat + dlng * dlng);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestRisk = p.riskIndex;
+        }
       }
 
-      // Use ALL points (including zeros) so zeros dilute risk correctly
-      const { value: risk, minDist } = idw(lat, lng, points);
+      // Only draw within the radius of a risky point
+      if (bestDist > POINT_RADIUS) continue;
 
-      if (minDist > MAX_INFLUENCE_DIST) {
-        imageData.data[idx + 3] = 0;
-        continue;
-      }
-
-      if (risk < VISIBLE_THRESHOLD) {
-        imageData.data[idx + 3] = 0;
-        continue;
-      }
-
-      // Fade at edges of influence radius
-      const distFade = minDist > MAX_INFLUENCE_DIST * 0.6
-        ? 1 - (minDist - MAX_INFLUENCE_DIST * 0.6) / (MAX_INFLUENCE_DIST * 0.4)
-        : 1;
+      // Smooth fade from center to edge
+      const fade = 1 - (bestDist / POINT_RADIUS);
 
       let r: number, g: number, b: number, a: number;
 
-      if (risk < 35) {
-        // Watch: amber-yellow — "be alert"
-        const t = (risk - VISIBLE_THRESHOLD) / (35 - VISIBLE_THRESHOLD);
-        r = 240;
-        g = 200 - Math.round(t * 40);   // 200 → 160
-        b = 20;
-        a = 120 + Math.round(t * 50);   // 120 → 170
-      } else if (risk < 65) {
-        // Danger: orange — "stay away from rivers"
-        const t = (risk - 35) / 30;
-        r = 240 - Math.round(t * 10);   // 240 → 230
-        g = 160 - Math.round(t * 80);   // 160 → 80
-        b = 20 + Math.round(t * 10);    // 20 → 30
-        a = 170 + Math.round(t * 30);   // 170 → 200
+      if (bestRisk < 35) {
+        // Watch: amber-yellow
+        r = 240; g = 190; b = 20;
+        a = Math.round(140 * fade);
+      } else if (bestRisk < 65) {
+        // Danger: orange
+        const t = (bestRisk - 35) / 30;
+        r = 240; g = 160 - Math.round(t * 70); b = 25;
+        a = Math.round((160 + t * 30) * fade);
       } else {
-        // Evacuate: deep red — "leave the area"
-        const t = Math.min((risk - 65) / 35, 1.0);
-        r = 230 - Math.round(t * 30);   // 230 → 200
-        g = 80 - Math.round(t * 50);    // 80 → 30
-        b = 30 - Math.round(t * 10);    // 30 → 20
-        a = 200 + Math.round(t * 30);   // 200 → 230
+        // Extreme: deep red
+        const t = Math.min((bestRisk - 65) / 35, 1.0);
+        r = 220 - Math.round(t * 20);
+        g = 60 - Math.round(t * 30);
+        b = 25;
+        a = Math.round((200 + t * 30) * fade);
       }
 
       imageData.data[idx] = r;
       imageData.data[idx + 1] = g;
       imageData.data[idx + 2] = b;
-      imageData.data[idx + 3] = Math.round(a * distFade);
+      imageData.data[idx + 3] = a;
     }
   }
 
