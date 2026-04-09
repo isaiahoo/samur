@@ -355,49 +355,67 @@ export const MapView = memo(function MapView({
         },
       });
 
-      // ── Soil moisture heatmap (cyan → blue → purple, wide coverage) ────
-      // 25 grid points across Dagestan — needs large radius & strong intensity
-      // to create a continuous coverage field, not scattered dots.
+      // ── Soil moisture: large translucent circles (not heatmap) ─────────
+      // 25 grid points is too sparse for a heatmap — overlapping circles
+      // with blur create a visible, color-coded coverage field.
 
       map.addLayer({
-        id: "soil-moisture-heatmap",
-        type: "heatmap",
+        id: "soil-moisture-glow",
+        type: "circle",
         source: "soilMoistureHeatmap",
         paint: {
-          "heatmap-weight": ["get", "intensity"],
-          // High intensity to compensate for sparse 25-point grid
-          "heatmap-intensity": [
+          // Large circles that overlap to form coverage zones
+          "circle-radius": [
             "interpolate", ["linear"], ["zoom"],
-            5, 1.5,
-            8, 2.5,
-            11, 3.5,
-            14, 4.0,
+            5, 30,
+            7, 50,
+            9, 80,
+            12, 120,
           ],
-          // Very large radius so 25 points blend into continuous field
-          "heatmap-radius": [
+          // Color by moisture level: green (dry) → cyan (normal) → blue (wet) → purple (saturated)
+          "circle-color": [
+            "interpolate", ["linear"], ["get", "moisture"],
+            0.10, "rgba(34,197,94,0.25)",   // green — dry
+            0.20, "rgba(6,182,212,0.35)",   // cyan — normal
+            0.30, "rgba(59,130,246,0.45)",  // blue — elevated
+            0.40, "rgba(139,92,246,0.55)",  // purple — wet
+            0.50, "rgba(109,40,217,0.65)",  // deep purple — saturated
+          ],
+          "circle-blur": 1, // soft edges so circles blend
+          "circle-opacity": [
             "interpolate", ["linear"], ["zoom"],
-            5, 80,
-            7, 120,
-            9, 160,
-            12, 200,
+            6, 0.8,
+            10, 0.6,
+            14, 0.4,
           ],
-          // Color ramp: transparent → cyan (normal) → blue (wet) → purple (saturated)
-          "heatmap-color": [
-            "interpolate", ["linear"], ["heatmap-density"],
-            0, "rgba(0,0,0,0)",
-            0.1, "rgba(165,243,252,0.25)",  // light cyan — baseline moisture
-            0.25, "rgba(6,182,212,0.45)",   // #06B6D4 cyan — normal
-            0.45, "rgba(59,130,246,0.6)",   // #3B82F6 blue — elevated
-            0.7, "rgba(139,92,246,0.7)",    // #8B5CF6 purple — wet
-            1.0, "rgba(109,40,217,0.8)",    // #6D28D9 deep purple — saturated
-          ],
-          "heatmap-opacity": [
+          // No stroke — pure fill
+          "circle-stroke-width": 0,
+        },
+      });
+
+      // Inner dot: small solid circle at each grid point for clarity
+      map.addLayer({
+        id: "soil-moisture-dot",
+        type: "circle",
+        source: "soilMoistureHeatmap",
+        paint: {
+          "circle-radius": [
             "interpolate", ["linear"], ["zoom"],
-            6, 0.7,
-            9, 0.55,
-            12, 0.4,
-            14, 0.25,
+            5, 3,
+            9, 5,
+            12, 7,
           ],
+          "circle-color": [
+            "interpolate", ["linear"], ["get", "moisture"],
+            0.10, "#22C55E",  // green
+            0.20, "#06B6D4",  // cyan
+            0.30, "#3B82F6",  // blue
+            0.40, "#8B5CF6",  // purple
+            0.50, "#6D28D9",  // deep purple
+          ],
+          "circle-opacity": 0.9,
+          "circle-stroke-width": 1.5,
+          "circle-stroke-color": "rgba(255,255,255,0.8)",
         },
       });
 
@@ -703,7 +721,7 @@ export const MapView = memo(function MapView({
       shelters: ["shelters"],
       floodHeatmap: ["river-heatmap"],
       precipitation: ["precip-heatmap"],
-      soilMoisture: ["soil-moisture-heatmap"],
+      soilMoisture: ["soil-moisture-glow", "soil-moisture-dot"],
     };
 
     for (const [key, layerIds] of Object.entries(layerGroups)) {
