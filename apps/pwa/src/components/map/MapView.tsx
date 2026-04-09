@@ -619,7 +619,7 @@ export const MapView = memo(function MapView({
           type: "raster",
           source: "snowOverlayImg",
           paint: {
-            "raster-opacity": 0.7,
+            "raster-opacity": 0.55,
             "raster-fade-duration": 0,
           },
         },

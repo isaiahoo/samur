@@ -40,29 +40,39 @@ const DEPTH_HEAVY = 0.50;  // 50cm
 
 // ── IDW interpolation ───────────────────────────────────────────────────
 
-function idw(lat: number, lng: number, points: SnowPoint[], getValue: (p: SnowPoint) => number, power = 2.5): number {
+/** Max distance (degrees) from any data point — beyond this, pixel is transparent */
+const MAX_INFLUENCE_DIST = 0.6;
+
+function idw(
+  lat: number, lng: number,
+  points: SnowPoint[],
+  getValue: (p: SnowPoint) => number,
+  power = 3,
+): { value: number; minDist: number } {
   let sumWeights = 0;
   let sumValues = 0;
+  let minDist = Infinity;
 
   for (const p of points) {
     const dlat = p.lat - lat;
     const dlng = p.lng - lng;
     const dist = Math.sqrt(dlat * dlat + dlng * dlng);
 
-    if (dist < 0.001) return getValue(p);
+    if (dist < minDist) minDist = dist;
+    if (dist < 0.001) return { value: getValue(p), minDist: 0 };
 
     const w = 1 / (dist ** power);
     sumWeights += w;
     sumValues += w * getValue(p);
   }
 
-  return sumWeights > 0 ? sumValues / sumWeights : 0;
+  return { value: sumWeights > 0 ? sumValues / sumWeights : 0, minDist };
 }
 
 // ── Canvas generation ───────────────────────────────────────────────────
 
-const CANVAS_W = 200;
-const CANVAS_H = 160;
+const CANVAS_W = 280;
+const CANVAS_H = 220;
 
 /**
  * Generate a snowmelt risk overlay (default) or snow depth overlay.
@@ -97,13 +107,24 @@ export function generateSnowOverlayImage(
       const lng = west + (x / CANVAS_W) * (east - west);
       const idx = (y * CANVAS_W + x) * 4;
 
-      const val = idw(lat, lng, validPoints, getValue);
+      const { value: val, minDist } = idw(lat, lng, validPoints, getValue);
+
+      // Skip pixels too far from any data point — avoids painting empty areas
+      if (minDist > MAX_INFLUENCE_DIST) {
+        imageData.data[idx + 3] = 0;
+        continue;
+      }
+
+      // Fade out near the edge of influence radius
+      const distFade = minDist > MAX_INFLUENCE_DIST * 0.6
+        ? 1 - (minDist - MAX_INFLUENCE_DIST * 0.6) / (MAX_INFLUENCE_DIST * 0.4)
+        : 1;
 
       let r: number, g: number, b: number, a: number;
 
       if (mode === "melt") {
         // Snowmelt risk: warm color ramp
-        if (val < 0.5) {
+        if (val < 1.0) {
           // No significant melt — transparent
           imageData.data[idx + 3] = 0;
           continue;
@@ -177,7 +198,7 @@ export function generateSnowOverlayImage(
       imageData.data[idx] = r;
       imageData.data[idx + 1] = g;
       imageData.data[idx + 2] = b;
-      imageData.data[idx + 3] = a;
+      imageData.data[idx + 3] = Math.round(a * distFade);
     }
   }
 
