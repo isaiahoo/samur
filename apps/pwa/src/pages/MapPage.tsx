@@ -379,11 +379,13 @@ export function MapPage() {
 
           {layers.runoff && runoffData.length > 0 && (
             <div className="runoff-legend">
-              <div className="runoff-legend-bar" style={{ background: runoffLegendGradientCSS() }} />
-              <div className="runoff-legend-labels">
-                <span>Низкий</span>
-                <span className="runoff-legend-center">Риск затопления</span>
-                <span>Высокий</span>
+              <div className="runoff-legend-title">⚠ Риск затопления</div>
+              <div className="runoff-legend-scale">
+                <div className="runoff-legend-bar" style={{ background: runoffLegendGradientCSS() }} />
+                <div className="runoff-legend-ends">
+                  <span>низкий</span>
+                  <span>высокий</span>
+                </div>
               </div>
             </div>
           )}
