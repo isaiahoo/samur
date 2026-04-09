@@ -24,7 +24,7 @@ import {
   type PrecipitationPoint,
   type SoilMoisturePoint,
 } from "./geoJsonHelpers.js";
-import { generateSoilMoistureImage, SOIL_BOUNDS } from "./SoilMoistureOverlay.js";
+import { generateSoilMoistureImage, SOIL_BOUNDS, getSettlementsAtRisk, type SettlementRisk } from "./SoilMoistureOverlay.js";
 import { computeTier, trendArrow, checkUpstreamDanger, type GaugeTier } from "./gaugeUtils.js";
 import {
   createMarkerElement,
@@ -108,6 +108,7 @@ export const MapView = memo(function MapView({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [styleVersion, setStyleVersion] = useState(0);
   const offlineRef = useRef(false);
 
   // Store latest callbacks in refs to avoid re-initializing the map
@@ -147,236 +148,224 @@ export const MapView = memo(function MapView({
 
     popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: "260px" });
 
-    map.on("load", () => {
-      // ── Sources ──────────────────────────────────────────────────────────
+    // ── Reusable layer setup (called on initial load AND after style switches) ──
 
-      map.addSource("incidents", {
-        type: "geojson",
-        data: EMPTY_FC,
-        cluster: true,
-        clusterMaxZoom: 14,
-        clusterRadius: 50,
-      });
-
-      map.addSource("helpRequests", {
-        type: "geojson",
-        data: EMPTY_FC,
-        cluster: true,
-        clusterMaxZoom: 14,
-        clusterRadius: 50,
-      });
-
-      map.addSource("shelters", { type: "geojson", data: EMPTY_FC });
-
-      // River flood risk heatmap source (uses same data as HTML markers)
-      map.addSource("riverHeatmap", { type: "geojson", data: EMPTY_FC });
-
-      // Precipitation forecast heatmap source
-      map.addSource("precipHeatmap", { type: "geojson", data: EMPTY_FC });
-
-      // Soil moisture: image source (IDW-interpolated canvas, added dynamically)
+    function setupSourcesAndLayers() {
+      if (!map.getSource("incidents")) {
+        map.addSource("incidents", { type: "geojson", data: EMPTY_FC, cluster: true, clusterMaxZoom: 14, clusterRadius: 50 });
+      }
+      if (!map.getSource("helpRequests")) {
+        map.addSource("helpRequests", { type: "geojson", data: EMPTY_FC, cluster: true, clusterMaxZoom: 14, clusterRadius: 50 });
+      }
+      if (!map.getSource("shelters")) map.addSource("shelters", { type: "geojson", data: EMPTY_FC });
+      if (!map.getSource("riverHeatmap")) map.addSource("riverHeatmap", { type: "geojson", data: EMPTY_FC });
+      if (!map.getSource("precipHeatmap")) map.addSource("precipHeatmap", { type: "geojson", data: EMPTY_FC });
 
       // ── Incident layers ──────────────────────────────────────────────────
 
-      map.addLayer({
-        id: "incidents-clusters",
-        type: "circle",
-        source: "incidents",
-        filter: ["has", "point_count"],
-        paint: {
-          "circle-color": "#EF4444",
-          "circle-radius": ["step", ["get", "point_count"], 18, 10, 24, 50, 32],
-          "circle-opacity": 0.85,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#fff",
-        },
-      });
+      if (!map.getLayer("incidents-clusters")) {
+        map.addLayer({
+          id: "incidents-clusters",
+          type: "circle",
+          source: "incidents",
+          filter: ["has", "point_count"],
+          paint: {
+            "circle-color": "#EF4444",
+            "circle-radius": ["step", ["get", "point_count"], 18, 10, 24, 50, 32],
+            "circle-opacity": 0.85,
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#fff",
+          },
+        });
+      }
 
-      map.addLayer({
-        id: "incidents-cluster-count",
-        type: "symbol",
-        source: "incidents",
-        filter: ["has", "point_count"],
-        layout: {
-          "text-field": "{point_count_abbreviated}",
-          "text-font": ["Open Sans Regular"],
-          "text-size": 13,
-        },
-        paint: { "text-color": "#fff" },
-      });
+      if (!map.getLayer("incidents-cluster-count")) {
+        map.addLayer({
+          id: "incidents-cluster-count",
+          type: "symbol",
+          source: "incidents",
+          filter: ["has", "point_count"],
+          layout: {
+            "text-field": "{point_count_abbreviated}",
+            "text-font": ["Open Sans Regular"],
+            "text-size": 13,
+          },
+          paint: { "text-color": "#fff" },
+        });
+      }
 
-      map.addLayer({
-        id: "incidents-unclustered",
-        type: "circle",
-        source: "incidents",
-        filter: ["!", ["has", "point_count"]],
-        paint: {
-          "circle-color": [
-            "match",
-            ["get", "severity"],
-            "critical", INCIDENT_COLORS.critical,
-            "high", INCIDENT_COLORS.high,
-            "medium", INCIDENT_COLORS.medium,
-            "low", INCIDENT_COLORS.low,
-            INCIDENT_COLORS.low,
-          ],
-          "circle-radius": 8,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#fff",
-        },
-      });
+      if (!map.getLayer("incidents-unclustered")) {
+        map.addLayer({
+          id: "incidents-unclustered",
+          type: "circle",
+          source: "incidents",
+          filter: ["!", ["has", "point_count"]],
+          paint: {
+            "circle-color": [
+              "match",
+              ["get", "severity"],
+              "critical", INCIDENT_COLORS.critical,
+              "high", INCIDENT_COLORS.high,
+              "medium", INCIDENT_COLORS.medium,
+              "low", INCIDENT_COLORS.low,
+              INCIDENT_COLORS.low,
+            ],
+            "circle-radius": 8,
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#fff",
+          },
+        });
+      }
 
       // ── Help request layers ──────────────────────────────────────────────
 
-      map.addLayer({
-        id: "help-clusters",
-        type: "circle",
-        source: "helpRequests",
-        filter: ["has", "point_count"],
-        paint: {
-          "circle-color": "#8B5CF6",
-          "circle-radius": ["step", ["get", "point_count"], 18, 10, 24, 50, 32],
-          "circle-opacity": 0.85,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#fff",
-        },
-      });
+      if (!map.getLayer("help-clusters")) {
+        map.addLayer({
+          id: "help-clusters",
+          type: "circle",
+          source: "helpRequests",
+          filter: ["has", "point_count"],
+          paint: {
+            "circle-color": "#8B5CF6",
+            "circle-radius": ["step", ["get", "point_count"], 18, 10, 24, 50, 32],
+            "circle-opacity": 0.85,
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#fff",
+          },
+        });
+      }
 
-      map.addLayer({
-        id: "help-cluster-count",
-        type: "symbol",
-        source: "helpRequests",
-        filter: ["has", "point_count"],
-        layout: {
-          "text-field": "{point_count_abbreviated}",
-          "text-font": ["Open Sans Regular"],
-          "text-size": 13,
-        },
-        paint: { "text-color": "#fff" },
-      });
+      if (!map.getLayer("help-cluster-count")) {
+        map.addLayer({
+          id: "help-cluster-count",
+          type: "symbol",
+          source: "helpRequests",
+          filter: ["has", "point_count"],
+          layout: {
+            "text-field": "{point_count_abbreviated}",
+            "text-font": ["Open Sans Regular"],
+            "text-size": 13,
+          },
+          paint: { "text-color": "#fff" },
+        });
+      }
 
-      map.addLayer({
-        id: "help-unclustered",
-        type: "circle",
-        source: "helpRequests",
-        filter: ["!", ["has", "point_count"]],
-        paint: {
-          "circle-color": [
-            "match",
-            ["get", "type"],
-            "need", HELP_COLORS.need,
-            "offer", HELP_COLORS.offer,
-            HELP_COLORS.need,
-          ],
-          "circle-radius": 8,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#fff",
-        },
-      });
+      if (!map.getLayer("help-unclustered")) {
+        map.addLayer({
+          id: "help-unclustered",
+          type: "circle",
+          source: "helpRequests",
+          filter: ["!", ["has", "point_count"]],
+          paint: {
+            "circle-color": [
+              "match",
+              ["get", "type"],
+              "need", HELP_COLORS.need,
+              "offer", HELP_COLORS.offer,
+              HELP_COLORS.need,
+            ],
+            "circle-radius": 8,
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#fff",
+          },
+        });
+      }
 
       // ── River flood risk heatmap (warm: amber -> red) ───────────────────
 
-      map.addLayer({
-        id: "river-heatmap",
-        type: "heatmap",
-        source: "riverHeatmap",
-        paint: {
-          // Weight each point by heatWeight property (0-1)
-          "heatmap-weight": ["get", "heatWeight"],
-          // Intensity ramps up with zoom
-          "heatmap-intensity": [
-            "interpolate", ["linear"], ["zoom"],
-            6, 0.8,
-            10, 1.5,
-            14, 2.0,
-          ],
-          // Radius grows with zoom for coverage
-          "heatmap-radius": [
-            "interpolate", ["linear"], ["zoom"],
-            6, 30,
-            9, 60,
-            12, 80,
-          ],
-          // Warm color ramp: transparent -> amber -> red -> dark red
-          "heatmap-color": [
-            "interpolate", ["linear"], ["heatmap-density"],
-            0, "rgba(0,0,0,0)",
-            0.15, "rgba(254,243,199,0.4)",  // #FEF3C7 light amber
-            0.35, "rgba(245,158,11,0.6)",   // #F59E0B amber
-            0.6, "rgba(239,68,68,0.7)",     // #EF4444 red
-            1.0, "rgba(153,27,27,0.8)",     // #991B1B dark red
-          ],
-          // Fade with zoom so markers stay readable
-          "heatmap-opacity": [
-            "interpolate", ["linear"], ["zoom"],
-            7, 0.6,
-            11, 0.4,
-            14, 0.25,
-          ],
-        },
-      });
+      if (!map.getLayer("river-heatmap")) {
+        map.addLayer({
+          id: "river-heatmap",
+          type: "heatmap",
+          source: "riverHeatmap",
+          paint: {
+            "heatmap-weight": ["get", "heatWeight"],
+            "heatmap-intensity": [
+              "interpolate", ["linear"], ["zoom"],
+              6, 0.8, 10, 1.5, 14, 2.0,
+            ],
+            "heatmap-radius": [
+              "interpolate", ["linear"], ["zoom"],
+              6, 30, 9, 60, 12, 80,
+            ],
+            "heatmap-color": [
+              "interpolate", ["linear"], ["heatmap-density"],
+              0, "rgba(0,0,0,0)",
+              0.15, "rgba(254,243,199,0.4)",
+              0.35, "rgba(245,158,11,0.6)",
+              0.6, "rgba(239,68,68,0.7)",
+              1.0, "rgba(153,27,27,0.8)",
+            ],
+            "heatmap-opacity": [
+              "interpolate", ["linear"], ["zoom"],
+              7, 0.6, 11, 0.4, 14, 0.25,
+            ],
+          },
+        });
+      }
 
       // ── Precipitation forecast heatmap (cool: cyan -> blue) ─────────────
 
-      map.addLayer({
-        id: "precip-heatmap",
-        type: "heatmap",
-        source: "precipHeatmap",
-        paint: {
-          "heatmap-weight": ["get", "intensity"],
-          "heatmap-intensity": [
-            "interpolate", ["linear"], ["zoom"],
-            6, 0.6,
-            10, 1.2,
-            14, 1.8,
-          ],
-          "heatmap-radius": [
-            "interpolate", ["linear"], ["zoom"],
-            6, 25,
-            9, 50,
-            12, 70,
-          ],
-          // Cool color ramp: transparent -> cyan -> blue
-          "heatmap-color": [
-            "interpolate", ["linear"], ["heatmap-density"],
-            0, "rgba(0,0,0,0)",
-            0.15, "rgba(207,250,254,0.3)",  // #CFFAFE light cyan
-            0.35, "rgba(6,182,212,0.4)",    // #06B6D4 cyan
-            0.6, "rgba(30,64,175,0.5)",     // #1E40AF blue
-            1.0, "rgba(30,64,175,0.6)",     // #1E40AF deep blue
-          ],
-          "heatmap-opacity": [
-            "interpolate", ["linear"], ["zoom"],
-            7, 0.4,
-            11, 0.35,
-            14, 0.2,
-          ],
-        },
-      });
+      if (!map.getLayer("precip-heatmap")) {
+        map.addLayer({
+          id: "precip-heatmap",
+          type: "heatmap",
+          source: "precipHeatmap",
+          paint: {
+            "heatmap-weight": ["get", "intensity"],
+            "heatmap-intensity": [
+              "interpolate", ["linear"], ["zoom"],
+              6, 0.6, 10, 1.2, 14, 1.8,
+            ],
+            "heatmap-radius": [
+              "interpolate", ["linear"], ["zoom"],
+              6, 25, 9, 50, 12, 70,
+            ],
+            "heatmap-color": [
+              "interpolate", ["linear"], ["heatmap-density"],
+              0, "rgba(0,0,0,0)",
+              0.15, "rgba(207,250,254,0.3)",
+              0.35, "rgba(6,182,212,0.4)",
+              0.6, "rgba(30,64,175,0.5)",
+              1.0, "rgba(30,64,175,0.6)",
+            ],
+            "heatmap-opacity": [
+              "interpolate", ["linear"], ["zoom"],
+              7, 0.4, 11, 0.35, 14, 0.2,
+            ],
+          },
+        });
+      }
 
       // Soil moisture overlay is added dynamically as an image source
       // (IDW-interpolated canvas) — see the soilMoisture useEffect below
 
       // ── Shelter layer ────────────────────────────────────────────────────
 
-      map.addLayer({
-        id: "shelters",
-        type: "circle",
-        source: "shelters",
-        paint: {
-          "circle-color": [
-            "match",
-            ["get", "status"],
-            "open", SHELTER_COLORS.open,
-            "full", SHELTER_COLORS.full,
-            "closed", SHELTER_COLORS.closed,
-            SHELTER_COLORS.full,
-          ],
-          "circle-radius": 9,
-          "circle-stroke-width": 2.5,
-          "circle-stroke-color": "#fff",
-        },
-      });
+      if (!map.getLayer("shelters")) {
+        map.addLayer({
+          id: "shelters",
+          type: "circle",
+          source: "shelters",
+          paint: {
+            "circle-color": [
+              "match",
+              ["get", "status"],
+              "open", SHELTER_COLORS.open,
+              "full", SHELTER_COLORS.full,
+              "closed", SHELTER_COLORS.closed,
+              SHELTER_COLORS.full,
+            ],
+            "circle-radius": 9,
+            "circle-stroke-width": 2.5,
+            "circle-stroke-color": "#fff",
+          },
+        });
+      }
+    }
+
+    map.on("load", () => {
+      setupSourcesAndLayers();
 
       // River level layer removed — gauge stations now use HTML markers (see gauge marker effect below)
 
@@ -448,10 +437,18 @@ export const MapView = memo(function MapView({
     const ONLINE_STYLE = "/api/v1/tiles/style.json";
     const OFFLINE_STYLE = "/api/v1/tiles/offline-style.json";
 
+    // After any style change (offline ↔ online), MapLibre destroys all custom
+    // sources/layers. Re-create them and bump styleVersion to trigger data effects.
+    let isInitialLoad = true;
+    map.on("style.load", () => {
+      if (isInitialLoad) { isInitialLoad = false; return; }
+      setupSourcesAndLayers();
+      setStyleVersion((v) => v + 1);
+    });
+
     function switchToOffline() {
       if (offlineRef.current) return;
       offlineRef.current = true;
-      // Fetch offline style (may come from service worker cache)
       fetch(OFFLINE_STYLE)
         .then((r) => r.json())
         .then((style) => { map.setStyle(style); })
@@ -502,7 +499,7 @@ export const MapView = memo(function MapView({
       const src = map.getSource(sourceId) as GeoJSONSource | undefined;
       src?.setData(data);
     },
-    [mapReady],
+    [mapReady, styleVersion],
   );
 
   useEffect(() => updateSource("incidents", toIncidentsGeoJSON(incidents)), [incidents, updateSource]);
@@ -512,6 +509,7 @@ export const MapView = memo(function MapView({
   useEffect(() => updateSource("precipHeatmap", toPrecipitationGeoJSON(precipitation)), [precipitation, updateSource]);
 
   // ── Soil moisture: IDW-interpolated canvas overlay ──────────────────────
+  // styleVersion dependency ensures re-creation after offline/online style switch
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || soilMoisture.length === 0) return;
@@ -521,23 +519,24 @@ export const MapView = memo(function MapView({
 
     const { north, south, east, west } = SOIL_BOUNDS;
     const coords: [[number, number], [number, number], [number, number], [number, number]] = [
-      [west, north],  // top-left
-      [east, north],  // top-right
-      [east, south],  // bottom-right
-      [west, south],  // bottom-left
+      [west, north],
+      [east, north],
+      [east, south],
+      [west, south],
     ];
 
+    // Always check if source exists — style switches destroy it
     const src = map.getSource("soilMoistureImg") as maplibregl.ImageSource | undefined;
     if (src) {
-      // Update existing source
       src.updateImage({ url: dataUrl, coordinates: coords });
     } else {
-      // Create source + layer
       map.addSource("soilMoistureImg", {
         type: "image",
         url: dataUrl,
         coordinates: coords,
       });
+      // Find the best insertion point (shelters may not exist after style change)
+      const beforeLayer = map.getLayer("shelters") ? "shelters" : undefined;
       map.addLayer(
         {
           id: "soil-moisture-overlay",
@@ -548,11 +547,41 @@ export const MapView = memo(function MapView({
             "raster-fade-duration": 0,
           },
         },
-        // Insert below shelter/marker layers but above basemap
-        "shelters",
+        beforeLayer,
       );
     }
-  }, [soilMoisture, mapReady]);
+  }, [soilMoisture, mapReady, styleVersion]);
+
+  // ── Settlement risk markers (HTML markers for towns in wet zones) ──────
+
+  const settlementMarkersRef = useRef<maplibregl.Marker[]>([]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    // Remove old markers
+    for (const m of settlementMarkersRef.current) m.remove();
+    settlementMarkersRef.current = [];
+
+    if (soilMoisture.length === 0 || !layers.soilMoisture) return;
+
+    const atRisk = getSettlementsAtRisk(soilMoisture);
+    if (atRisk.length === 0) return;
+
+    for (const s of atRisk) {
+      const el = document.createElement("div");
+      el.className = `settlement-risk settlement-risk--${s.level}`;
+      el.innerHTML = `<span class="settlement-risk-icon">⚠</span><span class="settlement-risk-name">${s.name}</span>`;
+      el.title = `${s.name}: влажность почвы ${Math.round(s.moisture * 100)}%`;
+
+      const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
+        .setLngLat([s.lng, s.lat])
+        .addTo(map);
+
+      settlementMarkersRef.current.push(marker);
+    }
+  }, [soilMoisture, mapReady, layers.soilMoisture, styleVersion]);
 
   // ── Gauge station HTML markers ──────────────────────────────────────────
 

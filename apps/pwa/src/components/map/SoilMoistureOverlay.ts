@@ -182,3 +182,54 @@ export const LEGEND_TICKS = [
   { pos: "50%", label: "45%", desc: "Насыщенная" },
   { pos: "100%", label: "55%+", desc: "Критическая" },
 ];
+
+// ── Settlement risk assessment ──────────────────────────────────────────
+
+/** Key settlements in Dagestan with populations */
+const DAGESTAN_SETTLEMENTS: { name: string; lat: number; lng: number; pop: number }[] = [
+  { name: "Махачкала", lat: 42.98, lng: 47.50, pop: 600000 },
+  { name: "Хасавюрт", lat: 43.25, lng: 46.59, pop: 142000 },
+  { name: "Дербент", lat: 42.07, lng: 48.29, pop: 124000 },
+  { name: "Каспийск", lat: 42.88, lng: 47.64, pop: 120000 },
+  { name: "Буйнакск", lat: 42.82, lng: 47.12, pop: 65000 },
+  { name: "Кизляр", lat: 43.85, lng: 46.71, pop: 50000 },
+  { name: "Кизилюрт", lat: 43.02, lng: 46.87, pop: 45000 },
+  { name: "Избербаш", lat: 42.57, lng: 47.87, pop: 60000 },
+  { name: "Дагестанские Огни", lat: 42.11, lng: 48.19, pop: 30000 },
+  { name: "Южно-Сухокумск", lat: 44.01, lng: 45.65, pop: 10000 },
+  { name: "Бабаюрт", lat: 43.60, lng: 46.78, pop: 20000 },
+  { name: "Сулак", lat: 43.39, lng: 47.11, pop: 5000 },
+  { name: "Кочубей", lat: 44.20, lng: 46.50, pop: 8000 },
+  { name: "Тарумовка", lat: 44.03, lng: 46.80, pop: 6000 },
+  { name: "Новолакское", lat: 43.09, lng: 46.53, pop: 10000 },
+];
+
+export interface SettlementRisk {
+  name: string;
+  lat: number;
+  lng: number;
+  pop: number;
+  moisture: number;
+  level: "elevated" | "saturated" | "critical";
+}
+
+/** Find settlements where interpolated moisture exceeds the wet threshold */
+export function getSettlementsAtRisk(points: SoilMoisturePoint[]): SettlementRisk[] {
+  const validPoints = points.filter((p) => p.moisture > 0.05);
+  if (validPoints.length === 0) return [];
+
+  const results: SettlementRisk[] = [];
+
+  for (const s of DAGESTAN_SETTLEMENTS) {
+    const moisture = idw(s.lat, s.lng, validPoints);
+    if (moisture < WET_THRESHOLD) continue;
+
+    let level: SettlementRisk["level"] = "elevated";
+    if (moisture >= SATURATED) level = "critical";
+    else if (moisture >= HIGH) level = "saturated";
+
+    results.push({ name: s.name, lat: s.lat, lng: s.lng, pop: s.pop, moisture, level });
+  }
+
+  return results.sort((a, b) => b.moisture - a.moisture);
+}
