@@ -18,8 +18,8 @@ import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning, checkUps
 import { GaugeChart, type HistoryPoint } from "../components/map/GaugeChart.js";
 import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory, getRiverLevelForecast, getPrecipitation, getSoilMoisture, getSnowData, getRunoffData } from "../services/api.js";
 import type { PrecipitationPoint, SoilMoisturePoint, SnowPoint, RunoffPoint } from "../components/map/geoJsonHelpers.js";
-import { legendGradientCSS, LEGEND_TICKS } from "../components/map/SoilMoistureOverlay.js";
-import { snowLegendGradientCSS, SNOW_LEGEND_TICKS } from "../components/map/SnowOverlay.js";
+import { legendGradientCSS } from "../components/map/SoilMoistureOverlay.js";
+import { snowLegendGradientCSS } from "../components/map/SnowOverlay.js";
 import { runoffLegendGradientCSS } from "../components/map/RunoffOverlay.js";
 import { cacheItems, getCachedItems } from "../services/db.js";
 import { useSocketEvent, useSocketSubscription } from "../hooks/useSocket.js";
@@ -347,14 +347,9 @@ export function MapPage() {
               </div>
               <div className="soil-legend-bar" style={{ background: legendGradientCSS() }} />
               <div className="soil-legend-ticks">
-                {LEGEND_TICKS.map((t, i) => (
-                  <div key={i} className="soil-legend-tick" style={{ left: t.pos }}>
-                    <span className="soil-legend-tick-val">{t.label}</span>
-                    <span className="soil-legend-tick-desc">{t.desc}</span>
-                  </div>
-                ))}
+                <div className="soil-legend-tick"><span className="soil-legend-tick-val">сухая</span></div>
+                <div className="soil-legend-tick"><span className="soil-legend-tick-val">мокрая</span></div>
               </div>
-              <div className="soil-legend-hint">Синие зоны — мокрый грунт, повышен риск паводка</div>
             </div>
           )}
 
@@ -366,14 +361,9 @@ export function MapPage() {
               </div>
               <div className="snow-legend-bar" style={{ background: snowLegendGradientCSS() }} />
               <div className="snow-legend-ticks">
-                {SNOW_LEGEND_TICKS.map((t, i) => (
-                  <div key={i} className="snow-legend-tick" style={{ left: t.pos }}>
-                    <span className="snow-legend-tick-val">{t.label}</span>
-                    <span className="snow-legend-tick-desc">{t.desc}</span>
-                  </div>
-                ))}
+                <div className="snow-legend-tick"><span className="snow-legend-tick-val">слабое</span></div>
+                <div className="snow-legend-tick"><span className="snow-legend-tick-val">сильное</span></div>
               </div>
-              <div className="snow-legend-hint">мм/сут — скорость таяния горного снега</div>
             </div>
           )}
 
