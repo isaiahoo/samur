@@ -7,6 +7,7 @@ import type {
   Alert,
   RiverLevel,
   Shelter,
+  EarthquakeEvent,
   ServerToClientEvents,
 } from "@samur/shared";
 
@@ -73,4 +74,13 @@ export function emitRiverLevelUpdated(level: RiverLevel): void {
 
 export function emitShelterUpdated(shelter: Shelter): void {
   emitToNearby("shelter:updated", shelter);
+}
+
+export function emitEarthquakeNew(earthquake: EarthquakeEvent): void {
+  // M5.0+ broadcast to all; M4.5-4.9 geo-filtered
+  if (earthquake.magnitude >= 5.0) {
+    getIO().emit("earthquake:new", earthquake);
+  } else {
+    emitToNearby("earthquake:new", earthquake);
+  }
 }

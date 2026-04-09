@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import type { Incident, HelpRequest, Shelter, RiverLevel } from "@samur/shared";
+import type { Incident, HelpRequest, Shelter, RiverLevel, EarthquakeEvent } from "@samur/shared";
 import {
   INCIDENT_TYPE_LABELS,
   SEVERITY_LABELS,
@@ -16,7 +16,7 @@ import { ReportForm } from "../components/map/ReportForm.js";
 import { UrgencyBadge } from "../components/UrgencyBadge.js";
 import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning, checkUpstreamDanger } from "../components/map/gaugeUtils.js";
 import { GaugeChart, type HistoryPoint } from "../components/map/GaugeChart.js";
-import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory, getRiverLevelForecast, getPrecipitation, getSoilMoisture, getSnowData, getRunoffData } from "../services/api.js";
+import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelHistory, getRiverLevelForecast, getPrecipitation, getSoilMoisture, getSnowData, getRunoffData, getEarthquakes } from "../services/api.js";
 import type { PrecipitationPoint, SoilMoisturePoint, SnowPoint, RunoffPoint } from "../components/map/geoJsonHelpers.js";
 import { legendGradientCSS } from "../components/map/SoilMoistureOverlay.js";
 import { snowLegendGradientCSS } from "../components/map/SnowOverlay.js";
@@ -39,6 +39,7 @@ export function MapPage() {
   const [soilMoisture, setSoilMoisture] = useState<SoilMoisturePoint[]>([]);
   const [snowData, setSnowData] = useState<SnowPoint[]>([]);
   const [runoffData, setRunoffData] = useState<RunoffPoint[]>([]);
+  const [earthquakes, setEarthquakes] = useState<EarthquakeEvent[]>([]);
   const [showReport, setShowReport] = useState(false);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
 
@@ -62,6 +63,7 @@ export function MapPage() {
     soilMoisture: false,
     snow: false,
     runoff: false,
+    earthquakes: false,
   }));
 
   const boundsRef = useRef<MapBounds | null>(null);
@@ -113,6 +115,14 @@ export function MapPage() {
     try {
       const res = await getRunoffData();
       if (res?.data) setRunoffData(res.data);
+    } catch { /* ignore — optional overlay */ }
+  }, []);
+
+  // Earthquake data — fetch on mount, auto-refresh every 5 minutes
+  const fetchEarthquakeData = useCallback(async () => {
+    try {
+      const res = await getEarthquakes();
+      if (res?.data) setEarthquakes(res.data);
     } catch { /* ignore — optional overlay */ }
   }, []);
 
@@ -184,9 +194,15 @@ export function MapPage() {
     fetchSoilMoistureData();
     fetchSnowData();
     fetchRunoffData();
+    fetchEarthquakeData();
     fetchForecastData();
-    return () => { if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current); };
-  }, [fetchData, fetchRiverLevels, fetchPrecipData, fetchSoilMoistureData, fetchSnowData, fetchRunoffData, fetchForecastData]);
+    // Refresh earthquake data every 5 minutes
+    const eqInterval = setInterval(fetchEarthquakeData, 5 * 60 * 1000);
+    return () => {
+      if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
+      clearInterval(eqInterval);
+    };
+  }, [fetchData, fetchRiverLevels, fetchPrecipData, fetchSoilMoistureData, fetchSnowData, fetchRunoffData, fetchEarthquakeData, fetchForecastData]);
 
   useEffect(() => {
     requestPosition();
@@ -209,6 +225,12 @@ export function MapPage() {
   });
   useSocketEvent("shelter:updated", (s) => {
     setShelters((prev) => prev.map((sh) => (sh.id === s.id ? s : sh)));
+  });
+  useSocketEvent("earthquake:new", (eq) => {
+    setEarthquakes((prev) => {
+      const exists = prev.some((e) => e.usgsId === eq.usgsId);
+      return exists ? prev : [eq, ...prev];
+    });
   });
   useSocketEvent("river_level:updated", (rl) => {
     setRiverLevels((prev) => {
@@ -290,7 +312,7 @@ export function MapPage() {
   soilMoistureRef.current = soilMoisture;
 
   const handleMarkerClick = useCallback(
-    (type: string, item: Incident | HelpRequest | Shelter | RiverLevel | Record<string, unknown>) => {
+    (type: string, item: Incident | HelpRequest | Shelter | RiverLevel | EarthquakeEvent | Record<string, unknown>) => {
       openSheet(<DetailPanel type={type} data={item} allRiverLevels={effectiveRiverLevelsRef.current} soilMoisture={soilMoistureRef.current} onClose={closeSheet} />);
     },
     [openSheet, closeSheet],
@@ -317,6 +339,7 @@ export function MapPage() {
     { key: "soilMoisture", label: "Влажность почвы", active: layers.soilMoisture },
     { key: "snow", label: "Снег / таяние", active: layers.snow },
     { key: "runoff", label: "Риск затопления", active: layers.runoff },
+    { key: "earthquakes", label: "Землетрясения", active: layers.earthquakes },
   ];
 
   return (
@@ -330,6 +353,7 @@ export function MapPage() {
         soilMoisture={soilMoisture}
         snowData={snowData}
         runoffData={runoffData}
+        earthquakes={earthquakes}
         layers={layers}
         crisisMode={crisisMode}
         onMarkerClick={handleMarkerClick}
@@ -345,7 +369,7 @@ export function MapPage() {
         />
       </div>
 
-      {((layers.floodHeatmap && riverLevels.length > 0) || (layers.precipitation && precipitation.length > 0) || (layers.soilMoisture && soilMoisture.length > 0) || (layers.snow && snowData.length > 0) || (layers.runoff && runoffData.length > 0)) && (
+      {((layers.floodHeatmap && riverLevels.length > 0) || (layers.precipitation && precipitation.length > 0) || (layers.soilMoisture && soilMoisture.length > 0) || (layers.snow && snowData.length > 0) || (layers.runoff && runoffData.length > 0) || (layers.earthquakes && earthquakes.length > 0)) && (
         <div className="map-legends">
           {layers.floodHeatmap && riverLevels.length > 0 && (
             <div className="flood-legend">
@@ -411,6 +435,17 @@ export function MapPage() {
                   <span>низкий</span>
                   <span>высокий</span>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {layers.earthquakes && earthquakes.length > 0 && (
+            <div className="eq-legend">
+              <div className="eq-legend-title">Землетрясения</div>
+              <div className="eq-legend-items">
+                <span className="eq-legend-dot eq-legend-dot--sm" /> M3.5
+                <span className="eq-legend-dot eq-legend-dot--md" /> M4.5
+                <span className="eq-legend-dot eq-legend-dot--lg" /> M5.5+
               </div>
             </div>
           )}
@@ -526,6 +561,36 @@ function DetailPanel({
 
   if (type === "riverLevel") {
     return <RiverLevelDetail data={data as RiverLevel} allLevels={allRiverLevels ?? []} soilMoisture={soilMoisture ?? []} />;
+  }
+
+  if (type === "earthquake") {
+    const eq = data as EarthquakeEvent;
+    const ageMs = Date.now() - new Date(eq.time).getTime();
+    const depthLabel = eq.depth < 20 ? "мелкое" : eq.depth < 70 ? "среднее" : "глубокое";
+    return (
+      <div className="detail-panel">
+        <div className="detail-header">
+          <h3 className="eq-detail-mag">M {eq.magnitude}</h3>
+          <span className={`eq-detail-badge eq-detail-badge--${eq.magnitude >= 5.0 ? "danger" : eq.magnitude >= 4.5 ? "warning" : "info"}`}>
+            {eq.magnitude >= 5.0 ? "Сильное" : eq.magnitude >= 4.5 ? "Ощутимое" : "Слабое"}
+          </span>
+        </div>
+        <p className="detail-meta">{formatRelativeTime(eq.time)}</p>
+        <p>{eq.place}</p>
+        <p style={{ fontSize: 13, color: "#475569" }}>
+          Глубина: {eq.depth} км ({depthLabel})
+        </p>
+        {eq.felt !== null && eq.felt > 0 && (
+          <p style={{ fontSize: 13, color: "#475569" }}>Ощутили: ~{eq.felt} чел.</p>
+        )}
+        {eq.mmi !== null && eq.mmi > 0 && (
+          <p style={{ fontSize: 13, color: "#475569" }}>Интенсивность (MMI): {eq.mmi}</p>
+        )}
+        <p className="text-muted" style={{ fontSize: 12, marginTop: 8 }}>
+          Источник: {eq.source === "usgs" ? "USGS" : "EMSC"} · ID: {eq.usgsId}
+        </p>
+      </div>
+    );
   }
 
   return null;

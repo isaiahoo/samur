@@ -4,7 +4,7 @@ import maplibregl from "maplibre-gl";
 import type { GeoJSONSource } from "maplibre-gl";
 import { Protocol } from "pmtiles";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { Incident, HelpRequest, Shelter, RiverLevel } from "@samur/shared";
+import type { Incident, HelpRequest, Shelter, RiverLevel, EarthquakeEvent } from "@samur/shared";
 import {
   MAKHACHKALA_CENTER,
   INCIDENT_TYPE_LABELS,
@@ -38,8 +38,8 @@ import {
   type MarkerVariant,
 } from "./GaugeMarker.js";
 
-type MarkerType = "incident" | "helpRequest" | "shelter" | "riverLevel";
-type LayerKey = "incidents" | "helpRequests" | "shelters" | "riverLevels" | "floodHeatmap" | "precipitation" | "soilMoisture" | "snow" | "runoff";
+type MarkerType = "incident" | "helpRequest" | "shelter" | "riverLevel" | "earthquake";
+type LayerKey = "incidents" | "helpRequests" | "shelters" | "riverLevels" | "floodHeatmap" | "precipitation" | "soilMoisture" | "snow" | "runoff" | "earthquakes";
 
 interface Props {
   incidents: Incident[];
@@ -50,9 +50,10 @@ interface Props {
   soilMoisture: SoilMoisturePoint[];
   snowData: SnowPoint[];
   runoffData: RunoffPoint[];
+  earthquakes: EarthquakeEvent[];
   layers: Record<LayerKey, boolean>;
   crisisMode?: boolean;
-  onMarkerClick: (type: MarkerType, item: Incident | HelpRequest | Shelter | RiverLevel | Record<string, unknown>) => void;
+  onMarkerClick: (type: MarkerType, item: Incident | HelpRequest | Shelter | RiverLevel | EarthquakeEvent | Record<string, unknown>) => void;
   onMapMove?: (bounds: { north: number; south: number; east: number; west: number }, zoom: number) => void;
 }
 
@@ -110,6 +111,7 @@ export const MapView = memo(function MapView({
   soilMoisture,
   snowData,
   runoffData,
+  earthquakes,
   layers,
   crisisMode,
   onMarkerClick,
@@ -887,6 +889,81 @@ export const MapView = memo(function MapView({
     };
   }, []);
 
+  // ── Earthquake HTML markers ────────────────────────────────────────────
+
+  const eqMarkersRef = useRef<Map<string, { marker: maplibregl.Marker; element: HTMLDivElement }>>(new Map());
+  const earthquakesRef = useRef(earthquakes);
+  earthquakesRef.current = earthquakes;
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    const existing = eqMarkersRef.current;
+    const activeKeys = new Set<string>();
+
+    for (const eq of earthquakes) {
+      activeKeys.add(eq.usgsId);
+      if (existing.has(eq.usgsId)) continue;
+
+      // Marker sizing by magnitude
+      const size = eq.magnitude >= 5.5 ? 32 : eq.magnitude >= 4.5 ? 22 : eq.magnitude >= 4.0 ? 14 : 10;
+
+      // Color by recency
+      const ageH = (Date.now() - new Date(eq.time).getTime()) / 3_600_000;
+      const color = ageH < 1 ? "#ef4444" : ageH < 24 ? "#f97316" : "#eab308";
+      const pulse = ageH < 1;
+
+      const el = document.createElement("div");
+      el.className = `eq-marker${pulse ? " eq-marker--pulse" : ""}`;
+      el.style.width = `${size}px`;
+      el.style.height = `${size}px`;
+      el.style.background = color;
+      el.style.borderRadius = "50%";
+      el.style.border = "2px solid #fff";
+      el.style.cursor = "pointer";
+      el.style.display = "flex";
+      el.style.alignItems = "center";
+      el.style.justifyContent = "center";
+      el.style.boxShadow = `0 0 6px ${color}80`;
+
+      if (size >= 22) {
+        el.style.fontSize = "10px";
+        el.style.fontWeight = "700";
+        el.style.color = "#fff";
+        el.textContent = String(eq.magnitude);
+      }
+
+      el.addEventListener("click", () => {
+        const fresh = earthquakesRef.current.find((e) => e.usgsId === eq.usgsId);
+        if (fresh) onMarkerClickRef.current("earthquake", fresh);
+      });
+
+      const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+        .setLngLat([eq.lng, eq.lat])
+        .addTo(map);
+      existing.set(eq.usgsId, { marker, element: el });
+    }
+
+    // Remove old markers
+    for (const [key, entry] of existing) {
+      if (!activeKeys.has(key)) {
+        entry.marker.remove();
+        existing.delete(key);
+      }
+    }
+  }, [earthquakes, mapReady]);
+
+  // Cleanup earthquake markers on unmount
+  useEffect(() => {
+    return () => {
+      for (const entry of eqMarkersRef.current.values()) {
+        entry.marker.remove();
+      }
+      eqMarkersRef.current.clear();
+    };
+  }, []);
+
   // ── Toggle layer visibility ──────────────────────────────────────────────
 
   useEffect(() => {
@@ -917,6 +994,12 @@ export const MapView = memo(function MapView({
     const gaugeVis = layers.riverLevels;
     for (const entry of gaugeMarkersRef.current.values()) {
       entry.element.style.display = gaugeVis ? "" : "none";
+    }
+
+    // Toggle earthquake HTML markers visibility
+    const eqVis = layers.earthquakes;
+    for (const entry of eqMarkersRef.current.values()) {
+      entry.element.style.display = eqVis ? "" : "none";
     }
   }, [layers, mapReady]);
 

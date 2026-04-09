@@ -170,6 +170,20 @@ export interface NewsArticle {
   deletedAt: string | null;
 }
 
+export interface EarthquakeEvent {
+  id: string;
+  usgsId: string;
+  magnitude: number;
+  depth: number;
+  lat: number;
+  lng: number;
+  place: string;
+  time: string;
+  felt: number | null;
+  mmi: number | null;
+  source: string;
+}
+
 export interface MapCluster {
   lat: number;
   lng: number;
@@ -249,6 +263,7 @@ export interface ServerToClientEvents {
   "alert:broadcast": (alert: Alert) => void;
   "river_level:updated": (level: RiverLevel) => void;
   "shelter:updated": (shelter: Shelter) => void;
+  "earthquake:new": (earthquake: EarthquakeEvent) => void;
 }
 
 export interface ClientToServerEvents {

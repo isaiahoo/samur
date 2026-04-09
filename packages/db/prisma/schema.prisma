@@ -291,6 +291,25 @@ model ChannelHeartbeat {
   @@map("channel_heartbeats")
 }
 
+model Earthquake {
+  id        String   @id @default(cuid())
+  usgsId    String   @unique @map("usgs_id")
+  magnitude Float
+  depth     Float    // km
+  lat       Float
+  lng       Float
+  place     String   // e.g. "15 km NW of Makhachkala"
+  time      DateTime
+  felt      Int?     // number of felt reports
+  mmi       Float?   // estimated max Modified Mercalli Intensity
+  source    String   @default("usgs") // "usgs" | "emsc"
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([time])
+  @@index([magnitude])
+  @@map("earthquakes")
+}
+
 model NewsArticle {
   id          String   @id @default(cuid())
   feedId      String   @map("feed_id")       // e.g. "mchs-dagestan-forecasts"

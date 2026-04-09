@@ -7,6 +7,7 @@ import { fetchPrecipitationGrid, isCacheStale } from "./precipitationClient.js";
 import { fetchSoilMoistureGrid, isSoilMoistureCacheStale } from "./soilMoistureClient.js";
 import { fetchSnowGrid, isSnowCacheStale } from "./snowClient.js";
 import { computeRunoffGrid } from "./runoffClient.js";
+import { fetchEarthquakes, isEarthquakeCacheStale, cleanupOldEarthquakes } from "./earthquakeClient.js";
 
 const log = logger.child({ service: "scheduler" });
 
@@ -14,18 +15,22 @@ const SCRAPE_INTERVAL_MS = 60 * 60 * 1000;        // 1 hour
 const NEWS_INTERVAL_MS = 15 * 60 * 1000;          // 15 minutes
 const PRECIP_INTERVAL_MS = 2 * 60 * 60 * 1000;    // 2 hours — more frequent for flood events
 const WEATHER_INTERVAL_MS = 6 * 60 * 60 * 1000;   // 6 hours — soil moisture + snow
+const EARTHQUAKE_INTERVAL_MS = 5 * 60 * 1000;     // 5 minutes — seismic events are time-critical
 
 let scrapeTimer: ReturnType<typeof setInterval> | null = null;
 let newsTimer: ReturnType<typeof setInterval> | null = null;
 let precipTimer: ReturnType<typeof setInterval> | null = null;
 let soilMoistureTimer: ReturnType<typeof setInterval> | null = null;
 let snowTimer: ReturnType<typeof setInterval> | null = null;
+let earthquakeTimer: ReturnType<typeof setInterval> | null = null;
+let eqCleanupTimer: ReturnType<typeof setInterval> | null = null;
 const initialTimeouts: ReturnType<typeof setTimeout>[] = [];
 let isRunning = false;
 let isNewsFetching = false;
 let isPrecipFetching = false;
 let isSoilMoistureFetching = false;
 let isSnowFetching = false;
+let isEarthquakeFetching = false;
 
 async function runScrape(): Promise<void> {
   if (isRunning) {
@@ -118,6 +123,21 @@ async function runSnowFetch(): Promise<void> {
   }
 }
 
+async function runEarthquakeFetch(): Promise<void> {
+  if (isEarthquakeFetching) return;
+  if (!isEarthquakeCacheStale()) return;
+
+  isEarthquakeFetching = true;
+  try {
+    const data = await fetchEarthquakes();
+    log.info({ events: data.length }, "Earthquake data updated");
+  } catch (err) {
+    log.error({ err }, "Earthquake fetch failed");
+  } finally {
+    isEarthquakeFetching = false;
+  }
+}
+
 /**
  * Start the river level scraping scheduler and news feed fetcher.
  * Seeds gauge stations on first run, then scrapes every hour.
@@ -144,6 +164,7 @@ export async function startScheduler(): Promise<void> {
     setTimeout(() => { runSoilMoistureFetch(); }, 25_000),
     setTimeout(() => { runSnowFetch(); }, 30_000),
     setTimeout(() => { computeRunoffGrid(); }, 35_000),
+    setTimeout(() => { runEarthquakeFetch(); }, 40_000),
   );
 
   // Schedule hourly scrapes
@@ -165,6 +186,13 @@ export async function startScheduler(): Promise<void> {
   // Schedule snow fetches every 6 hours
   snowTimer = setInterval(runSnowFetch, WEATHER_INTERVAL_MS);
   log.info({ intervalMs: WEATHER_INTERVAL_MS }, "Snow scheduler started");
+
+  // Schedule earthquake fetches every 5 minutes
+  earthquakeTimer = setInterval(runEarthquakeFetch, EARTHQUAKE_INTERVAL_MS);
+  log.info({ intervalMs: EARTHQUAKE_INTERVAL_MS }, "Earthquake scheduler started");
+
+  // Cleanup old earthquake records daily
+  eqCleanupTimer = setInterval(() => { cleanupOldEarthquakes(); }, 24 * 60 * 60 * 1000);
 }
 
 export function stopScheduler(): void {
@@ -189,6 +217,14 @@ export function stopScheduler(): void {
   if (snowTimer) {
     clearInterval(snowTimer);
     snowTimer = null;
+  }
+  if (earthquakeTimer) {
+    clearInterval(earthquakeTimer);
+    earthquakeTimer = null;
+  }
+  if (eqCleanupTimer) {
+    clearInterval(eqCleanupTimer);
+    eqCleanupTimer = null;
   }
   log.info("Schedulers stopped");
 }

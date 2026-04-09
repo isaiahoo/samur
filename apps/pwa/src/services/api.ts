@@ -266,6 +266,23 @@ export function getRunoffData() {
   }>>>("/weather/runoff");
 }
 
+export function getEarthquakes(params?: { days?: number; minmag?: number }) {
+  const qs = params ? "?" + new URLSearchParams(toStringRecord(params as Record<string, unknown>)).toString() : "";
+  return request<ApiResponse<Array<{
+    id: string;
+    usgsId: string;
+    magnitude: number;
+    depth: number;
+    lat: number;
+    lng: number;
+    place: string;
+    time: string;
+    felt: number | null;
+    mmi: number | null;
+    source: string;
+  }>>>(`/seismic/recent${qs}`);
+}
+
 export function getMapClusters(params: Record<string, string | number>) {
   const qs = "?" + new URLSearchParams(toStringRecord(params)).toString();
   return request<ApiResponse>(`/map/clusters${qs}`);
