@@ -313,9 +313,8 @@ export function MapPage() {
       const loc = item as { lat: number; lng: number };
       mapViewRef.current?.flyTo(loc.lng, loc.lat, 15);
       mapViewRef.current?.highlightMarker(type, key);
-      openSheet(<DetailPanel type={type} data={item} allRiverLevels={effectiveRiverLevelsRef.current} soilMoisture={soilMoistureRef.current} onClose={closeSheet} />);
     },
-    [openSheet, closeSheet],
+    [],
   );
 
   const handleMapMove = useCallback((newBounds: MapBounds, _zoom: number) => {

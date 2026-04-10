@@ -2317,8 +2317,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   position: absolute;
   top: 0;
   right: 0;
+  bottom: 0;
   width: 300px;
-  height: 100%;
   z-index: 500;
   background: rgba(8, 18, 35, 0.88);
   backdrop-filter: blur(16px);
@@ -2329,7 +2329,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   scrollbar-color: rgba(60, 110, 160, 0.2) transparent;
   color: rgba(180, 200, 220, 0.85);
   font-size: 12px;
-  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: 16px;
   transform: translateX(0);
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
