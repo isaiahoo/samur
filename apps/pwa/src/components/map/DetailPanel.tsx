@@ -104,17 +104,17 @@ export function DetailPanel({ type, data, allRiverLevels, soilMoisture }: Detail
           </span>
         </div>
         <p className="detail-meta">{formatRelativeTime(eq.time)}</p>
-        <p>{eq.place}</p>
-        <p style={{ fontSize: 13, color: "#475569" }}>
+        <p className="eq-detail-place">{eq.place}</p>
+        <p className="eq-detail-info">
           Глубина: {eq.depth} км ({depthLabel})
         </p>
         {eq.felt !== null && eq.felt > 0 && (
-          <p style={{ fontSize: 13, color: "#475569" }}>Ощутили: ~{eq.felt} чел.</p>
+          <p className="eq-detail-info">Ощутили: ~{eq.felt} чел.</p>
         )}
         {eq.mmi !== null && eq.mmi > 0 && (
-          <p style={{ fontSize: 13, color: "#475569" }}>Интенсивность (MMI): {eq.mmi}</p>
+          <p className="eq-detail-info">Интенсивность (MMI): {eq.mmi}</p>
         )}
-        <p className="text-muted" style={{ fontSize: 12, marginTop: 8 }}>
+        <p className="eq-detail-source">
           Источник: {eq.source === "usgs" ? "USGS" : "EMSC"} · ID: {eq.usgsId}
         </p>
       </div>

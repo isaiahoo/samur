@@ -1842,6 +1842,10 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .eq-detail-badge--warning { background: #fffbeb; color: #92400e; }
 .eq-detail-badge--info { background: #fefce8; color: #854d0e; }
 
+.eq-detail-place { font-size: 14px; color: var(--color-text); font-weight: 500; margin-bottom: 4px; }
+.eq-detail-info { font-size: 13px; color: var(--color-muted); margin-bottom: 2px; }
+.eq-detail-source { font-size: 12px; color: var(--color-muted); margin-top: 8px; }
+
 /* ── Accessibility: prefers-reduced-motion ─────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
