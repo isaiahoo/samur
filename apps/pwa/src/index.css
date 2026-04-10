@@ -1386,7 +1386,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   border-radius: 8px;
   padding: 8px 12px 6px;
   border: 1px solid rgba(100, 180, 245, 0.2);
-  width: 160px;
+  width: 200px;
 }
 .precip-legend-header {
   display: flex;
@@ -1404,8 +1404,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   letter-spacing: 0.2px;
 }
 .precip-legend-bar {
-  height: 6px;
-  border-radius: 3px;
+  height: 8px;
+  border-radius: 4px;
   width: 100%;
 }
 .precip-legend-ticks {
@@ -1423,9 +1423,16 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .precip-legend-tick:last-child { align-items: flex-end; }
 .precip-legend-tick-val {
   font-size: 9px;
-  font-weight: 600;
-  color: #94a3b8;
+  font-weight: 700;
+  color: #cbd5e1;
   font-variant-numeric: tabular-nums;
+}
+.precip-legend-unit {
+  font-size: 8px;
+  color: #64748b;
+  text-align: right;
+  margin-top: 1px;
+  letter-spacing: 0.3px;
 }
 .crisis-mode .precip-legend {
   border-color: rgba(239, 68, 68, 0.3);

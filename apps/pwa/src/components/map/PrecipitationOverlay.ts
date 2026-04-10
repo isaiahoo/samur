@@ -3,13 +3,13 @@
 /**
  * Precipitation IDW overlay — 24h rainfall forecast visualization.
  *
- * Design: cyan = light rain, blue = moderate, indigo = heavy.
+ * Design: weather-radar color ramp for maximum readability.
  * Thresholds:
- *   < 2 mm/24h  = trace (invisible)
- *   2–10        = light (soft cyan)
- *   10–25       = moderate (bright blue)
- *   25–50       = heavy (deep blue)
- *   > 50        = extreme (indigo)
+ *   < 1 mm/24h  = trace (invisible)
+ *   1–5         = light (green)
+ *   5–15        = moderate (yellow → orange)
+ *   15–30       = heavy (orange → red)
+ *   > 30        = extreme (red → magenta)
  *
  * Uses same IDW interpolation + Caspian clipping as SoilMoistureOverlay.
  */
@@ -19,14 +19,15 @@ import { SOIL_BOUNDS, coastlineLng } from "./SoilMoistureOverlay.js";
 
 // ── Thresholds (mm / 24h) ──────────────────────────────────────────────
 
-const TRACE = 2;     // below = invisible
-const LIGHT = 10;    // light rain
-const MODERATE = 25; // moderate rain
-const HEAVY = 50;    // heavy rain (max saturation)
+const TRACE = 1;     // below = invisible
+const LIGHT = 5;     // light rain
+const MODERATE = 15;  // moderate rain
+const HEAVY = 30;    // heavy rain
+const EXTREME = 60;  // extreme rain (max saturation)
 
 // ── IDW interpolation ───────────────────────────────────────────────────
 
-function idw(lat: number, lng: number, points: PrecipitationPoint[], power = 3): number {
+function idw(lat: number, lng: number, points: PrecipitationPoint[], power = 2): number {
   let sumWeights = 0;
   let sumValues = 0;
 
@@ -47,12 +48,12 @@ function idw(lat: number, lng: number, points: PrecipitationPoint[], power = 3):
 
 // ── Canvas generation ───────────────────────────────────────────────────
 
-const CANVAS_W = 280;
-const CANVAS_H = 220;
+const CANVAS_W = 400;
+const CANVAS_H = 320;
 
 /**
- * Generate precipitation overlay: cyan → blue → indigo where rain forecast.
- * Uses full-field IDW interpolation from 25 grid points.
+ * Generate precipitation overlay using weather-radar color ramp.
+ * green → yellow → orange → red → magenta for clear intensity differentiation.
  */
 export function generatePrecipitationImage(
   points: PrecipitationPoint[],
@@ -89,37 +90,43 @@ export function generatePrecipitationImage(
         continue;
       }
 
-      // 4-tier color ramp: cyan → blue → deep blue → indigo
+      // Weather-radar color ramp: green → yellow → orange → red → magenta
       let r: number, g: number, b: number, a: number;
 
       if (precip < LIGHT) {
-        // Tier 1: Light — soft cyan
+        // Tier 1: Light — green
         const t = (precip - TRACE) / (LIGHT - TRACE);
-        r = 180 - Math.round(t * 40);   // 180 → 140
-        g = 225 - Math.round(t * 25);   // 225 → 200
-        b = 245 + Math.round(t * 5);    // 245 → 250
-        a = 80 + Math.round(t * 50);    // 80 → 130
+        r = 50 + Math.round(t * 80);    // 50 → 130
+        g = 160 + Math.round(t * 60);   // 160 → 220
+        b = 50 - Math.round(t * 20);    // 50 → 30
+        a = 120 + Math.round(t * 40);   // 120 → 160
       } else if (precip < MODERATE) {
-        // Tier 2: Moderate — bright blue
+        // Tier 2: Moderate — yellow → orange
         const t = (precip - LIGHT) / (MODERATE - LIGHT);
-        r = 140 - Math.round(t * 80);   // 140 → 60
+        r = 200 + Math.round(t * 40);   // 200 → 240
         g = 200 - Math.round(t * 60);   // 200 → 140
-        b = 250 - Math.round(t * 10);   // 250 → 240
-        a = 130 + Math.round(t * 45);   // 130 → 175
+        b = 20;                          // 20
+        a = 170 + Math.round(t * 30);   // 170 → 200
       } else if (precip < HEAVY) {
-        // Tier 3: Heavy — deep blue
+        // Tier 3: Heavy — orange → red
         const t = (precip - MODERATE) / (HEAVY - MODERATE);
-        r = 60 - Math.round(t * 25);    // 60 → 35
-        g = 140 - Math.round(t * 80);   // 140 → 60
-        b = 240 - Math.round(t * 30);   // 240 → 210
-        a = 175 + Math.round(t * 40);   // 175 → 215
+        r = 230 + Math.round(t * 15);   // 230 → 245
+        g = 120 - Math.round(t * 90);   // 120 → 30
+        b = 15 + Math.round(t * 15);    // 15 → 30
+        a = 200 + Math.round(t * 25);   // 200 → 225
+      } else if (precip < EXTREME) {
+        // Tier 4: Very heavy — red → magenta
+        const t = Math.min((precip - HEAVY) / (EXTREME - HEAVY), 1.0);
+        r = 220 - Math.round(t * 30);   // 220 → 190
+        g = 20 - Math.round(t * 10);    // 20 → 10
+        b = 60 + Math.round(t * 120);   // 60 → 180
+        a = 225 + Math.round(t * 15);   // 225 → 240
       } else {
-        // Tier 4: Extreme — indigo
-        const t = Math.min((precip - HEAVY) / 30, 1.0);
-        r = 35 - Math.round(t * 10);    // 35 → 25
-        g = 60 - Math.round(t * 30);    // 60 → 30
-        b = 210 - Math.round(t * 30);   // 210 → 180
-        a = 215 + Math.round(t * 25);   // 215 → 240
+        // Tier 5: Extreme — deep magenta
+        r = 170;
+        g = 0;
+        b = 200;
+        a = 245;
       }
 
       imageData.data[idx] = r;
@@ -136,5 +143,5 @@ export function generatePrecipitationImage(
 // ── Legend ───────────────────────────────────────────────────────────────
 
 export function precipLegendGradientCSS(): string {
-  return "linear-gradient(to right, rgba(180,225,245,0.5) 0%, rgba(100,170,245,0.7) 33%, rgba(45,100,230,0.85) 66%, rgba(25,30,180,0.95) 100%)";
+  return "linear-gradient(to right, rgba(80,180,60,0.8) 0%, rgba(200,200,20,0.85) 25%, rgba(240,150,20,0.9) 50%, rgba(240,40,30,0.9) 75%, rgba(180,10,180,0.95) 100%)";
 }

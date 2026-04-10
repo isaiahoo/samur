@@ -579,7 +579,7 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
         id: "precip-overlay",
         type: "raster",
         source: "precipOverlayImg",
-        paint: { "raster-opacity": 0.6, "raster-fade-duration": 0 },
+        paint: { "raster-opacity": 0.9, "raster-fade-duration": 0 },
       }, beforeLayer);
     }
   }, [precipitation, mapReady, styleVersion]);

@@ -66,9 +66,13 @@ export function MapLegends({
           </div>
           <div className="precip-legend-bar" style={{ background: precipLegendGradientCSS() }} />
           <div className="precip-legend-ticks">
-            <div className="precip-legend-tick"><span className="precip-legend-tick-val">слабый</span></div>
-            <div className="precip-legend-tick"><span className="precip-legend-tick-val">сильный</span></div>
+            <div className="precip-legend-tick"><span className="precip-legend-tick-val">1</span></div>
+            <div className="precip-legend-tick"><span className="precip-legend-tick-val">5</span></div>
+            <div className="precip-legend-tick"><span className="precip-legend-tick-val">15</span></div>
+            <div className="precip-legend-tick"><span className="precip-legend-tick-val">30</span></div>
+            <div className="precip-legend-tick"><span className="precip-legend-tick-val">60+</span></div>
           </div>
+          <div className="precip-legend-unit">мм</div>
         </div>
       )}
 
