@@ -27,23 +27,35 @@ const EXTREME = 60;  // extreme rain (max saturation)
 
 // ── IDW interpolation ───────────────────────────────────────────────────
 
-function idw(lat: number, lng: number, points: PrecipitationPoint[], power = 2): number {
+/** Max influence radius in degrees (~40 km). Beyond this, pixel is transparent. */
+const MAX_RADIUS = 0.4;
+/** Fade-out starts at this fraction of MAX_RADIUS (inner = full opacity). */
+const FADE_START = 0.6;
+
+interface IdwResult {
+  value: number;
+  nearestDist: number;
+}
+
+function idw(lat: number, lng: number, points: PrecipitationPoint[], power = 2.5): IdwResult {
   let sumWeights = 0;
   let sumValues = 0;
+  let nearestDist = Infinity;
 
   for (const p of points) {
     const dlat = p.lat - lat;
     const dlng = p.lng - lng;
     const dist = Math.sqrt(dlat * dlat + dlng * dlng);
 
-    if (dist < 0.001) return p.precipitation;
+    if (dist < nearestDist) nearestDist = dist;
+    if (dist < 0.001) return { value: p.precipitation, nearestDist: 0 };
 
     const w = 1 / (dist ** power);
     sumWeights += w;
     sumValues += w * p.precipitation;
   }
 
-  return sumWeights > 0 ? sumValues / sumWeights : 0;
+  return { value: sumWeights > 0 ? sumValues / sumWeights : 0, nearestDist };
 }
 
 // ── Canvas generation ───────────────────────────────────────────────────
@@ -82,13 +94,18 @@ export function generatePrecipitationImage(
         continue;
       }
 
-      const precip = idw(lat, lng, validPoints);
+      const { value: precip, nearestDist } = idw(lat, lng, validPoints);
 
-      // Below trace threshold = invisible
-      if (precip < TRACE) {
+      // Too far from any data point — transparent
+      if (nearestDist > MAX_RADIUS || precip < TRACE) {
         imageData.data[idx + 3] = 0;
         continue;
       }
+
+      // Distance fade: full opacity within FADE_START, linear fade to 0 at MAX_RADIUS
+      const distanceFade = nearestDist <= MAX_RADIUS * FADE_START
+        ? 1.0
+        : 1.0 - (nearestDist - MAX_RADIUS * FADE_START) / (MAX_RADIUS * (1 - FADE_START));
 
       // Weather-radar color ramp: green → yellow → orange → red → magenta
       let r: number, g: number, b: number, a: number;
@@ -99,28 +116,28 @@ export function generatePrecipitationImage(
         r = 50 + Math.round(t * 80);    // 50 → 130
         g = 160 + Math.round(t * 60);   // 160 → 220
         b = 50 - Math.round(t * 20);    // 50 → 30
-        a = 120 + Math.round(t * 40);   // 120 → 160
+        a = 130 + Math.round(t * 40);   // 130 → 170
       } else if (precip < MODERATE) {
         // Tier 2: Moderate — yellow → orange
         const t = (precip - LIGHT) / (MODERATE - LIGHT);
         r = 200 + Math.round(t * 40);   // 200 → 240
         g = 200 - Math.round(t * 60);   // 200 → 140
         b = 20;                          // 20
-        a = 170 + Math.round(t * 30);   // 170 → 200
+        a = 175 + Math.round(t * 30);   // 175 → 205
       } else if (precip < HEAVY) {
         // Tier 3: Heavy — orange → red
         const t = (precip - MODERATE) / (HEAVY - MODERATE);
         r = 230 + Math.round(t * 15);   // 230 → 245
         g = 120 - Math.round(t * 90);   // 120 → 30
         b = 15 + Math.round(t * 15);    // 15 → 30
-        a = 200 + Math.round(t * 25);   // 200 → 225
+        a = 205 + Math.round(t * 25);   // 205 → 230
       } else if (precip < EXTREME) {
         // Tier 4: Very heavy — red → magenta
         const t = Math.min((precip - HEAVY) / (EXTREME - HEAVY), 1.0);
         r = 220 - Math.round(t * 30);   // 220 → 190
         g = 20 - Math.round(t * 10);    // 20 → 10
         b = 60 + Math.round(t * 120);   // 60 → 180
-        a = 225 + Math.round(t * 15);   // 225 → 240
+        a = 230 + Math.round(t * 15);   // 230 → 245
       } else {
         // Tier 5: Extreme — deep magenta
         r = 170;
@@ -128,6 +145,9 @@ export function generatePrecipitationImage(
         b = 200;
         a = 245;
       }
+
+      // Apply distance fade to alpha
+      a = Math.round(a * distanceFade);
 
       imageData.data[idx] = r;
       imageData.data[idx + 1] = g;
