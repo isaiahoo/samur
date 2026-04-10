@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import type { GaugeTier } from "./gaugeUtils.js";
 import {
   getScenariosForRiver,
@@ -10,16 +11,32 @@ import {
 } from "./floodScenarios.js";
 import type { ScenarioAwareness, ScenarioProximity, ProximityBarData } from "./scenarioAwareness.js";
 
-// ── Info tooltip (tap-to-toggle, mobile-friendly) ────────────────────────
+// ── Info tooltip (tap-to-toggle, portal-based to escape overflow) ────────
 
 function InfoTip({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLSpanElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  const updatePos = useCallback(() => {
+    if (!btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    const popupW = 260;
+    let left = rect.left + rect.width / 2 - popupW / 2;
+    // Clamp to viewport edges with 8px padding
+    left = Math.max(8, Math.min(left, window.innerWidth - popupW - 8));
+    setPos({ top: rect.top - 8, left });
+  }, []);
 
   useEffect(() => {
     if (!open) return;
+    updatePos();
     const handler = (e: MouseEvent | TouchEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (btnRef.current?.contains(target)) return;
+      if (popupRef.current?.contains(target)) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     document.addEventListener("touchstart", handler);
@@ -27,16 +44,24 @@ function InfoTip({ text }: { text: string }) {
       document.removeEventListener("mousedown", handler);
       document.removeEventListener("touchstart", handler);
     };
-  }, [open]);
+  }, [open, updatePos]);
 
   return (
-    <span className="info-tip" ref={ref}>
+    <span className="info-tip">
       <button
+        ref={btnRef}
         className="info-tip-btn"
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
         aria-label="Подробнее о расчёте"
       >?</button>
-      {open && <span className="info-tip-popup">{text}</span>}
+      {open && pos && createPortal(
+        <div
+          ref={popupRef}
+          className="info-tip-popup"
+          style={{ top: pos.top, left: pos.left }}
+        >{text}</div>,
+        document.body,
+      )}
     </span>
   );
 }

@@ -961,51 +961,19 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .info-tip-btn:hover { background: #E2E8F0; color: #475569; }
 .info-tip-popup {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: 240px;
-  padding: 8px 10px;
+  position: fixed;
+  transform: translateY(-100%);
+  width: 260px;
+  padding: 10px 12px;
   background: #1E293B;
   color: #E2E8F0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
-  line-height: 1.45;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-  z-index: 100;
+  line-height: 1.5;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  z-index: 10000;
   pointer-events: auto;
-}
-.info-tip-popup::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 5px solid transparent;
-  border-top-color: #1E293B;
-}
-/* Keep popup on screen for items near edges */
-.proximity-meta .info-tip-popup,
-.damage-probability-text .info-tip-popup {
-  left: auto;
-  right: 0;
-  transform: none;
-}
-.proximity-meta .info-tip-popup::after,
-.damage-probability-text .info-tip-popup::after {
-  left: auto;
-  right: 8px;
-  transform: none;
-}
-.proximity-title .info-tip-popup {
-  left: 0;
-  transform: none;
-}
-.proximity-title .info-tip-popup::after {
-  left: 8px;
-  transform: none;
 }
 
 /* ── Forecast warning badge ─────────────────────────────────────────────── */
@@ -2807,9 +2775,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .info-tip-popup {
     background: #0F172A;
     color: #CBD5E1;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.6);
   }
-  .info-tip-popup::after { border-top-color: #0F172A; }
 
   /* ── Proximity bar (dark) ──────────────────────────────────────────── */
   .proximity-title { color: #94a3b8; }
