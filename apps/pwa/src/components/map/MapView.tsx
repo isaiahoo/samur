@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useEffect, useRef, useState, useCallback, memo } from "react";
+import { useEffect, useRef, useState, useCallback, memo, forwardRef, useImperativeHandle } from "react";
 import maplibregl from "maplibre-gl";
 import type { GeoJSONSource } from "maplibre-gl";
 import { Protocol } from "pmtiles";
@@ -38,7 +38,12 @@ import {
   type MarkerVariant,
 } from "./GaugeMarker.js";
 
-type MarkerType = "incident" | "helpRequest" | "shelter" | "riverLevel" | "earthquake";
+export type MarkerType = "incident" | "helpRequest" | "shelter" | "riverLevel" | "earthquake";
+
+export interface MapViewHandle {
+  flyTo(lng: number, lat: number, zoom?: number): void;
+  highlightMarker(type: MarkerType, key: string): void;
+}
 type LayerKey = "incidents" | "helpRequests" | "shelters" | "riverLevels" | "floodHeatmap" | "precipitation" | "soilMoisture" | "snow" | "runoff" | "earthquakes";
 
 interface Props {
@@ -111,7 +116,7 @@ function applyMarkerZIndex(marker: maplibregl.Marker, tier: GaugeTier) {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export const MapView = memo(function MapView({
+export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
   incidents,
   helpRequests,
   shelters,
@@ -125,7 +130,7 @@ export const MapView = memo(function MapView({
   crisisMode,
   onMarkerClick,
   onMapMove,
-}: Props) {
+}: Props, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
@@ -138,6 +143,48 @@ export const MapView = memo(function MapView({
   onMarkerClickRef.current = onMarkerClick;
   const onMapMoveRef = useRef(onMapMove);
   onMapMoveRef.current = onMapMove;
+
+  // ── Expose imperative handle for flyTo / highlight ─────────────────────
+
+  const highlightTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useImperativeHandle(ref, () => ({
+    flyTo(lng: number, lat: number, zoom?: number) {
+      mapRef.current?.flyTo({ center: [lng, lat], zoom: zoom ?? 15, duration: 1200, essential: true });
+    },
+    highlightMarker(type: MarkerType, key: string) {
+      const map = mapRef.current;
+      if (!map) return;
+
+      // Clear any previous highlight timers
+      for (const t of highlightTimers.current) clearTimeout(t);
+      highlightTimers.current = [];
+
+      if (type === "earthquake") {
+        const entry = eqMarkersRef.current.get(key);
+        if (entry) {
+          entry.element.classList.add("marker-highlight");
+          highlightTimers.current.push(setTimeout(() => entry.element.classList.remove("marker-highlight"), 3000));
+        }
+      } else if (type === "riverLevel") {
+        const entry = gaugeMarkersRef.current.get(key);
+        if (entry) {
+          entry.element.classList.add("marker-highlight");
+          highlightTimers.current.push(setTimeout(() => entry.element.classList.remove("marker-highlight"), 3000));
+        }
+      } else {
+        // GeoJSON layers: incident, helpRequest, shelter
+        const sourceMap: Record<string, string> = { incident: "incidents", helpRequest: "helpRequests", shelter: "shelters" };
+        const sourceId = sourceMap[type];
+        if (sourceId) {
+          map.setFeatureState({ source: sourceId, id: key }, { highlighted: true });
+          highlightTimers.current.push(setTimeout(() => {
+            map.setFeatureState({ source: sourceId, id: key }, { highlighted: false });
+          }, 3000));
+        }
+      }
+    },
+  }), [mapReady]);
 
   // ── Register PMTiles protocol for offline tile access ──────────────────
 
@@ -174,12 +221,12 @@ export const MapView = memo(function MapView({
 
     function setupSourcesAndLayers() {
       if (!map.getSource("incidents")) {
-        map.addSource("incidents", { type: "geojson", data: EMPTY_FC, cluster: true, clusterMaxZoom: 14, clusterRadius: 50 });
+        map.addSource("incidents", { type: "geojson", data: EMPTY_FC, cluster: true, clusterMaxZoom: 14, clusterRadius: 50, promoteId: "id" });
       }
       if (!map.getSource("helpRequests")) {
-        map.addSource("helpRequests", { type: "geojson", data: EMPTY_FC, cluster: true, clusterMaxZoom: 14, clusterRadius: 50 });
+        map.addSource("helpRequests", { type: "geojson", data: EMPTY_FC, cluster: true, clusterMaxZoom: 14, clusterRadius: 50, promoteId: "id" });
       }
-      if (!map.getSource("shelters")) map.addSource("shelters", { type: "geojson", data: EMPTY_FC });
+      if (!map.getSource("shelters")) map.addSource("shelters", { type: "geojson", data: EMPTY_FC, promoteId: "id" });
 
       // ── Incident layers ──────────────────────────────────────────────────
 
@@ -230,9 +277,9 @@ export const MapView = memo(function MapView({
               "low", INCIDENT_COLORS.low,
               INCIDENT_COLORS.low,
             ],
-            "circle-radius": 8,
-            "circle-stroke-width": 2,
-            "circle-stroke-color": "#fff",
+            "circle-radius": ["case", ["boolean", ["feature-state", "highlighted"], false], 11, 8],
+            "circle-stroke-width": ["case", ["boolean", ["feature-state", "highlighted"], false], 4, 2],
+            "circle-stroke-color": ["case", ["boolean", ["feature-state", "highlighted"], false], "#06B6D4", "#fff"],
           },
         });
       }
@@ -284,9 +331,9 @@ export const MapView = memo(function MapView({
               "offer", HELP_COLORS.offer,
               HELP_COLORS.need,
             ],
-            "circle-radius": 8,
-            "circle-stroke-width": 2,
-            "circle-stroke-color": "#fff",
+            "circle-radius": ["case", ["boolean", ["feature-state", "highlighted"], false], 11, 8],
+            "circle-stroke-width": ["case", ["boolean", ["feature-state", "highlighted"], false], 4, 2],
+            "circle-stroke-color": ["case", ["boolean", ["feature-state", "highlighted"], false], "#06B6D4", "#fff"],
           },
         });
       }
@@ -312,9 +359,9 @@ export const MapView = memo(function MapView({
               "closed", SHELTER_COLORS.closed,
               SHELTER_COLORS.full,
             ],
-            "circle-radius": 9,
-            "circle-stroke-width": 2.5,
-            "circle-stroke-color": "#fff",
+            "circle-radius": ["case", ["boolean", ["feature-state", "highlighted"], false], 12, 9],
+            "circle-stroke-width": ["case", ["boolean", ["feature-state", "highlighted"], false], 4, 2.5],
+            "circle-stroke-color": ["case", ["boolean", ["feature-state", "highlighted"], false], "#06B6D4", "#fff"],
           },
         });
       }
@@ -1027,4 +1074,4 @@ export const MapView = memo(function MapView({
   }, [crisisMode, mapReady]);
 
   return <div ref={containerRef} className="map-container" />;
-});
+}));

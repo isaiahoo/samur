@@ -4,12 +4,14 @@ import type { Incident, HelpRequest, Shelter } from "@samur/shared";
 type Feature = GeoJSON.Feature<GeoJSON.Point>;
 type FeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point>;
 
-function point(lng: number, lat: number, properties: Record<string, unknown>): Feature {
-  return {
+function point(lng: number, lat: number, properties: Record<string, unknown>, id?: string): Feature {
+  const f: Feature = {
     type: "Feature",
     geometry: { type: "Point", coordinates: [lng, lat] },
     properties,
   };
+  if (id) f.id = id;
+  return f;
 }
 
 export function toIncidentsGeoJSON(items: Incident[]): FeatureCollection {
@@ -24,7 +26,7 @@ export function toIncidentsGeoJSON(items: Incident[]): FeatureCollection {
         description: inc.description ?? "",
         address: inc.address ?? "",
         createdAt: inc.createdAt,
-      }),
+      }, inc.id),
     ),
   };
 }
@@ -43,7 +45,7 @@ export function toHelpRequestsGeoJSON(items: HelpRequest[]): FeatureCollection {
         contactPhone: hr.contactPhone ?? "",
         contactName: hr.contactName ?? "",
         createdAt: hr.createdAt,
-      }),
+      }, hr.id),
     ),
   };
 }
@@ -61,7 +63,7 @@ export function toSheltersGeoJSON(items: Shelter[]): FeatureCollection {
         status: s.status,
         contactPhone: s.contactPhone ?? "",
         amenities: s.amenities.join(","),
-      }),
+      }, s.id),
     ),
   };
 }

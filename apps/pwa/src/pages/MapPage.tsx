@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { Incident, HelpRequest, Shelter, RiverLevel, EarthquakeEvent } from "@samur/shared";
-import { MapView } from "../components/map/MapView.js";
+import { MapView, type MapViewHandle, type MarkerType } from "../components/map/MapView.js";
 import { LayerToggle } from "../components/map/LayerToggle.js";
 import { TimelineSlider } from "../components/map/TimelineSlider.js";
 import { ReportForm } from "../components/map/ReportForm.js";
 import { DetailPanel } from "../components/map/DetailPanel.js";
 import { MapLegends } from "../components/map/MapLegends.js";
+import { EventPanel } from "../components/map/EventPanel.js";
 import { computeTier } from "../components/map/gaugeUtils.js";
 import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelForecast, getPrecipitation, getSoilMoisture, getSnowData, getRunoffData, getEarthquakes } from "../services/api.js";
 import type { PrecipitationPoint, SoilMoisturePoint, SnowPoint, RunoffPoint } from "../components/map/geoJsonHelpers.js";
@@ -57,6 +58,8 @@ export function MapPage() {
   const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const effectiveRiverLevelsRef = useRef<RiverLevel[]>([]);
   const soilMoistureRef = useRef<SoilMoisturePoint[]>([]);
+  const mapViewRef = useRef<MapViewHandle>(null);
+  const [eventPanelOpen, setEventPanelOpen] = useState(true);
   const { position, requestPosition } = useGeolocation();
   const openSheet = useUIStore((s) => s.openSheet);
   const closeSheet = useUIStore((s) => s.closeSheet);
@@ -305,6 +308,16 @@ export function MapPage() {
     [openSheet, closeSheet],
   );
 
+  const handleEventPanelClick = useCallback(
+    (type: MarkerType, item: unknown, key: string) => {
+      const loc = item as { lat: number; lng: number };
+      mapViewRef.current?.flyTo(loc.lng, loc.lat, 15);
+      mapViewRef.current?.highlightMarker(type, key);
+      openSheet(<DetailPanel type={type} data={item} allRiverLevels={effectiveRiverLevelsRef.current} soilMoisture={soilMoistureRef.current} onClose={closeSheet} />);
+    },
+    [openSheet, closeSheet],
+  );
+
   const handleMapMove = useCallback((newBounds: MapBounds, _zoom: number) => {
     boundsRef.current = newBounds;
     // Debounce: refetch data 800ms after the user stops moving the map
@@ -330,8 +343,9 @@ export function MapPage() {
   ];
 
   return (
-    <div className="map-page">
+    <div className={`map-page${eventPanelOpen ? " map-page--panel-open" : ""}`}>
       <MapView
+        ref={mapViewRef}
         incidents={incidents}
         helpRequests={helpRequests}
         shelters={shelters}
@@ -346,6 +360,26 @@ export function MapPage() {
         onMarkerClick={handleMarkerClick}
         onMapMove={handleMapMove}
       />
+
+      <button
+        className={`ep-toggle${eventPanelOpen ? " ep-toggle--open" : ""}`}
+        onClick={() => setEventPanelOpen(!eventPanelOpen)}
+        aria-label={eventPanelOpen ? "Скрыть панель событий" : "Показать панель событий"}
+      >
+        {eventPanelOpen ? "\u25B6" : "\u25C0"}
+      </button>
+
+      {eventPanelOpen && (
+        <EventPanel
+          incidents={incidents}
+          helpRequests={helpRequests}
+          shelters={shelters}
+          riverLevels={effectiveRiverLevels}
+          earthquakes={earthquakes}
+          layers={layers}
+          onEventClick={handleEventPanelClick}
+        />
+      )}
 
       <div className="map-controls">
         <LayerToggle
