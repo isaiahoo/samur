@@ -136,7 +136,7 @@ a { color: var(--color-primary); text-decoration: none; }
   align-items: flex-end;
 }
 .sheet {
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 16px 16px 0 0;
   width: 100%;
   max-height: 80dvh;
@@ -371,7 +371,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .detail-panel { padding: 4px 0; }
 .detail-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .detail-header h3 { font-size: 18px; margin: 0; }
-.detail-meta { font-size: 13px; color: #64748b; margin-bottom: 8px; }
+.detail-meta { font-size: 13px; color: var(--color-muted); margin-bottom: 8px; }
 .river-level-bar {
   height: 8px;
   background: #e2e8f0;
@@ -1885,8 +1885,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   }
 
   /* Bottom sheet */
-  .bottom-sheet { background: var(--color-surface); }
-  .bottom-sheet-handle { background: #475569; }
+  .sheet { background: var(--color-surface); }
+  .sheet-handle { background: #475569; }
 
   /* Cards & surfaces */
   .timeline-card,
