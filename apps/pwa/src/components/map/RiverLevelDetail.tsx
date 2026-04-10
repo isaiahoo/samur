@@ -5,6 +5,8 @@ import { formatRelativeTime } from "@samur/shared";
 import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning, checkUpstreamDanger } from "./gaugeUtils.js";
 import { GaugeChart, type HistoryPoint } from "./GaugeChart.js";
 import { DamageScenario } from "./DamageScenario.js";
+import { computeScenarioAwareness } from "./scenarioAwareness.js";
+import { getScenariosForRiver } from "./floodScenarios.js";
 import { getRiverLevelHistory } from "../../services/api.js";
 import type { SoilMoisturePoint } from "./geoJsonHelpers.js";
 
@@ -90,6 +92,20 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
     () => history.length > 0 ? computeForecastWarning(history, mode) : null,
     [history, mode],
   );
+
+  const scenarios = useMemo(() => getScenariosForRiver(r.riverName), [r.riverName]);
+
+  const awareness = useMemo(() => {
+    if (scenarios.length === 0) return null;
+    const baseline = (r.dischargeAnnualMean && r.dischargeAnnualMean > 0)
+      ? r.dischargeAnnualMean
+      : (r.dischargeMean && r.dischargeMean > 0 ? r.dischargeMean : 0);
+    return computeScenarioAwareness(
+      scenarios, r.dischargeCubicM, baseline, r.trend,
+      history, mode, r.levelCm, r.dangerLevelCm,
+    );
+  }, [scenarios, r.dischargeCubicM, r.dischargeAnnualMean, r.dischargeMean,
+      r.trend, history, mode, r.levelCm, r.dangerLevelCm]);
 
   // Technical details
   let techText = "";
@@ -179,7 +195,7 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
       )}
 
       {/* Damage scenario */}
-      {hasData && <DamageScenario riverName={r.riverName} currentTier={tier} />}
+      {hasData && <DamageScenario riverName={r.riverName} currentTier={tier} awareness={awareness} />}
 
       {hasData && <p className="detail-meta">{formatRelativeTime(r.measuredAt)}</p>}
     </div>

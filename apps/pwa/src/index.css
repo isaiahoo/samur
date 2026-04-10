@@ -737,6 +737,203 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   line-height: 1.6;
 }
 
+/* ── Scenario proximity bar ────────────────────────────────────────────── */
+.proximity-section {
+  margin-bottom: 10px;
+}
+.proximity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.proximity-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.proximity-current {
+  font-size: 11px;
+  color: #475569;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.proximity-track {
+  position: relative;
+  height: 18px;
+  background: #E2E8F0;
+  border-radius: 9px;
+  overflow: visible;
+  margin: 4px 0;
+}
+.proximity-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 9px 0 0 9px;
+  background: linear-gradient(90deg, #22C55E 0%, #F59E0B 100%);
+  transition: width 0.5s ease;
+  min-width: 4px;
+}
+.proximity-fill--exceeded {
+  background: linear-gradient(90deg, #22C55E 0%, #F59E0B 35%, #EF4444 70%, #991B1B 100%);
+  border-radius: 9px;
+}
+.proximity-threshold {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  border-radius: 1px;
+}
+.proximity-threshold--moderate { background: #D97706; }
+.proximity-threshold--severe { background: #DC2626; }
+.proximity-threshold--catastrophic { background: #7C3AED; }
+.proximity-threshold-label {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.proximity-threshold--moderate .proximity-threshold-label { color: #D97706; }
+.proximity-threshold--severe .proximity-threshold-label { color: #DC2626; }
+.proximity-threshold--catastrophic .proximity-threshold-label { color: #7C3AED; }
+.proximity-threshold-offscale {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  font-weight: 700;
+  color: #7C3AED;
+  padding-right: 2px;
+}
+.proximity-marker-current {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  background: #1E293B;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  z-index: 2;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+.proximity-marker-forecast {
+  position: absolute;
+  bottom: -7px;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 7px solid #3B82F6;
+  z-index: 2;
+}
+.proximity-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #64748B;
+  font-variant-numeric: tabular-nums;
+}
+.proximity-return-period {
+  font-weight: 600;
+}
+.proximity-eta {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 600;
+}
+.proximity-eta-arrow {
+  color: #EF4444;
+  font-size: 13px;
+}
+
+/* ── Tab proximity badge ───────────────────────────────────────────────── */
+.damage-tab-proximity {
+  display: inline-block;
+  margin-left: 3px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(0,0,0,0.06);
+  font-size: 9px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Tab pulse animation ───────────────────────────────────────────────── */
+@keyframes scenario-pulse-moderate {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(245, 158, 11, 0); }
+}
+@keyframes scenario-pulse-severe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+}
+@keyframes scenario-pulse-catastrophic {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(139, 92, 246, 0); }
+}
+.damage-tab--pulse.damage-tab--moderate {
+  animation: scenario-pulse-moderate 2s ease-in-out infinite;
+}
+.damage-tab--pulse.damage-tab--severe {
+  animation: scenario-pulse-severe 2s ease-in-out infinite;
+}
+.damage-tab--pulse.damage-tab--catastrophic {
+  animation: scenario-pulse-catastrophic 2s ease-in-out infinite;
+}
+
+/* ── Per-card proximity indicator ──────────────────────────────────────── */
+.damage-card-proximity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #E2E8F0;
+}
+.damage-card-proximity-bar {
+  flex: 1;
+  height: 6px;
+  background: #E2E8F0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.damage-card-proximity-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+.damage-card--moderate .damage-card-proximity-fill { background: #F59E0B; }
+.damage-card--severe .damage-card-proximity-fill { background: #EF4444; }
+.damage-card--catastrophic .damage-card-proximity-fill { background: #8B5CF6; }
+.damage-card-proximity-text {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748B;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  min-width: 90px;
+  text-align: right;
+}
+.damage-card-proximity-exceeded {
+  font-size: 10px;
+  font-weight: 700;
+  color: #991B1B;
+}
+
 /* ── Forecast warning badge ─────────────────────────────────────────────── */
 .forecast-warning {
   font-size: 13px;
@@ -2525,4 +2722,21 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .damage-details { border-top-color: rgba(51, 65, 85, 0.5); }
   .damage-description { color: #cbd5e1; }
   .damage-infra-list { color: #94a3b8; }
+
+  /* ── Proximity bar (dark) ──────────────────────────────────────────── */
+  .proximity-title { color: #94a3b8; }
+  .proximity-current { color: #cbd5e1; }
+  .proximity-track { background: rgba(51, 65, 85, 0.5); }
+  .proximity-marker-current {
+    background: #e2e8f0;
+    border-color: rgba(30, 41, 59, 0.8);
+  }
+  .proximity-meta { color: #64748b; }
+  .proximity-return-period { color: #94a3b8; }
+  .proximity-eta { color: #94a3b8; }
+  .damage-tab-proximity { background: rgba(255,255,255,0.08); }
+  .damage-card-proximity { border-bottom-color: rgba(51, 65, 85, 0.5); }
+  .damage-card-proximity-bar { background: rgba(51, 65, 85, 0.5); }
+  .damage-card-proximity-text { color: #64748b; }
+  .damage-card-proximity-exceeded { color: #fca5a5; }
 }

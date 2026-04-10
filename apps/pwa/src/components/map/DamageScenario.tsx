@@ -8,10 +8,12 @@ import {
   type ScenarioLevel,
   type FloodScenario,
 } from "./floodScenarios.js";
+import type { ScenarioAwareness, ScenarioProximity, ProximityBarData } from "./scenarioAwareness.js";
 
 interface DamageScenarioProps {
   riverName: string;
   currentTier: GaugeTier;
+  awareness: ScenarioAwareness | null;
 }
 
 const TAB_LABELS: Record<ScenarioLevel, string> = {
@@ -26,11 +28,118 @@ function defaultTab(tier: GaugeTier, available: ScenarioLevel[]): ScenarioLevel 
   return available[0];
 }
 
-function ScenarioCard({ s }: { s: FloodScenario }) {
+// ── Proximity Bar sub-component ───────────────────────────────────────────
+
+function ProximityBar({ awareness }: { awareness: ScenarioAwareness }) {
+  const { barData, returnPeriod, timeToThreshold } = awareness;
+  const { baseline, current, forecastPeak, thresholds, barMax } = barData;
+
+  const pctOf = (v: number) => Math.max(0, Math.min(((v - baseline) / (barMax - baseline)) * 100, 100));
+
+  const currentPct = pctOf(current);
+  const forecastPct = forecastPeak !== null ? pctOf(forecastPeak) : null;
+
+  // Check if any threshold is off-scale (beyond barMax)
+  const hasOffscale = thresholds.some((t) => t.value > barMax);
+
+  // Determine fill class — exceeded if past any threshold
+  const anyExceeded = awareness.proximities.some((p) => p.isExceeded);
+  const fillClass = anyExceeded ? "proximity-fill proximity-fill--exceeded" : "proximity-fill";
+
+  const unit = barData.mode === "discharge" ? "м\u00B3/с" : "см";
+
+  return (
+    <div className="proximity-section">
+      <div className="proximity-header">
+        <span className="proximity-title">Близость к порогам</span>
+        <span className="proximity-current">
+          {formatNumber(Math.round(current))} {unit}
+        </span>
+      </div>
+
+      <div className="proximity-track">
+        {/* Filled portion */}
+        <div className={fillClass} style={{ width: `${currentPct}%` }} />
+
+        {/* Threshold tick marks */}
+        {thresholds.map((t) =>
+          t.value <= barMax ? (
+            <div
+              key={t.scenarioId}
+              className={`proximity-threshold proximity-threshold--${t.scenarioId}`}
+              style={{ left: `${pctOf(t.value)}%` }}
+            >
+              <span className="proximity-threshold-label">
+                {formatNumber(t.value)}
+              </span>
+            </div>
+          ) : null,
+        )}
+
+        {/* Off-scale marker */}
+        {hasOffscale && (
+          <span className="proximity-threshold-offscale">{">>"}</span>
+        )}
+
+        {/* Current position marker */}
+        <div className="proximity-marker-current" style={{ left: `${currentPct}%` }} />
+
+        {/* Forecast peak marker */}
+        {forecastPct !== null && forecastPeak !== null && forecastPeak > current && (
+          <div className="proximity-marker-forecast" style={{ left: `${forecastPct}%` }} />
+        )}
+      </div>
+
+      {/* Meta row: return period + time-to-threshold */}
+      {(returnPeriod || timeToThreshold) && (
+        <div className="proximity-meta">
+          <span className="proximity-return-period">
+            {returnPeriod ? returnPeriod.label : ""}
+          </span>
+          {timeToThreshold && (
+            <span className="proximity-eta">
+              <span className="proximity-eta-arrow">{"\u2191"}</span>
+              {timeToThreshold.etaLabel} до {"\u00AB"}{timeToThreshold.targetLabel}{"\u00BB"}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Scenario Card sub-component ───────────────────────────────────────────
+
+function ScenarioCard({
+  s,
+  proximity,
+}: {
+  s: FloodScenario;
+  proximity: ScenarioProximity | undefined;
+}) {
   const [expanded, setExpanded] = useState(false);
 
   return (
     <div className={`damage-card damage-card--${s.scenarioId}`}>
+      {/* Per-card proximity indicator */}
+      {proximity && (
+        <div className="damage-card-proximity">
+          <div className="damage-card-proximity-bar">
+            <div
+              className="damage-card-proximity-fill"
+              style={{ width: `${Math.min(proximity.proximityPct, 100)}%` }}
+            />
+          </div>
+          {proximity.isExceeded ? (
+            <span className="damage-card-proximity-exceeded">ПРЕВЫШЕН</span>
+          ) : (
+            <span className="damage-card-proximity-text">
+              {proximity.proximityPct}% до {formatNumber(proximity.thresholdM3s)} м{"\u00B3"}/с
+            </span>
+          )}
+        </div>
+      )}
+
       <div className="damage-card-header">
         <span className="damage-card-period">{s.returnPeriod}</span>
         <span className="damage-card-discharge">{formatNumber(s.peakDischargeM3s)} м³/с</span>
@@ -94,7 +203,7 @@ function ScenarioCard({ s }: { s: FloodScenario }) {
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
       >
-        {expanded ? "Скрыть подробности ▲" : "Подробнее ▼"}
+        {expanded ? "Скрыть подробности \u25B2" : "Подробнее \u25BC"}
       </button>
 
       {expanded && (
@@ -113,7 +222,9 @@ function ScenarioCard({ s }: { s: FloodScenario }) {
   );
 }
 
-export function DamageScenario({ riverName, currentTier }: DamageScenarioProps) {
+// ── Main component ────────────────────────────────────────────────────────
+
+export function DamageScenario({ riverName, currentTier, awareness }: DamageScenarioProps) {
   const scenarios = useMemo(() => getScenariosForRiver(riverName), [riverName]);
   const availableLevels = useMemo(
     () => scenarios.map((s) => s.scenarioId) as ScenarioLevel[],
@@ -128,23 +239,44 @@ export function DamageScenario({ riverName, currentTier }: DamageScenarioProps) 
 
   const activeScenario = scenarios.find((s) => s.scenarioId === activeTab);
 
+  // Find proximity data for active scenario
+  const activeProximity = awareness?.proximities.find((p) => p.scenarioId === activeTab);
+
   return (
     <div className="damage-scenario">
       <div className="damage-scenario-title">Потенциальный ущерб</div>
 
+      {/* Proximity bar — dynamic scenario awareness */}
+      {awareness && <ProximityBar awareness={awareness} />}
+
       <div className="damage-tabs">
-        {availableLevels.map((level) => (
-          <button
-            key={level}
-            className={`damage-tab damage-tab--${level}${activeTab === level ? " damage-tab--active" : ""}`}
-            onClick={() => setActiveTab(level)}
-          >
-            {TAB_LABELS[level]}
-          </button>
-        ))}
+        {availableLevels.map((level) => {
+          const prox = awareness?.proximities.find((p) => p.scenarioId === level);
+          const isPulse = awareness?.shouldPulse && awareness.nearestScenarioId === level;
+
+          return (
+            <button
+              key={level}
+              className={[
+                "damage-tab",
+                `damage-tab--${level}`,
+                activeTab === level ? "damage-tab--active" : "",
+                isPulse ? "damage-tab--pulse" : "",
+              ].filter(Boolean).join(" ")}
+              onClick={() => setActiveTab(level)}
+            >
+              {TAB_LABELS[level]}
+              {prox && (
+                <span className="damage-tab-proximity">{prox.proximityPct}%</span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {activeScenario && <ScenarioCard s={activeScenario} />}
+      {activeScenario && (
+        <ScenarioCard s={activeScenario} proximity={activeProximity} />
+      )}
     </div>
   );
 }
