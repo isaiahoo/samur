@@ -8,7 +8,7 @@
  * - HAZUS-MH depth-damage functions adapted for Dagestan building types
  * - Dagestan Census 2021 population data
  * - Agricultural statistics (irrigated area by river basin)
- * - Dam parameters (Chirkeyskaya 232m / 2.78 billion m³, Irganayskaya 101m / 705M m³)
+ * - Dam parameters (Chirkeyskaya 232.5m / 2.78 billion m³, Irganayskaya 111m / 705M m³)
  * - Return period probabilities: P = 1 - (1 - 1/T)^N
  */
 
@@ -54,7 +54,7 @@ const TEREK_SCENARIOS: FloodScenario[] = [
     ],
     estimatedDamageRub: 1_800,
     historicalAnalogue: "Паводок 2016 года",
-    keySettlements: ["Кизляр (окраины)", "Бабаюрт", "Хасавюрт (пойма)"],
+    keySettlements: ["Кизляр (окраины)", "Бабаюрт", "Тарумовка"],
     probability10yr: 0.18,
   },
   {
@@ -80,9 +80,9 @@ const TEREK_SCENARIOS: FloodScenario[] = [
       "Канализационные и водозаборные сооружения Кизляра",
     ],
     estimatedDamageRub: 4_500,
-    historicalAnalogue: "Паводок 2005 года",
-    keySettlements: ["Кизляр", "Бабаюрт", "Хасавюрт", "Сулак (дельта)"],
-    probability10yr: 0.10,
+    historicalAnalogue: "Паводок 2010 года",
+    keySettlements: ["Кизляр", "Бабаюрт", "Тарумовка", "Сулак (дельта)"],
+    probability10yr: 0.096,
   },
   {
     river: "Терек",
@@ -91,10 +91,10 @@ const TEREK_SCENARIOS: FloodScenario[] = [
     returnPeriod: "1 раз в 500 лет",
     peakDischargeM3s: 6500,
     description:
-      "Катастрофическое наводнение масштаба 2002 года. " +
+      "Катастрофическое наводнение уровня 2002 года (Северный Кавказ). " +
       "Полное затопление Кизлярской низменности. " +
       "Кизляр затоплен на 60–70%, эвакуация всего населения. " +
-      "Разрушение Каргалинского гидроузла. " +
+      "Аварийный отказ Каргалинского гидроузла. " +
       "Десятки сёл полностью под водой. " +
       "Гибель скота, уничтожение урожая на всей низменности. " +
       "Восстановление — 3–5 лет.",
@@ -102,7 +102,7 @@ const TEREK_SCENARIOS: FloodScenario[] = [
     buildingsAtRisk: 28_000,
     agricultureHa: 62_000,
     infrastructureItems: [
-      "Каргалинский гидроузел (разрушение)",
+      "Каргалинский гидроузел (аварийный отказ)",
       "Все мосты через Терек в Дагестане",
       "Автодорога Кизляр–Махачкала (разрушение)",
       "Железная дорога (участок)",
@@ -110,13 +110,13 @@ const TEREK_SCENARIOS: FloodScenario[] = [
       "Водоснабжение и канализация Кизляра",
     ],
     estimatedDamageRub: 15_000,
-    historicalAnalogue: "Катастрофа 2002 года",
+    historicalAnalogue: "Наводнение на юге России 2002 года",
     keySettlements: [
       "Кизляр",
       "Бабаюрт",
-      "Хасавюрт",
-      "Терекли-Мектеб",
       "Тарумовка",
+      "Крайновка",
+      "Коктюбей",
     ],
     probability10yr: 0.02,
   },
@@ -169,9 +169,9 @@ const SULAK_SCENARIOS: FloodScenario[] = [
       "Оросительная инфраструктура",
     ],
     estimatedDamageRub: 3_200,
-    historicalAnalogue: "Паводок 2019 года (частично)",
-    keySettlements: ["Кизилюрт", "Сулак", "Чиркей"],
-    probability10yr: 0.10,
+    historicalAnalogue: null,
+    keySettlements: ["Кизилюрт", "Сулак (посёлок)", "Дубки"],
+    probability10yr: 0.096,
   },
   {
     river: "Сулак",
@@ -181,8 +181,8 @@ const SULAK_SCENARIOS: FloodScenario[] = [
     peakDischargeM3s: 80_000,
     description:
       "Катастрофический сценарий: разрушение арочной плотины Чиркейской ГЭС " +
-      "(высота 232 м, объём водохранилища 2.78 млрд м³). " +
-      "Волна прорыва достигает Кизилюрта за 1–3 часа. " +
+      "(высота 232.5 м, объём водохранилища 2.78 млрд м³). " +
+      "Волна прорыва достигает Кизилюрта (~20 км) за 30–60 минут. " +
       "Каскадное разрушение Миатлинской и Чирюртской ГЭС. " +
       "Полное уничтожение всего, что ниже по течению до Каспия. " +
       "Крупнейшая техногенная катастрофа на Кавказе.",
@@ -201,10 +201,10 @@ const SULAK_SCENARIOS: FloodScenario[] = [
     historicalAnalogue: null,
     keySettlements: [
       "Кизилюрт",
-      "Сулак",
-      "Чиркей",
+      "Сулак (посёлок)",
       "Дубки",
-      "Агачаул",
+      "Бавтугай",
+      "Чирюрт",
     ],
     probability10yr: 0.001,
   },
@@ -232,8 +232,8 @@ const SAMUR_SCENARIOS: FloodScenario[] = [
       "Дорога Ахты–Магарамкент (участки)",
     ],
     estimatedDamageRub: 400,
-    historicalAnalogue: "Паводок 2015 года",
-    keySettlements: ["Ахты", "Лучек", "Касумкент"],
+    historicalAnalogue: "Паводок 2010 года",
+    keySettlements: ["Ахты", "Лучек", "Магарамкент"],
     probability10yr: 0.18,
   },
   {
@@ -259,15 +259,15 @@ const SAMUR_SCENARIOS: FloodScenario[] = [
     ],
     estimatedDamageRub: 2_100,
     historicalAnalogue: "Паводок 2010 года",
-    keySettlements: ["Ахты", "Магарамкент", "Касумкент", "Дербент (юг)"],
-    probability10yr: 0.10,
+    keySettlements: ["Ахты", "Магарамкент", "Белиджи", "Дербент (юг)"],
+    probability10yr: 0.096,
   },
   {
     river: "Самур",
     scenarioId: "catastrophic",
     label: "Катастрофический паводок",
     returnPeriod: "1 раз в 500 лет",
-    peakDischargeM3s: 2500,
+    peakDischargeM3s: 1800,
     description:
       "Экстремальный паводок с селевыми потоками из горных притоков. " +
       "Полное разрушение дорожной сети южного Дагестана. " +
@@ -289,9 +289,9 @@ const SAMUR_SCENARIOS: FloodScenario[] = [
     keySettlements: [
       "Ахты",
       "Магарамкент",
-      "Касумкент",
-      "Дербент",
       "Белиджи",
+      "Дербент (юг)",
+      "Самур (дельта)",
     ],
     probability10yr: 0.02,
   },
@@ -319,7 +319,7 @@ const AVARSKOE_SCENARIOS: FloodScenario[] = [
     ],
     estimatedDamageRub: 250,
     historicalAnalogue: null,
-    keySettlements: ["Гергебиль", "Красный Мост"],
+    keySettlements: ["Красный Мост", "Унцукуль"],
     probability10yr: 0.18,
   },
   {
@@ -327,7 +327,7 @@ const AVARSKOE_SCENARIOS: FloodScenario[] = [
     scenarioId: "severe",
     label: "Серьёзный паводок",
     returnPeriod: "1 раз в 100 лет",
-    peakDischargeM3s: 1400,
+    peakDischargeM3s: 1350,
     description:
       "Разрушительный паводок в ущелье. " +
       "Селевые потоки из боковых притоков. " +
@@ -344,8 +344,8 @@ const AVARSKOE_SCENARIOS: FloodScenario[] = [
     ],
     estimatedDamageRub: 1_200,
     historicalAnalogue: "Паводок 2017 года",
-    keySettlements: ["Гергебиль", "Унцукуль", "Ирганай"],
-    probability10yr: 0.10,
+    keySettlements: ["Унцукуль", "Ирганай", "Гимры"],
+    probability10yr: 0.096,
   },
   {
     river: "Аварское Койсу",
@@ -362,14 +362,14 @@ const AVARSKOE_SCENARIOS: FloodScenario[] = [
     buildingsAtRisk: 4_500,
     agricultureHa: 4_000,
     infrastructureItems: [
-      "Ирганайская ГЭС (400 МВт) — аварийный режим",
+      "Ирганайская ГЭС (400 МВт, плотина 111 м) — аварийный режим",
       "Вся дорожная сеть ущелья",
       "Сёла на склонах (оползни)",
       "Водоснабжение горных районов",
     ],
     estimatedDamageRub: 5_000,
     historicalAnalogue: null,
-    keySettlements: ["Гергебиль", "Унцукуль", "Ирганай", "Гимры", "Ботлих"],
+    keySettlements: ["Унцукуль", "Ирганай", "Гимры", "Майданское"],
     probability10yr: 0.02,
   },
 ];
@@ -403,7 +403,7 @@ const ANDIYSKOE_SCENARIOS: FloodScenario[] = [
     scenarioId: "severe",
     label: "Серьёзный паводок",
     returnPeriod: "1 раз в 100 лет",
-    peakDischargeM3s: 1100,
+    peakDischargeM3s: 850,
     description:
       "Разрушительный поток через каньон. " +
       "Обрушение участков дорог, повреждение мостов. " +
@@ -420,7 +420,7 @@ const ANDIYSKOE_SCENARIOS: FloodScenario[] = [
     estimatedDamageRub: 800,
     historicalAnalogue: null,
     keySettlements: ["Чиркота", "Ботлих", "Агвали"],
-    probability10yr: 0.10,
+    probability10yr: 0.096,
   },
 ];
 
@@ -471,14 +471,14 @@ const SHURA_SCENARIOS: FloodScenario[] = [
     estimatedDamageRub: 1_500,
     historicalAnalogue: "Паводок 2017 года",
     keySettlements: ["Буйнакск", "Атланаул"],
-    probability10yr: 0.10,
+    probability10yr: 0.096,
   },
   {
     river: "Шура-Озень",
     scenarioId: "catastrophic",
     label: "Катастрофический паводок",
     returnPeriod: "1 раз в 500 лет",
-    peakDischargeM3s: 500,
+    peakDischargeM3s: 380,
     description:
       "Экстремальный ливневый паводок + сель. " +
       "Буйнакск затоплен на 40–50%. " +
@@ -545,7 +545,7 @@ const AKSAY_SCENARIOS: FloodScenario[] = [
     estimatedDamageRub: 1_800,
     historicalAnalogue: null,
     keySettlements: ["Хасавюрт", "Эндирей"],
-    probability10yr: 0.10,
+    probability10yr: 0.096,
   },
 ];
 
@@ -590,7 +590,7 @@ const KAZIKUMUKH_SCENARIOS: FloodScenario[] = [
     estimatedDamageRub: 500,
     historicalAnalogue: null,
     keySettlements: ["Кули", "Кумух", "Вачи"],
-    probability10yr: 0.10,
+    probability10yr: 0.096,
   },
 ];
 
@@ -633,7 +633,7 @@ const KARA_SCENARIOS: FloodScenario[] = [
     estimatedDamageRub: 700,
     historicalAnalogue: null,
     keySettlements: ["Гергебиль", "Хаджалмахи"],
-    probability10yr: 0.10,
+    probability10yr: 0.096,
   },
 ];
 
@@ -677,7 +677,7 @@ const ULLUCHAY_SCENARIOS: FloodScenario[] = [
     estimatedDamageRub: 800,
     historicalAnalogue: "Паводок 2012 года",
     keySettlements: ["Каякент", "Новокаякент"],
-    probability10yr: 0.10,
+    probability10yr: 0.096,
   },
 ];
 
@@ -708,7 +708,7 @@ const RUBAS_SCENARIOS: FloodScenario[] = [
     peakDischargeM3s: 300,
     description:
       "Затопление жилых кварталов южного Дербента. " +
-      "Повреждение исторических объектов (крепость Нарын-Кала в зоне риска). " +
+      "Повреждение построек в пойменной зоне Рубаса. " +
       "Перекрытие федеральной трассы.",
     populationAtRisk: 15_000,
     buildingsAtRisk: 2_200,
@@ -716,12 +716,12 @@ const RUBAS_SCENARIOS: FloodScenario[] = [
     infrastructureItems: [
       "Федеральная трасса (участок)",
       "Городская инфраструктура Дербента",
-      "Исторические памятники",
+      "Водозаборные сооружения",
     ],
     estimatedDamageRub: 1_200,
     historicalAnalogue: "Паводок 2012 года",
     keySettlements: ["Дербент"],
-    probability10yr: 0.10,
+    probability10yr: 0.096,
   },
 ];
 
@@ -733,15 +733,15 @@ const GYULGERICHAY_SCENARIOS: FloodScenario[] = [
     returnPeriod: "1 раз в 50 лет",
     peakDischargeM3s: 120,
     description:
-      "Подтопление Магарамкента и прилегающих территорий. " +
+      "Подтопление Касумкента и Магарамкента. " +
       "Затопление садов и виноградников.",
     populationAtRisk: 3_000,
     buildingsAtRisk: 450,
     agricultureHa: 1_500,
-    infrastructureItems: ["Мост у Магарамкента", "Сельские дороги"],
+    infrastructureItems: ["Мост у Касумкента", "Сельские дороги"],
     estimatedDamageRub: 180,
     historicalAnalogue: null,
-    keySettlements: ["Магарамкент"],
+    keySettlements: ["Касумкент", "Магарамкент"],
     probability10yr: 0.18,
   },
   {
@@ -751,21 +751,21 @@ const GYULGERICHAY_SCENARIOS: FloodScenario[] = [
     returnPeriod: "1 раз в 100 лет",
     peakDischargeM3s: 250,
     description:
-      "Масштабное затопление Магарамкентского района. " +
+      "Масштабное затопление Сулейман-Стальского и Магарамкентского районов. " +
       "Уничтожение виноградников и садов. " +
       "Повреждение дороги на Дербент.",
     populationAtRisk: 8_000,
     buildingsAtRisk: 1_100,
     agricultureHa: 3_000,
     infrastructureItems: [
-      "Дорога Магарамкент–Дербент",
+      "Дорога Касумкент–Дербент",
       "Оросительные системы",
       "Сельские мосты",
     ],
     estimatedDamageRub: 600,
     historicalAnalogue: null,
-    keySettlements: ["Магарамкент", "Приморский"],
-    probability10yr: 0.10,
+    keySettlements: ["Касумкент", "Магарамкент", "Приморский"],
+    probability10yr: 0.096,
   },
 ];
 
@@ -808,7 +808,7 @@ const AKTASH_SCENARIOS: FloodScenario[] = [
     estimatedDamageRub: 350,
     historicalAnalogue: null,
     keySettlements: ["Манас", "Каякент (окрестности)"],
-    probability10yr: 0.10,
+    probability10yr: 0.096,
   },
 ];
 
@@ -851,7 +851,7 @@ const MANAS_SCENARIOS: FloodScenario[] = [
     estimatedDamageRub: 700,
     historicalAnalogue: null,
     keySettlements: ["Каспийск"],
-    probability10yr: 0.10,
+    probability10yr: 0.096,
   },
 ];
 
