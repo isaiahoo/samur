@@ -6,6 +6,11 @@ services:
     image: postgis/postgis:16-3.4
     container_name: samur-postgres
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-samur}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -29,6 +34,11 @@ services:
     image: postgis/postgis:16-3.4
     container_name: samur-pg-backup
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,6 +66,11 @@ services:
     image: redis:7-alpine
     container_name: samur-redis
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redisdata:/data
@@ -77,6 +92,11 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: samur-api
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     expose:
       - "3000"
     environment:
@@ -110,7 +130,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512m
+          memory: 1g
           cpus: "1.0"
 
   # ── PWA ───────────────────────────────────────────────────────────────────
@@ -120,6 +140,11 @@ services:
       dockerfile: apps/pwa/Dockerfile
     container_name: samur-pwa
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     expose:
       - "80"
     deploy:
@@ -135,12 +160,20 @@ services:
       dockerfile: apps/telegram/Dockerfile
     container_name: samur-telegram
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     environment:
       TG_BOT_TOKEN: ${TG_BOT_TOKEN}
       API_BASE_URL: http://api:3000
       SOCKET_URL: http://api:3000
+      REDIS_URL: redis://redis:6379
     depends_on:
       api:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     deploy:
       resources:
@@ -153,6 +186,11 @@ services:
     image: nginx:1.27-alpine
     container_name: samur-nginx
     restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     ports:
       - "80:80"
       - "443:443"

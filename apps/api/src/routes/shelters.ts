@@ -139,6 +139,16 @@ router.patch(
       if (req.body.contactPhone !== undefined) data.contactPhone = req.body.contactPhone;
       if (req.body.status !== undefined) data.status = req.body.status;
 
+      // Validate occupancy does not exceed capacity
+      const effectiveCapacity = (req.body.capacity ?? existing.capacity) as number;
+      const effectiveOccupancy = (req.body.currentOccupancy ?? existing.currentOccupancy) as number;
+      if (effectiveOccupancy > effectiveCapacity) {
+        throw new AppError(400, "OCCUPANCY_EXCEEDS_CAPACITY", "Заполненность не может превышать вместимость");
+      }
+      if (effectiveOccupancy < 0) {
+        throw new AppError(400, "INVALID_OCCUPANCY", "Заполненность не может быть отрицательной");
+      }
+
       const updated = await prisma.shelter.update({
         where: { id },
         data,
@@ -166,6 +176,10 @@ router.delete(
 
       if (!existing) {
         throw new AppError(404, "NOT_FOUND", "Убежище не найдено");
+      }
+
+      if (existing.currentOccupancy > 0) {
+        throw new AppError(400, "SHELTER_OCCUPIED", "Нельзя удалить убежище с людьми внутри");
       }
 
       await prisma.shelter.update({

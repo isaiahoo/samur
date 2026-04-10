@@ -20,6 +20,7 @@ import {
 import { useNav, type PanelId } from "./hooks/useNav";
 import { authVk, setToken } from "./services/api";
 import { getLaunchParams, getUserInfo, vkBridge } from "./services/vkbridge";
+import { connectSocket, disconnectSocket } from "./services/socket";
 
 const MapPanel = lazy(() => import("./panels/MapPanel"));
 const ReportPanel = lazy(() => import("./panels/ReportPanel"));
@@ -48,13 +49,19 @@ export default function App() {
         const launchParams = getLaunchParams();
         const result = await authVk(launchParams, name);
         setToken(result.token);
+        connectSocket();
       } catch (err) {
         console.error("VK auth failed:", err);
         // Continue anyway — public endpoints still work
+        connectSocket();
       }
       setReady(true);
     }
     init();
+
+    return () => {
+      disconnectSocket();
+    };
   }, []);
 
   if (!ready) {

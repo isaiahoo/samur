@@ -12,13 +12,12 @@
  */
 
 import { logger } from "../lib/logger.js";
+import { fetchJSON } from "../lib/fetch.js";
 import { DAGESTAN_PRECIP_GRID, type GridPoint } from "./precipitationClient.js";
 
 const log = logger.child({ service: "soil-moisture" });
 
 const WEATHER_API_BASE = "https://api.open-meteo.com/v1/forecast";
-const FETCH_TIMEOUT = 15_000;
-const MAX_RETRIES = 2;
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -43,47 +42,17 @@ interface OpenMeteoWeatherResponse {
   hourly: OpenMeteoHourly;
 }
 
-// ── Fetch helper ────────────────────────────────────────────────────────
-
-async function fetchJSON<T>(url: string, retries = MAX_RETRIES): Promise<T | null> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
-
-      const res = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          "Accept": "application/json",
-          "User-Agent": "Samur-FloodMonitor/1.0 (flood relief platform)",
-        },
-      });
-      clearTimeout(timeout);
-
-      if (!res.ok) {
-        log.warn({ url: url.slice(0, 120), status: res.status, attempt }, "Open-Meteo soil moisture HTTP error");
-        continue;
-      }
-
-      return (await res.json()) as T;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log.warn({ attempt, error: msg }, "Soil moisture fetch failed");
-      if (attempt < retries) {
-        await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
-      }
-    }
-  }
-  return null;
-}
-
 // ── In-memory cache ─────────────────────────────────────────────────────
 
 let cachedData: SoilMoistureReading[] = [];
 let cachedAt = 0;
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const CACHE_MAX_STALE_MS = CACHE_TTL_MS * 3; // 18 hours — discard after this
 
 export function getCachedSoilMoisture(): SoilMoistureReading[] {
+  if (cachedAt > 0 && Date.now() - cachedAt > CACHE_MAX_STALE_MS) {
+    return [];
+  }
   return cachedData;
 }
 
@@ -110,11 +79,11 @@ export async function fetchSoilMoistureGrid(): Promise<SoilMoistureReading[]> {
 
   log.info({ points: grid.length }, "Fetching soil moisture grid from Open-Meteo");
 
-  const raw = await fetchJSON<OpenMeteoWeatherResponse | OpenMeteoWeatherResponse[]>(url);
+  const raw = await fetchJSON<OpenMeteoWeatherResponse | OpenMeteoWeatherResponse[]>(url, { service: "soil-moisture" });
 
   if (!raw) {
     log.error("Open-Meteo soil moisture API returned no data");
-    return cachedData;
+    return getCachedSoilMoisture();
   }
 
   const responses: OpenMeteoWeatherResponse[] = Array.isArray(raw) ? raw : [raw];
@@ -124,7 +93,7 @@ export async function fetchSoilMoistureGrid(): Promise<SoilMoistureReading[]> {
       { expected: grid.length, got: responses.length },
       "Soil moisture response count mismatch",
     );
-    return cachedData;
+    return getCachedSoilMoisture();
   }
 
   const nowMs = Date.now();

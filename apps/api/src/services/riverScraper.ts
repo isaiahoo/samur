@@ -510,10 +510,10 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
 
       stats.scraped++;
 
-      // Step 4: Store forecast rows from Open-Meteo
+      // Step 4: Store forecast rows from Open-Meteo (batched)
       const forecasts = readings.filter((r) => r.isForecast);
       if (forecasts.length > 0) {
-        // Delete old forecasts for this station
+        // Delete old forecasts for this station, then batch-insert new ones
         await prisma.riverLevel.deleteMany({
           where: {
             riverName: station.riverName,
@@ -522,31 +522,29 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
           },
         });
 
-        for (const fc of forecasts) {
-          await prisma.riverLevel.create({
-            data: {
-              riverName: station.riverName,
-              stationName: station.stationName,
-              lat: station.lat,
-              lng: station.lng,
-              levelCm: null,
-              dangerLevelCm: null,
-              dischargeCubicM: fc.discharge,
-              dischargeMean: fc.dischargeMean,
-              dischargeMax: fc.dischargeMax,
-              dischargeMedian: fc.dischargeMedian,
-              dischargeMin: fc.dischargeMin,
-              dischargeP25: fc.dischargeP25,
-              dischargeP75: fc.dischargeP75,
-              dischargeAnnualMean: station.meanDischarge,
-              dataSource: "open-meteo",
-              isForecast: true,
-              trend: "stable",
-              measuredAt: new Date(fc.date + "T12:00:00Z"),
-            },
-          });
-        }
-        log.debug({ station: key, count: forecasts.length }, "Stored forecast rows");
+        await prisma.riverLevel.createMany({
+          data: forecasts.map((fc) => ({
+            riverName: station.riverName,
+            stationName: station.stationName,
+            lat: station.lat,
+            lng: station.lng,
+            levelCm: null,
+            dangerLevelCm: null,
+            dischargeCubicM: fc.discharge,
+            dischargeMean: fc.dischargeMean,
+            dischargeMax: fc.dischargeMax,
+            dischargeMedian: fc.dischargeMedian,
+            dischargeMin: fc.dischargeMin,
+            dischargeP25: fc.dischargeP25,
+            dischargeP75: fc.dischargeP75,
+            dischargeAnnualMean: station.meanDischarge,
+            dataSource: "open-meteo",
+            isForecast: true,
+            trend: "stable" as const,
+            measuredAt: new Date(fc.date + "T12:00:00Z"),
+          })),
+        });
+        log.debug({ station: key, count: forecasts.length }, "Stored forecast rows (batched)");
       }
     } catch (err) {
       stats.failed++;

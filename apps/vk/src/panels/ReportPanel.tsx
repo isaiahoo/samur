@@ -15,10 +15,11 @@ import {
 } from "@vkontakte/vkui";
 import { createIncident } from "../services/api";
 import { getGeodata } from "../services/vkbridge";
+import { addToQueue } from "../services/offlineQueue";
 import {
   INCIDENT_TYPE_LABELS,
   SEVERITY_LABELS,
-  DAGESTAN_BOUNDS,
+  isInDagestan,
 } from "@samur/shared";
 
 interface Props {
@@ -41,12 +42,7 @@ export default function ReportPanel({ id, goBack }: Props) {
     setGeoLoading(true);
     const geo = await getGeodata();
     if (geo) {
-      if (
-        geo.lat >= DAGESTAN_BOUNDS.south &&
-        geo.lat <= DAGESTAN_BOUNDS.north &&
-        geo.long >= DAGESTAN_BOUNDS.west &&
-        geo.long <= DAGESTAN_BOUNDS.east
-      ) {
+      if (isInDagestan(geo.lat, geo.long)) {
         setLat(geo.lat);
         setLng(geo.long);
         setSnackbar("Геолокация определена");
@@ -86,8 +82,18 @@ export default function ReportPanel({ id, goBack }: Props) {
       });
       setSnackbar(`Отправлено! ID: #${incident.id.slice(0, 8)}`);
       setTimeout(goBack, 1500);
-    } catch (err) {
-      setSnackbar("Ошибка отправки. Попробуйте позже.");
+    } catch {
+      addToQueue("/incidents", "POST", {
+        type,
+        severity,
+        lat: lat ?? 42.9849,
+        lng: lng ?? 47.5047,
+        address: address || undefined,
+        description: description || undefined,
+        source: "vk",
+      });
+      setSnackbar("Сохранено офлайн. Отправим при подключении.");
+      setTimeout(goBack, 1500);
     }
     setSubmitting(false);
   }

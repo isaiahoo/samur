@@ -28,6 +28,7 @@ export function VerificationQueue() {
   useEffect(() => { fetch(); }, [fetch]);
 
   const handleAction = async (id: string, status: "verified" | "false_report") => {
+    if (status === "false_report" && !window.confirm("Отклонить этот инцидент как ложный отчёт?")) return;
     try {
       await updateIncident(id, { status });
       setIncidents((prev) => prev.filter((i) => i.id !== id));

@@ -14,13 +14,12 @@
  */
 
 import { logger } from "../lib/logger.js";
+import { fetchJSON } from "../lib/fetch.js";
 import type { GridPoint } from "./precipitationClient.js";
 
 const log = logger.child({ service: "snow" });
 
 const WEATHER_API_BASE = "https://api.open-meteo.com/v1/forecast";
-const FETCH_TIMEOUT = 15_000;
-const MAX_RETRIES = 2;
 
 // ── Mountain grid (15 points, 1000–3000m+ elevations) ──────────────────
 
@@ -96,40 +95,6 @@ interface OpenMeteoResponse {
   hourly: OpenMeteoHourly;
 }
 
-// ── Fetch helper ────────────────────────────────────────────────────────
-
-async function fetchJSON<T>(url: string, retries = MAX_RETRIES): Promise<T | null> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
-
-      const res = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          "Accept": "application/json",
-          "User-Agent": "Samur-FloodMonitor/1.0 (flood relief platform)",
-        },
-      });
-      clearTimeout(timeout);
-
-      if (!res.ok) {
-        log.warn({ url: url.slice(0, 120), status: res.status, attempt }, "Open-Meteo snow HTTP error");
-        continue;
-      }
-
-      return (await res.json()) as T;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log.warn({ attempt, error: msg }, "Snow fetch failed");
-      if (attempt < retries) {
-        await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
-      }
-    }
-  }
-  return null;
-}
-
 // ── Melt index computation ──────────────────────────────────────────────
 
 function computeMeltIndex(snowDepthM: number, tempC: number, rainMm: number): number {
@@ -153,8 +118,12 @@ function computeMeltIndex(snowDepthM: number, tempC: number, rainMm: number): nu
 let cachedData: SnowReading[] = [];
 let cachedAt = 0;
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const CACHE_MAX_STALE_MS = CACHE_TTL_MS * 3; // 18 hours — discard after this
 
 export function getCachedSnowData(): SnowReading[] {
+  if (cachedAt > 0 && Date.now() - cachedAt > CACHE_MAX_STALE_MS) {
+    return [];
+  }
   return cachedData;
 }
 
@@ -181,11 +150,11 @@ export async function fetchSnowGrid(): Promise<SnowReading[]> {
 
   log.info({ points: grid.length }, "Fetching snow grid from Open-Meteo");
 
-  const raw = await fetchJSON<OpenMeteoResponse | OpenMeteoResponse[]>(url);
+  const raw = await fetchJSON<OpenMeteoResponse | OpenMeteoResponse[]>(url, { service: "snow" });
 
   if (!raw) {
     log.error("Open-Meteo snow API returned no data");
-    return cachedData; // graceful fallback
+    return getCachedSnowData(); // return stale cache only if within max stale age
   }
 
   const responses: OpenMeteoResponse[] = Array.isArray(raw) ? raw : [raw];
@@ -195,7 +164,7 @@ export async function fetchSnowGrid(): Promise<SnowReading[]> {
       { expected: grid.length, got: responses.length },
       "Snow response count mismatch",
     );
-    return cachedData;
+    return getCachedSnowData();
   }
 
   const nowMs = Date.now();

@@ -8,7 +8,7 @@ import { enqueue } from "../queue.js";
 import {
   INCIDENT_TYPE_LABELS,
   SEVERITY_LABELS,
-  DAGESTAN_BOUNDS,
+  isInDagestan,
 } from "@samur/shared";
 
 const TYPE_EMOJIS: Record<string, string> = {
@@ -31,7 +31,7 @@ export function registerReportHandler(bot: TelegramBot): void {
       return;
     }
 
-    setState(chatId, { flow: "report", step: "type" });
+    await setState(chatId, { flow: "report", step: "type" });
 
     const buttons = Object.entries(INCIDENT_TYPE_LABELS).map(
       ([key, label]) => ({
@@ -58,13 +58,13 @@ export async function handleReportCallback(
   data: string,
   messageId: number,
 ): Promise<void> {
-  const state = getState(chatId) as ReportState | null;
+  const state = await getState(chatId) as ReportState | null;
   if (!state || state.flow !== "report") return;
 
   // report:type:<type>
   if (data.startsWith("report:type:") && state.step === "type") {
     const type = data.replace("report:type:", "");
-    setState(chatId, { ...state, step: "location", type });
+    await setState(chatId, { ...state, step: "location", type });
 
     await bot.editMessageText(
       `✅ ${INCIDENT_TYPE_LABELS[type] ?? type}\n\nОтправьте геолокацию 📍 или напишите адрес:`,
@@ -76,7 +76,7 @@ export async function handleReportCallback(
   // report:severity:<level>
   if (data.startsWith("report:severity:") && state.step === "severity") {
     const severity = data.replace("report:severity:", "");
-    setState(chatId, { ...state, step: "description", severity });
+    await setState(chatId, { ...state, step: "description", severity });
 
     await bot.editMessageText(
       `✅ Серьёзность: ${SEVERITY_LABELS[severity] ?? severity}\n\nОпишите ситуацию (можно приложить фото):`,
@@ -91,7 +91,7 @@ export async function handleReportMessage(
   msg: TelegramBot.Message,
 ): Promise<boolean> {
   const chatId = msg.chat.id;
-  const state = getState(chatId) as ReportState | null;
+  const state = await getState(chatId) as ReportState | null;
   if (!state || state.flow !== "report") return false;
 
   // Location step
@@ -105,14 +105,14 @@ export async function handleReportMessage(
         );
         return true;
       }
-      setState(chatId, {
+      await setState(chatId, {
         ...state,
         step: "severity",
         lat: latitude,
         lng: longitude,
       });
     } else if (msg.text) {
-      setState(chatId, {
+      await setState(chatId, {
         ...state,
         step: "severity",
         address: msg.text,
@@ -171,7 +171,7 @@ export async function handleReportMessage(
     }
 
     // Submit the report
-    setState(chatId, { ...state, step: "done", description, photoUrls });
+    await setState(chatId, { ...state, step: "done", description, photoUrls });
     await submitReport(bot, chatId, msg);
     return true;
   }
@@ -184,7 +184,7 @@ async function submitReport(
   chatId: number,
   msg: TelegramBot.Message,
 ): Promise<void> {
-  const state = getState(chatId) as ReportState;
+  const state = await getState(chatId) as ReportState;
   const name =
     [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") ||
     "Пользователь";
@@ -206,7 +206,7 @@ async function submitReport(
     );
 
     recordAction(chatId);
-    clearState(chatId);
+    await clearState(chatId);
 
     await bot.sendMessage(
       chatId,
@@ -221,13 +221,13 @@ async function submitReport(
     );
   } catch (err) {
     if (err instanceof ApiError && err.status >= 400 && err.status < 500) {
-      clearState(chatId);
+      await clearState(chatId);
       await bot.sendMessage(chatId, `❌ Ошибка: ${err.message}`);
     } else {
       // API unreachable — queue for retry
       try {
         const token = await getToken(chatId, msg.from!.id, name);
-        enqueue(chatId, "POST", "/incidents", {
+        await enqueue(chatId, "POST", "/incidents", {
           type: state.type,
           severity: state.severity,
           lat: state.lat,
@@ -240,7 +240,7 @@ async function submitReport(
       } catch {
         // Can't even get token
       }
-      clearState(chatId);
+      await clearState(chatId);
       await bot.sendMessage(
         chatId,
         "⚠️ Сервер временно недоступен. Ваше сообщение сохранено и будет отправлено автоматически.",
@@ -249,11 +249,3 @@ async function submitReport(
   }
 }
 
-function isInDagestan(lat: number, lng: number): boolean {
-  return (
-    lat >= DAGESTAN_BOUNDS.south &&
-    lat <= DAGESTAN_BOUNDS.north &&
-    lng >= DAGESTAN_BOUNDS.west &&
-    lng <= DAGESTAN_BOUNDS.east
-  );
-}

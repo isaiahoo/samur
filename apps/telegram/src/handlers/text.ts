@@ -35,7 +35,7 @@ export function registerTextHandler(bot: TelegramBot): void {
     if (msg.text?.startsWith("/")) return;
 
     // Check if user is in a conversation flow
-    const state = getState(chatId);
+    const state = await getState(chatId);
     if (state) {
       if (state.flow === "report") {
         const handled = await handleReportMessage(bot, msg);

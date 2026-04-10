@@ -2,22 +2,27 @@
 import { io, type Socket } from "socket.io-client";
 import type TelegramBot from "node-telegram-bot-api";
 import { config } from "./config.js";
+import { redis } from "./redis.js";
 import type { Alert, ServerToClientEvents, ClientToServerEvents } from "@samur/shared";
 import { ALERT_URGENCY_LABELS } from "@samur/shared";
 
-// Registered chat IDs that should receive broadcasts
-const subscribers = new Set<number>();
+const SUBSCRIBERS_KEY = "tg:broadcast:subscribers";
 
-export function addSubscriber(chatId: number): void {
-  subscribers.add(chatId);
+export async function addSubscriber(chatId: number): Promise<void> {
+  await redis.sadd(SUBSCRIBERS_KEY, String(chatId));
 }
 
-export function removeSubscriber(chatId: number): void {
-  subscribers.delete(chatId);
+export async function removeSubscriber(chatId: number): Promise<void> {
+  await redis.srem(SUBSCRIBERS_KEY, String(chatId));
 }
 
-export function getSubscriberCount(): number {
-  return subscribers.size;
+export async function getSubscriberCount(): Promise<number> {
+  return redis.scard(SUBSCRIBERS_KEY);
+}
+
+async function getSubscribers(): Promise<number[]> {
+  const members = await redis.smembers(SUBSCRIBERS_KEY);
+  return members.map(Number);
 }
 
 const URGENCY_EMOJI: Record<string, string> = {
@@ -34,6 +39,7 @@ export function initBroadcastListener(bot: TelegramBot): Socket {
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 2000,
+      reconnectionDelayMax: 30_000,
     },
   );
 
@@ -68,6 +74,7 @@ async function broadcastAlert(bot: TelegramBot, alert: Alert): Promise<void> {
       ? `\n\n⏰ Действует до: ${new Date(alert.expiresAt).toLocaleString("ru-RU")}`
       : "");
 
+  const subscribers = await getSubscribers();
   const failedChats: number[] = [];
 
   for (const chatId of subscribers) {
@@ -78,7 +85,6 @@ async function broadcastAlert(bot: TelegramBot, alert: Alert): Promise<void> {
       });
     } catch (err) {
       const error = err as { response?: { statusCode?: number } };
-      // Remove blocked/deactivated users
       if (
         error.response?.statusCode === 403 ||
         error.response?.statusCode === 400
@@ -88,12 +94,12 @@ async function broadcastAlert(bot: TelegramBot, alert: Alert): Promise<void> {
     }
   }
 
-  for (const chatId of failedChats) {
-    subscribers.delete(chatId);
+  if (failedChats.length > 0) {
+    await redis.srem(SUBSCRIBERS_KEY, ...failedChats.map(String));
   }
 
   console.log(
-    `Broadcast alert "${alert.title}" to ${subscribers.size} chats ` +
+    `Broadcast alert "${alert.title}" to ${subscribers.length} chats ` +
       `(${failedChats.length} removed)`,
   );
 }

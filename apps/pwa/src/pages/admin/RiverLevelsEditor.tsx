@@ -28,6 +28,7 @@ export function RiverLevelsEditor() {
   useEffect(() => { fetch(); }, [fetch]);
 
   const handleDelete = async (id: string) => {
+    if (!window.confirm("Удалить этот замер уровня? Это действие необратимо.")) return;
     try {
       await deleteRiverLevel(id);
       setLevels((prev) => prev.filter((l) => l.id !== id));

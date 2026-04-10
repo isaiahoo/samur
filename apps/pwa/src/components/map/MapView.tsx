@@ -63,12 +63,21 @@ const EMPTY_FC: GeoJSON.FeatureCollection = { type: "FeatureCollection", feature
 
 // ── Popup HTML builders ────────────────────────────────────────────────────
 
+function esc(s: unknown): string {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function incidentPopupHTML(p: Record<string, unknown>): string {
   const type = INCIDENT_TYPE_LABELS[p.type as string] ?? p.type;
   const severity = SEVERITY_LABELS[p.severity as string] ?? p.severity;
   const desc = p.description || "Нет описания";
   const time = formatRelativeTime(p.createdAt as string);
-  return `<div class="popup-content"><strong>${type}</strong><span class="popup-badge severity-${p.severity}">${severity}</span><p>${desc}</p><small>${time}</small></div>`;
+  return `<div class="popup-content"><strong>${esc(type)}</strong><span class="popup-badge severity-${esc(p.severity)}">${esc(severity)}</span><p>${esc(desc)}</p><small>${esc(time)}</small></div>`;
 }
 
 function helpPopupHTML(p: Record<string, unknown>): string {
@@ -76,7 +85,7 @@ function helpPopupHTML(p: Record<string, unknown>): string {
   const typeLabel = p.type === "offer" ? "Предлагает помощь" : "Нужна помощь";
   const desc = p.description || "Нет описания";
   const time = formatRelativeTime(p.createdAt as string);
-  return `<div class="popup-content"><strong>${cat}</strong><p>${typeLabel}</p><p>${desc}</p><small>${time}</small></div>`;
+  return `<div class="popup-content"><strong>${esc(cat)}</strong><p>${esc(typeLabel)}</p><p>${esc(desc)}</p><small>${esc(time)}</small></div>`;
 }
 
 function shelterPopupHTML(p: Record<string, unknown>): string {
@@ -86,7 +95,7 @@ function shelterPopupHTML(p: Record<string, unknown>): string {
     .filter(Boolean)
     .map((a) => AMENITY_LABELS[a] ?? a)
     .join(", ");
-  return `<div class="popup-content"><strong>${p.name}</strong><span class="popup-status">${status}</span><p>${p.address}</p><p>Мест: ${p.currentOccupancy}/${p.capacity}</p>${amenities ? `<p>${amenities}</p>` : ""}</div>`;
+  return `<div class="popup-content"><strong>${esc(p.name)}</strong><span class="popup-status">${esc(status)}</span><p>${esc(p.address)}</p><p>Мест: ${Number(p.currentOccupancy)}/${Number(p.capacity)}</p>${amenities ? `<p>${esc(amenities)}</p>` : ""}</div>`;
 }
 
 // trendArrow is now imported from gaugeUtils

@@ -4,6 +4,7 @@ import { config } from "./config.js";
 import { addSubscriber } from "./broadcast.js";
 import { initBroadcastListener } from "./broadcast.js";
 import { startQueueProcessor } from "./queue.js";
+import { redis } from "./redis.js";
 
 // Handlers
 import { registerStartHandler } from "./handlers/start.js";
@@ -15,6 +16,11 @@ import { registerAlertsHandler } from "./handlers/alerts.js";
 import { registerLevelHandler } from "./handlers/level.js";
 import { registerGroupHandler } from "./handlers/group.js";
 import { registerTextHandler } from "./handlers/text.js";
+
+// Connect Redis (lazy — triggers actual connection)
+redis.connect().catch((err) => {
+  console.error("Redis connect failed:", err.message);
+});
 
 const bot = new TelegramBot(config.TG_BOT_TOKEN, { polling: true });
 
@@ -105,8 +111,8 @@ bot.on("callback_query", async (query) => {
 });
 
 // Register every user who contacts the bot as a broadcast subscriber
-bot.on("message", (msg) => {
-  addSubscriber(msg.chat.id);
+bot.on("message", async (msg) => {
+  await addSubscriber(msg.chat.id);
 });
 
 // Start broadcast listener (Socket.IO → Telegram)

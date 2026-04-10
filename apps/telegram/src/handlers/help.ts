@@ -5,7 +5,7 @@ import { getToken } from "../auth.js";
 import { checkRateLimit, recordAction } from "../rateLimit.js";
 import { createHelpRequest, ApiError } from "../api.js";
 import { enqueue } from "../queue.js";
-import { HELP_CATEGORY_LABELS, DAGESTAN_BOUNDS } from "@samur/shared";
+import { HELP_CATEGORY_LABELS, isInDagestan } from "@samur/shared";
 
 const CATEGORY_EMOJIS: Record<string, string> = {
   rescue: "🚁",
@@ -32,7 +32,7 @@ export function registerHelpHandler(bot: TelegramBot): void {
       return;
     }
 
-    setState(chatId, { flow: "help", step: "kind" });
+    await setState(chatId, { flow: "help", step: "kind" });
 
     await bot.sendMessage(
       chatId,
@@ -57,13 +57,13 @@ export async function handleHelpCallback(
   data: string,
   messageId: number,
 ): Promise<void> {
-  const state = getState(chatId) as HelpState | null;
+  const state = await getState(chatId) as HelpState | null;
   if (!state || state.flow !== "help") return;
 
   // help:kind:<need|offer>
   if (data.startsWith("help:kind:") && state.step === "kind") {
     const kind = data.replace("help:kind:", "") as "need" | "offer";
-    setState(chatId, { ...state, step: "category", kind });
+    await setState(chatId, { ...state, step: "category", kind });
 
     const buttons = Object.entries(HELP_CATEGORY_LABELS).map(
       ([key, label]) => ({
@@ -88,7 +88,7 @@ export async function handleHelpCallback(
   // help:cat:<category>
   if (data.startsWith("help:cat:") && state.step === "category") {
     const category = data.replace("help:cat:", "");
-    setState(chatId, { ...state, step: "location", category });
+    await setState(chatId, { ...state, step: "location", category });
 
     await bot.editMessageText(
       `✅ ${HELP_CATEGORY_LABELS[category] ?? category}\n\nОтправьте геолокацию 📍 или напишите адрес:`,
@@ -103,33 +103,28 @@ export async function handleHelpMessage(
   msg: TelegramBot.Message,
 ): Promise<boolean> {
   const chatId = msg.chat.id;
-  const state = getState(chatId) as HelpState | null;
+  const state = await getState(chatId) as HelpState | null;
   if (!state || state.flow !== "help") return false;
 
   // Location step
   if (state.step === "location") {
     if (msg.location) {
       const { latitude, longitude } = msg.location;
-      if (
-        latitude < DAGESTAN_BOUNDS.south ||
-        latitude > DAGESTAN_BOUNDS.north ||
-        longitude < DAGESTAN_BOUNDS.west ||
-        longitude > DAGESTAN_BOUNDS.east
-      ) {
+      if (!isInDagestan(latitude, longitude)) {
         await bot.sendMessage(
           chatId,
           "⚠️ Координаты вне территории Дагестана. Попробуйте снова.",
         );
         return true;
       }
-      setState(chatId, {
+      await setState(chatId, {
         ...state,
         step: "description",
         lat: latitude,
         lng: longitude,
       });
     } else if (msg.text) {
-      setState(chatId, {
+      await setState(chatId, {
         ...state,
         step: "description",
         address: msg.text,
@@ -154,7 +149,7 @@ export async function handleHelpMessage(
       await bot.sendMessage(chatId, "Напишите описание.");
       return true;
     }
-    setState(chatId, { ...state, step: "contact", description: msg.text });
+    await setState(chatId, { ...state, step: "contact", description: msg.text });
 
     await bot.sendMessage(
       chatId,
@@ -181,7 +176,7 @@ export async function handleHelpMessage(
       contactName ||
       [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ");
 
-    setState(chatId, {
+    await setState(chatId, {
       ...state,
       step: "done",
       contactPhone,
@@ -200,7 +195,7 @@ async function submitHelp(
   chatId: number,
   msg: TelegramBot.Message,
 ): Promise<void> {
-  const state = getState(chatId) as HelpState;
+  const state = await getState(chatId) as HelpState;
   const name =
     [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") ||
     "Пользователь";
@@ -240,12 +235,12 @@ async function submitHelp(
     );
   } catch (err) {
     if (err instanceof ApiError && err.status >= 400 && err.status < 500) {
-      clearState(chatId);
+      await clearState(chatId);
       await bot.sendMessage(chatId, `❌ Ошибка: ${err.message}`);
     } else {
       try {
         const token = await getToken(chatId, msg.from!.id, name);
-        enqueue(chatId, "POST", "/help-requests", {
+        await enqueue(chatId, "POST", "/help-requests", {
           type: state.kind,
           category: state.category,
           lat: state.lat,
@@ -260,7 +255,7 @@ async function submitHelp(
       } catch {
         // ignore
       }
-      clearState(chatId);
+      await clearState(chatId);
       await bot.sendMessage(
         chatId,
         "⚠️ Сервер временно недоступен. Ваше сообщение сохранено и будет отправлено автоматически.",

@@ -31,7 +31,7 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://vk.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://unpkg.com; connect-src 'self' wss: https://api.telegram.org; frame-ancestors 'self' https://vk.com;" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://vk.com; style-src 'self' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://unpkg.com; connect-src 'self' wss: https://api.telegram.org; frame-ancestors 'self' https://vk.com;" always;
 
     # ── API ──
     location /api/ {

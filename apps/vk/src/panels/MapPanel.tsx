@@ -29,6 +29,15 @@ interface Props {
 
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function toGeoJSON<T extends { lat: number; lng: number }>(
   items: T[],
   mapper: (item: T) => Record<string, unknown>,
@@ -183,7 +192,7 @@ export default function MapPanel({ id, go }: Props) {
       const typeLabel = INCIDENT_TYPE_LABELS[p.type as string] ?? p.type;
       const sevLabel = SEVERITY_LABELS[p.severity as string] ?? p.severity;
       popup.setLngLat(coords).setHTML(
-        `<strong>${typeLabel}</strong><br/>${sevLabel}${p.description ? `<br/>${p.description}` : ""}`,
+        `<strong>${escapeHtml(typeLabel)}</strong><br/>${escapeHtml(sevLabel)}${p.description ? `<br/>${escapeHtml(String(p.description))}` : ""}`,
       ).addTo(map);
     });
 
@@ -195,7 +204,7 @@ export default function MapPanel({ id, go }: Props) {
       const catLabel = HELP_CATEGORY_LABELS[p.category as string] ?? p.category;
       const typeLabel = p.type === "need" ? "Нужна помощь" : "Предложение помощи";
       popup.setLngLat(coords).setHTML(
-        `<strong>${catLabel}</strong><br/>${typeLabel}${p.description ? `<br/>${p.description}` : ""}${p.contactPhone ? `<br/>📞 ${p.contactPhone}` : ""}`,
+        `<strong>${escapeHtml(catLabel)}</strong><br/>${escapeHtml(typeLabel)}${p.description ? `<br/>${escapeHtml(String(p.description))}` : ""}${p.contactPhone ? `<br/>📞 ${escapeHtml(String(p.contactPhone))}` : ""}`,
       ).addTo(map);
     });
 
@@ -206,7 +215,7 @@ export default function MapPanel({ id, go }: Props) {
       const coords = (f.geometry as GeoJSON.Point).coordinates.slice() as [number, number];
       const statusLabel = SHELTER_STATUS_LABELS[p.status as string] ?? p.status;
       popup.setLngLat(coords).setHTML(
-        `<strong>${p.name}</strong><br/>${p.address}<br/>👥 ${p.currentOccupancy}/${p.capacity} — ${statusLabel}${p.contactPhone ? `<br/>📞 ${p.contactPhone}` : ""}`,
+        `<strong>${escapeHtml(String(p.name))}</strong><br/>${escapeHtml(String(p.address))}<br/>👥 ${Number(p.currentOccupancy)}/${Number(p.capacity)} — ${escapeHtml(statusLabel)}${p.contactPhone ? `<br/>📞 ${escapeHtml(String(p.contactPhone))}` : ""}`,
       ).addTo(map);
     });
 

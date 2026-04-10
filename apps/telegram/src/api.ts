@@ -11,6 +11,9 @@ import type {
 } from "@samur/shared";
 
 const BASE = `${config.API_BASE_URL}/api/v1`;
+const TIMEOUT_MS = 15_000;
+const MAX_RETRIES = 3;
+const RETRY_BASE_MS = 1_000;
 
 class ApiError extends Error {
   constructor(
@@ -19,6 +22,19 @@ class ApiError extends Error {
     message: string,
   ) {
     super(message);
+  }
+}
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
   }
 }
 
@@ -35,21 +51,40 @@ async function request<T>(
   if (config.API_INTERNAL_TOKEN)
     headers["X-Internal-Token"] = config.API_INTERNAL_TOKEN;
 
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let lastError: unknown;
 
-  const json = (await res.json()) as ApiResponse<T>;
-  if (!res.ok || !json.success) {
-    throw new ApiError(
-      res.status,
-      json.error?.code ?? "UNKNOWN",
-      json.error?.message ?? "API error",
-    );
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetchWithTimeout(`${BASE}${path}`, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+      const json = (await res.json()) as ApiResponse<T>;
+      if (!res.ok || !json.success) {
+        const err = new ApiError(
+          res.status,
+          json.error?.code ?? "UNKNOWN",
+          json.error?.message ?? "API error",
+        );
+        // Don't retry 4xx (client errors)
+        if (res.status >= 400 && res.status < 500) throw err;
+        lastError = err;
+      } else {
+        return json.data as T;
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.status >= 400 && err.status < 500) throw err;
+      lastError = err;
+    }
+
+    if (attempt < MAX_RETRIES) {
+      await new Promise((r) => setTimeout(r, RETRY_BASE_MS * 2 ** attempt));
+    }
   }
-  return json.data as T;
+
+  throw lastError;
 }
 
 async function requestPaginated<T>(
@@ -61,16 +96,34 @@ async function requestPaginated<T>(
   if (config.API_INTERNAL_TOKEN)
     headers["X-Internal-Token"] = config.API_INTERNAL_TOKEN;
 
-  const res = await fetch(`${BASE}${path}`, { headers });
-  const json = (await res.json()) as PaginatedResponse<T>;
-  if (!res.ok || !json.success) {
-    throw new ApiError(
-      res.status,
-      json.error?.code ?? "UNKNOWN",
-      json.error?.message ?? "API error",
-    );
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const res = await fetchWithTimeout(`${BASE}${path}`, { headers });
+      const json = (await res.json()) as PaginatedResponse<T>;
+      if (!res.ok || !json.success) {
+        const err = new ApiError(
+          res.status,
+          json.error?.code ?? "UNKNOWN",
+          json.error?.message ?? "API error",
+        );
+        if (res.status >= 400 && res.status < 500) throw err;
+        lastError = err;
+      } else {
+        return { data: json.data ?? [], total: json.meta?.total ?? 0 };
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.status >= 400 && err.status < 500) throw err;
+      lastError = err;
+    }
+
+    if (attempt < MAX_RETRIES) {
+      await new Promise((r) => setTimeout(r, RETRY_BASE_MS * 2 ** attempt));
+    }
   }
-  return { data: json.data ?? [], total: json.meta?.total ?? 0 };
+
+  throw lastError;
 }
 
 // -- Auth --

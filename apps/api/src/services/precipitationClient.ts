@@ -8,12 +8,11 @@
  */
 
 import { logger } from "../lib/logger.js";
+import { fetchJSON } from "../lib/fetch.js";
 
 const log = logger.child({ service: "precipitation" });
 
 const WEATHER_API_BASE = "https://api.open-meteo.com/v1/forecast";
-const FETCH_TIMEOUT = 15_000;
-const MAX_RETRIES = 2;
 
 // ── Dagestan precipitation grid (~25 points) ─────────────────────────────
 // Covers mountains, foothills, and coastal plain from ~41.3°N to 44.3°N
@@ -82,47 +81,17 @@ interface OpenMeteoWeatherResponse {
   hourly: OpenMeteoHourly;
 }
 
-// ── Fetch helper (reuse pattern from openMeteoClient) ────────────────────
-
-async function fetchJSON<T>(url: string, retries = MAX_RETRIES): Promise<T | null> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
-
-      const res = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          "Accept": "application/json",
-          "User-Agent": "Samur-FloodMonitor/1.0 (flood relief platform)",
-        },
-      });
-      clearTimeout(timeout);
-
-      if (!res.ok) {
-        log.warn({ url: url.slice(0, 120), status: res.status, attempt }, "Open-Meteo Weather HTTP error");
-        continue;
-      }
-
-      return (await res.json()) as T;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log.warn({ attempt, error: msg }, "Open-Meteo Weather fetch failed");
-      if (attempt < retries) {
-        await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
-      }
-    }
-  }
-  return null;
-}
-
 // ── In-memory cache ─────────────────────────────────────────────────────
 
 let cachedData: PrecipitationReading[] = [];
 let cachedAt = 0;
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
+const CACHE_MAX_STALE_MS = CACHE_TTL_MS * 3; // 6 hours — discard after this
 
 export function getCachedPrecipitation(): PrecipitationReading[] {
+  if (cachedAt > 0 && Date.now() - cachedAt > CACHE_MAX_STALE_MS) {
+    return []; // too stale to be useful
+  }
   return cachedData;
 }
 
@@ -148,11 +117,11 @@ export async function fetchPrecipitationGrid(): Promise<PrecipitationReading[]> 
 
   log.info({ points: grid.length }, "Fetching precipitation grid from Open-Meteo");
 
-  const raw = await fetchJSON<OpenMeteoWeatherResponse | OpenMeteoWeatherResponse[]>(url);
+  const raw = await fetchJSON<OpenMeteoWeatherResponse | OpenMeteoWeatherResponse[]>(url, { service: "precipitation" });
 
   if (!raw) {
     log.error("Open-Meteo Weather API returned no data");
-    return cachedData; // return stale cache rather than empty
+    return getCachedPrecipitation(); // return stale cache only if within max stale age
   }
 
   const responses: OpenMeteoWeatherResponse[] = Array.isArray(raw) ? raw : [raw];
@@ -162,7 +131,7 @@ export async function fetchPrecipitationGrid(): Promise<PrecipitationReading[]> 
       { expected: grid.length, got: responses.length },
       "Open-Meteo Weather response count mismatch",
     );
-    return cachedData;
+    return getCachedPrecipitation();
   }
 
   const readings: PrecipitationReading[] = [];

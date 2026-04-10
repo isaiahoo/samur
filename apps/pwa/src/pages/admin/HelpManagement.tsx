@@ -36,6 +36,8 @@ export function HelpManagement() {
   useEffect(() => { fetch(); }, [fetch]);
 
   const handleStatusChange = async (id: string, status: HelpRequestStatus) => {
+    const isDestructive = status === "cancelled" || status === "completed";
+    if (isDestructive && !window.confirm(`Изменить статус на "${HELP_REQUEST_STATUS_LABELS[status]}"? Это может быть необратимо.`)) return;
     try {
       await updateHelpRequest(id, { status });
       setItems((prev) => prev.map((h) => (h.id === id ? { ...h, status } : h)));

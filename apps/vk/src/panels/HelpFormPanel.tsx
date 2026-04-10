@@ -15,10 +15,11 @@ import {
 } from "@vkontakte/vkui";
 import { createHelpRequest } from "../services/api";
 import { getGeodata, shareToWall } from "../services/vkbridge";
+import { addToQueue } from "../services/offlineQueue";
 import {
   HELP_CATEGORY_LABELS,
   HELP_REQUEST_TYPE_LABELS,
-  DAGESTAN_BOUNDS,
+  isInDagestan,
 } from "@samur/shared";
 
 interface Props {
@@ -42,12 +43,7 @@ export default function HelpFormPanel({ id, goBack }: Props) {
     setGeoLoading(true);
     const geo = await getGeodata();
     if (geo) {
-      if (
-        geo.lat >= DAGESTAN_BOUNDS.south &&
-        geo.lat <= DAGESTAN_BOUNDS.north &&
-        geo.long >= DAGESTAN_BOUNDS.west &&
-        geo.long <= DAGESTAN_BOUNDS.east
-      ) {
+      if (isInDagestan(geo.lat, geo.long)) {
         setLat(geo.lat);
         setLng(geo.long);
         setSnackbar("Геолокация определена");
@@ -94,7 +90,19 @@ export default function HelpFormPanel({ id, goBack }: Props) {
 
       setTimeout(goBack, 1000);
     } catch {
-      setSnackbar("Ошибка отправки");
+      addToQueue("/help-requests", "POST", {
+        type: kind,
+        category,
+        lat: lat ?? 42.9849,
+        lng: lng ?? 47.5047,
+        address: address || undefined,
+        description: description || undefined,
+        urgency: kind === "need" ? "urgent" : "normal",
+        contactPhone: contactPhone || undefined,
+        source: "vk",
+      });
+      setSnackbar("Сохранено офлайн. Отправим при подключении.");
+      setTimeout(goBack, 1500);
     }
     setSubmitting(false);
   }

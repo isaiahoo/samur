@@ -195,6 +195,11 @@ router.patch(
       if (newStatus !== undefined) {
         data.status = newStatus;
         if (newStatus === "claimed" && !existing.claimedBy) {
+          // Only volunteers, coordinators, and admins can claim
+          const role = req.user!.role;
+          if (role !== "volunteer" && role !== "coordinator" && role !== "admin") {
+            throw new AppError(403, "FORBIDDEN", "Только волонтёры могут взять заявку");
+          }
           data.claimer = { connect: { id: req.user!.sub } };
           isClaim = true;
         }
@@ -202,15 +207,24 @@ router.patch(
           data.claimer = { disconnect: true };
         }
       }
+      data.version = { increment: 1 };
 
-      const updated = await prisma.helpRequest.update({
-        where: { id },
-        data,
-        include: {
-          author: { select: { id: true, name: true, role: true } },
-          claimer: { select: { id: true, name: true, role: true } },
-        },
-      });
+      let updated;
+      try {
+        updated = await prisma.helpRequest.update({
+          where: { id, version: existing.version },
+          data,
+          include: {
+            author: { select: { id: true, name: true, role: true } },
+            claimer: { select: { id: true, name: true, role: true } },
+          },
+        });
+      } catch (err: unknown) {
+        if (err instanceof Error && "code" in err && (err as { code: string }).code === "P2025") {
+          throw new AppError(409, "CONFLICT", "Запись была изменена другим пользователем. Обновите страницу.");
+        }
+        throw err;
+      }
 
       const typed = updated as unknown as HelpRequest;
       if (isClaim) {

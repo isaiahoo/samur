@@ -39,7 +39,7 @@ router.post(
   validateBody(RegisterSchema),
   async (req, res, next) => {
     try {
-      const { name, phone, password, role } = req.body;
+      const { name, phone, password } = req.body;
 
       const existing = await prisma.user.findUnique({ where: { phone } });
       if (existing) {
@@ -53,7 +53,7 @@ router.post(
           name,
           phone,
           password: hashedPassword,
-          role: role ?? "resident",
+          role: "resident",
         },
       });
 

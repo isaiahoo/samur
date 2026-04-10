@@ -168,12 +168,13 @@ async function fetchFeed(feed: NewsFeed): Promise<number> {
           },
         });
         stored++;
-      } catch (err) {
-        // Unique constraint violation = already exists, safe to ignore
-        const msg = err instanceof Error ? err.message : String(err);
-        if (!msg.includes("Unique constraint")) {
-          log.warn({ feedId: feed.id, externalId, error: msg }, "Failed to store article");
+      } catch (err: unknown) {
+        // Prisma P2002 = unique constraint violation, safe to ignore
+        if (err && typeof err === "object" && "code" in err && (err as { code: string }).code === "P2002") {
+          continue;
         }
+        const msg = err instanceof Error ? err.message : String(err);
+        log.warn({ feedId: feed.id, externalId, error: msg }, "Failed to store article");
       }
     }
 

@@ -2,6 +2,15 @@
 import { prisma } from "@samur/db";
 import { Prisma } from "@prisma/client";
 
+const ALLOWED_TABLES = ["incidents", "help_requests", "shelters", "river_levels", "alerts"] as const;
+type AllowedTable = typeof ALLOWED_TABLES[number];
+
+function assertAllowedTable(table: string): asserts table is AllowedTable {
+  if (!(ALLOWED_TABLES as readonly string[]).includes(table)) {
+    throw new Error(`Invalid table name: ${table}`);
+  }
+}
+
 /**
  * Build a Prisma raw SQL WHERE fragment for ST_DWithin geo-filtering.
  * Returns SQL to append to a WHERE clause, or empty string if no geo params.
@@ -13,6 +22,7 @@ export function geoWithinClause(
   radiusMeters?: number
 ): Prisma.Sql | null {
   if (geoLat == null || geoLng == null || radiusMeters == null) return null;
+  assertAllowedTable(table);
   return Prisma.sql`ST_DWithin(
     ${Prisma.raw(`"${table}"."location"`)},
     ST_SetSRID(ST_MakePoint(${geoLng}, ${geoLat}), 4326)::geography,
@@ -31,6 +41,7 @@ export function boundsClause(
   west?: number
 ): Prisma.Sql | null {
   if (north == null || south == null || east == null || west == null) return null;
+  assertAllowedTable(table);
   return Prisma.sql`${Prisma.raw(`"${table}"."lat"`)} BETWEEN ${south} AND ${north}
     AND ${Prisma.raw(`"${table}"."lng"`)} BETWEEN ${west} AND ${east}`;
 }
@@ -45,6 +56,7 @@ export async function getIdsWithinRadius(
   geoLng: number,
   radiusMeters: number
 ): Promise<string[]> {
+  assertAllowedTable(table);
   const rows = await prisma.$queryRaw<{ id: string }[]>`
     SELECT id FROM ${Prisma.raw(`"${table}"`)}
     WHERE "location" IS NOT NULL
@@ -68,6 +80,7 @@ export async function getIdsWithinBounds(
   east: number,
   west: number
 ): Promise<string[]> {
+  assertAllowedTable(table);
   const rows = await prisma.$queryRaw<{ id: string }[]>`
     SELECT id FROM ${Prisma.raw(`"${table}"`)}
     WHERE "deleted_at" IS NULL

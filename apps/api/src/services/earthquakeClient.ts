@@ -12,6 +12,7 @@
  */
 
 import { logger } from "../lib/logger.js";
+import { fetchJSON } from "../lib/fetch.js";
 import { prisma } from "@samur/db";
 import { emitAlertBroadcast, emitEarthquakeNew } from "../lib/emitter.js";
 import type { Alert, EarthquakeEvent } from "@samur/shared";
@@ -21,8 +22,6 @@ const log = logger.child({ service: "earthquake" });
 // ── Config ──────────────────────────────────────────────────────────────
 
 const USGS_API = "https://earthquake.usgs.gov/fdsnws/event/1/query";
-const FETCH_TIMEOUT = 15_000;
-const MAX_RETRIES = 2;
 
 /** Caucasus bounding box (covers Dagestan + surrounding seismic zone) */
 const BBOX = {
@@ -61,40 +60,6 @@ interface UsgsResponse {
   features: UsgsFeature[];
 }
 
-// ── Fetch helper ────────────────────────────────────────────────────────
-
-async function fetchJSON<T>(url: string, retries = MAX_RETRIES): Promise<T | null> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
-
-      const res = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          Accept: "application/json",
-          "User-Agent": "Samur-FloodMonitor/1.0 (flood relief platform)",
-        },
-      });
-      clearTimeout(timeout);
-
-      if (!res.ok) {
-        log.warn({ url: url.slice(0, 120), status: res.status, attempt }, "USGS earthquake HTTP error");
-        continue;
-      }
-
-      return (await res.json()) as T;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log.warn({ attempt, error: msg }, "Earthquake fetch failed");
-      if (attempt < retries) {
-        await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
-      }
-    }
-  }
-  return null;
-}
-
 // ── In-memory cache for API responses ───────────────────────────────────
 
 let cachedEvents: EarthquakeEvent[] = [];
@@ -109,16 +74,28 @@ export function isEarthquakeCacheStale(): boolean {
   return Date.now() - cachedAt > CACHE_TTL_MS;
 }
 
+/** Prune stale alert dedup entries (safe to call from external scheduler) */
+export function pruneAlertDedup(): void {
+  pruneAlertedIds();
+}
+
 // ── Track alerted events (prevent duplicate alerts) ─────────────────────
 // Map<usgsId, timestamp> with 7-day TTL to prevent unbounded growth
 
 const alertedUsgsIds = new Map<string, number>();
 const ALERT_DEDUP_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const ALERT_DEDUP_MAX_SIZE = 500;
 
 function pruneAlertedIds(): void {
   const cutoff = Date.now() - ALERT_DEDUP_TTL_MS;
   for (const [id, ts] of alertedUsgsIds) {
     if (ts < cutoff) alertedUsgsIds.delete(id);
+  }
+  // Hard cap: if still too large, evict oldest entries
+  if (alertedUsgsIds.size > ALERT_DEDUP_MAX_SIZE) {
+    const sorted = [...alertedUsgsIds.entries()].sort((a, b) => a[1] - b[1]);
+    const toRemove = sorted.slice(0, alertedUsgsIds.size - ALERT_DEDUP_MAX_SIZE);
+    for (const [id] of toRemove) alertedUsgsIds.delete(id);
   }
 }
 
@@ -196,7 +173,7 @@ export async function fetchEarthquakes(): Promise<EarthquakeEvent[]> {
   const url = `${USGS_API}?${params}`;
   log.info("Fetching earthquakes from USGS");
 
-  const data = await fetchJSON<UsgsResponse>(url);
+  const data = await fetchJSON<UsgsResponse>(url, { service: "earthquake" });
 
   if (!data || !Array.isArray(data.features)) {
     log.error("USGS earthquake API returned no data");

@@ -35,9 +35,23 @@ docker compose -f docker-compose.prod.yml exec -T postgres \
 SIZE=$(du -h "$BACKUP_DIR/$FILENAME" | cut -f1)
 echo "--- Backup created: $FILENAME ($SIZE)"
 
+# Verify backup integrity
+echo "--- Verifying backup integrity..."
+if pg_restore --list "$BACKUP_DIR/$FILENAME" > /dev/null 2>&1; then
+  echo "--- pg_restore --list: OK"
+else
+  echo "!!! BACKUP INTEGRITY CHECK FAILED — pg_restore --list returned non-zero"
+  exit 1
+fi
+
+# Generate checksum
+sha256sum "$BACKUP_DIR/$FILENAME" > "$BACKUP_DIR/${FILENAME}.sha256"
+echo "--- SHA-256 checksum saved: ${FILENAME}.sha256"
+
 # Clean old backups
 echo "--- Removing backups older than $KEEP_DAYS days..."
 find "$BACKUP_DIR" -name "samur_*.dump" -mtime +"$KEEP_DAYS" -delete
+find "$BACKUP_DIR" -name "samur_*.dump.sha256" -mtime +"$KEEP_DAYS" -delete
 
 # Optional S3-compatible upload
 if [ -n "$UPLOAD_TARGET" ]; then

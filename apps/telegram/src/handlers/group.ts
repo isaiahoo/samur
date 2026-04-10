@@ -2,7 +2,7 @@
 import type TelegramBot from "node-telegram-bot-api";
 import { getToken } from "../auth.js";
 import { createIncident } from "../api.js";
-import { INCIDENT_TYPE_LABELS, DAGESTAN_BOUNDS } from "@samur/shared";
+import { INCIDENT_TYPE_LABELS, isInDagestan } from "@samur/shared";
 
 // Shorthand type aliases for the parser
 const TYPE_ALIASES: Record<string, string> = {
@@ -57,11 +57,7 @@ export function registerGroupHandler(bot: TelegramBot): void {
 
     const lat = parseFloat(coordParts[0]);
     const lng = parseFloat(coordParts[1]);
-    if (
-      isNaN(lat) || isNaN(lng) ||
-      lat < DAGESTAN_BOUNDS.south || lat > DAGESTAN_BOUNDS.north ||
-      lng < DAGESTAN_BOUNDS.west || lng > DAGESTAN_BOUNDS.east
-    ) {
+    if (isNaN(lat) || isNaN(lng) || !isInDagestan(lat, lng)) {
       await bot.sendMessage(chatId, "❌ Координаты вне территории Дагестана.");
       return;
     }

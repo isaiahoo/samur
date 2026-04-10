@@ -2,11 +2,14 @@
 import { Server as HttpServer } from "http";
 import { Server, Socket } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
+import jwt from "jsonwebtoken";
 import type { Redis } from "ioredis";
-import type { ServerToClientEvents, ClientToServerEvents } from "@samur/shared";
+import type { ServerToClientEvents, ClientToServerEvents, JwtPayload } from "@samur/shared";
+import { config } from "./config.js";
 import { logger } from "./lib/logger.js";
 
 type SamurSocket = Socket<ClientToServerEvents, ServerToClientEvents> & {
+  userId?: string;
   geoSub?: { lat: number; lng: number; radius: number };
 };
 
@@ -33,6 +36,21 @@ export function initSocketIO(
   } else {
     logger.warn("Socket.IO using in-memory adapter (Redis unavailable)");
   }
+
+  // Authenticate Socket.IO connections via JWT
+  io.use((socket, next) => {
+    const token = socket.handshake.auth.token as string | undefined;
+    if (!token) {
+      return next(new Error("Требуется авторизация"));
+    }
+    try {
+      const payload = jwt.verify(token, config.JWT_SECRET) as JwtPayload;
+      (socket as SamurSocket).userId = payload.sub;
+      next();
+    } catch {
+      next(new Error("Недействительный токен"));
+    }
+  });
 
   io.on("connection", (rawSocket) => {
     const socket = rawSocket as SamurSocket;

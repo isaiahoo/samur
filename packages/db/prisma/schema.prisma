@@ -149,6 +149,7 @@ model Incident {
   status      IncidentStatus @default(unverified)
   verifiedBy  String?        @map("verified_by")
   source      Source         @default(pwa)
+  version     Int            @default(0)
   createdAt   DateTime       @default(now()) @map("created_at")
   updatedAt   DateTime       @updatedAt @map("updated_at")
   deletedAt   DateTime?      @map("deleted_at")
@@ -157,6 +158,8 @@ model Incident {
   verifier     User?         @relation("IncidentVerifier", fields: [verifiedBy], references: [id], onDelete: SetNull)
   helpRequests HelpRequest[]
 
+  @@index([userId])
+  @@index([verifiedBy])
   @@index([status, type])
   @@index([severity])
   @@index([createdAt])
@@ -182,6 +185,7 @@ model HelpRequest {
   status       HelpRequestStatus @default(open)
   claimedBy    String?           @map("claimed_by")
   source       Source            @default(pwa)
+  version      Int               @default(0)
   createdAt    DateTime          @default(now()) @map("created_at")
   updatedAt    DateTime          @updatedAt @map("updated_at")
   deletedAt    DateTime?         @map("deleted_at")
@@ -190,6 +194,8 @@ model HelpRequest {
   claimer  User?     @relation("HelpRequestClaimer", fields: [claimedBy], references: [id], onDelete: SetNull)
   incident Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
 
+  @@index([userId])
+  @@index([claimedBy])
   @@index([status, type])
   @@index([status, category])
   @@index([urgency])
@@ -211,8 +217,10 @@ model Alert {
   expiresAt DateTime?    @map("expires_at")
   deletedAt DateTime?    @map("deleted_at")
 
-  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author        User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  smsBroadcasts SmsBroadcastLog[]
 
+  @@index([authorId])
   @@index([urgency])
   @@index([sentAt])
   @@index([expiresAt])
@@ -265,6 +273,7 @@ model RiverLevel {
   createdAt       DateTime   @default(now()) @map("created_at")
   deletedAt       DateTime?  @map("deleted_at")
 
+  @@unique([riverName, stationName, measuredAt])
   @@index([riverName, measuredAt])
   @@index([measuredAt])
   @@index([deletedAt])
@@ -277,6 +286,8 @@ model SmsBroadcastLog {
   alertId String   @map("alert_id")
   phone   String
   sentAt  DateTime @default(now()) @map("sent_at")
+
+  alert Alert @relation(fields: [alertId], references: [id], onDelete: Cascade)
 
   @@unique([alertId, phone])
   @@index([alertId])

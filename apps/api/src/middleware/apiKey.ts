@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { Request, Response, NextFunction } from "express";
+import crypto from "node:crypto";
 import { config } from "../config.js";
 
 /**
@@ -22,7 +23,12 @@ export function requireApiKey(req: Request, res: Response, next: NextFunction): 
     return;
   }
 
-  if (!key || key !== config.WEBHOOK_API_KEY) {
+  if (
+    !key ||
+    typeof key !== "string" ||
+    key.length !== config.WEBHOOK_API_KEY.length ||
+    !crypto.timingSafeEqual(Buffer.from(key), Buffer.from(config.WEBHOOK_API_KEY))
+  ) {
     res.status(401).json({
       success: false,
       error: { code: "INVALID_API_KEY", message: "Недействительный API-ключ" },

@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import { logger } from "../lib/logger.js";
+import { fetchJSON } from "../lib/fetch.js";
 import type { GaugeStation } from "./gaugeStations.js";
 import { stationKey } from "./gaugeStations.js";
 
 const log = logger.child({ service: "open-meteo" });
 
 const FLOOD_API_BASE = "https://flood-api.open-meteo.com/v1/flood";
-const FETCH_TIMEOUT = 15_000;
-const MAX_RETRIES = 2;
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -39,40 +38,6 @@ interface OpenMeteoSingleResponse {
   latitude: number;
   longitude: number;
   daily: OpenMeteoDaily;
-}
-
-// ── Fetch helper ─────────────────────────────────────────────────────────
-
-async function fetchJSON<T>(url: string, retries = MAX_RETRIES): Promise<T | null> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
-
-      const res = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          "Accept": "application/json",
-          "User-Agent": "Samur-FloodMonitor/1.0 (flood relief platform)",
-        },
-      });
-      clearTimeout(timeout);
-
-      if (!res.ok) {
-        log.warn({ url, status: res.status, attempt }, "Open-Meteo HTTP error");
-        continue;
-      }
-
-      return (await res.json()) as T;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      log.warn({ url, attempt, error: msg }, "Open-Meteo fetch failed");
-      if (attempt < retries) {
-        await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
-      }
-    }
-  }
-  return null;
 }
 
 // ── Main entry point ─────────────────────────────────────────────────────
@@ -109,7 +74,7 @@ export async function fetchDischargeForStations(
   log.info({ stationCount: calibrated.length, url }, "Fetching Open-Meteo discharge data");
 
   // For single station, API returns a single object; for multiple, an array
-  const raw = await fetchJSON<OpenMeteoSingleResponse | OpenMeteoSingleResponse[]>(url);
+  const raw = await fetchJSON<OpenMeteoSingleResponse | OpenMeteoSingleResponse[]>(url, { service: "open-meteo" });
 
   if (!raw) {
     log.error("Open-Meteo API returned no data");

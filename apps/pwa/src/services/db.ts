@@ -8,6 +8,7 @@ export interface OutboxEntry {
   body: Record<string, unknown> | null;
   createdAt: number;
   retryCount: number;
+  lastRetryAt?: number;
 }
 
 interface SamurDB extends DBSchema {
@@ -100,6 +101,7 @@ export async function incrementOutboxRetry(id: string) {
   const entry = await db.get("outbox", id);
   if (entry) {
     entry.retryCount++;
+    entry.lastRetryAt = Date.now();
     await db.put("outbox", entry);
   }
 }

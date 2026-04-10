@@ -171,12 +171,21 @@ router.patch(
           data.verifier = { connect: { id: req.user!.sub } };
         }
       }
+      data.version = { increment: 1 };
 
-      const updated = await prisma.incident.update({
-        where: { id },
-        data,
-        include: { author: { select: { id: true, name: true, role: true } } },
-      });
+      let updated;
+      try {
+        updated = await prisma.incident.update({
+          where: { id, version: existing.version },
+          data,
+          include: { author: { select: { id: true, name: true, role: true } } },
+        });
+      } catch (err: unknown) {
+        if (err instanceof Error && "code" in err && (err as { code: string }).code === "P2025") {
+          throw new AppError(409, "CONFLICT", "Запись была изменена другим пользователем. Обновите страницу.");
+        }
+        throw err;
+      }
 
       emitIncidentUpdated(updated as unknown as Incident);
 

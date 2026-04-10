@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import { prisma } from "@samur/db";
 import { config } from "../config.js";
 import { AppError } from "../middleware/error.js";
+import { logger } from "../lib/logger.js";
 
 const router = Router();
 
@@ -79,10 +80,11 @@ router.post("/vk", async (req, res, next) => {
       vkUserId = result.vkUserId;
     } else if (config.NODE_ENV === "development") {
       // Dev mode only: extract vk_user_id without verification
+      logger.warn("VK auth: signature verification skipped (dev mode, VK_SECRET not set)");
       const params = new URLSearchParams(launchParams);
       vkUserId = params.get("vk_user_id");
     } else {
-      throw new AppError(500, "VK_NOT_CONFIGURED", "VK_SECRET не настроен");
+      throw new AppError(500, "VK_NOT_CONFIGURED", "VK_SECRET обязателен в production");
     }
 
     if (!vkUserId) {
