@@ -135,7 +135,16 @@ export function estimateReturnPeriod(
 
   // Current below baseline → trivial
   if (currentDischarge <= baseline) {
-    return { years: null, label: "< 2 лет" };
+    return null;
+  }
+
+  // Gumbel extrapolation below the fitted range is unreliable.
+  // Only show return period when discharge is at least 20% of the way
+  // from baseline to the first scenario threshold (meaningful proximity).
+  const lowestThreshold = a1.Q;
+  if (baseline > 0 && lowestThreshold > baseline) {
+    const proximityToFirst = (currentDischarge - baseline) / (lowestThreshold - baseline);
+    if (proximityToFirst < 0.15) return null;
   }
 
   const yCurrent = (currentDischarge - a) / b;
