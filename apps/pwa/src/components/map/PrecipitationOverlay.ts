@@ -27,35 +27,23 @@ const EXTREME = 60;  // extreme rain (max saturation)
 
 // ── IDW interpolation ───────────────────────────────────────────────────
 
-/** Max influence radius in degrees (~40 km). Beyond this, pixel is transparent. */
-const MAX_RADIUS = 0.4;
-/** Fade-out starts at this fraction of MAX_RADIUS (inner = full opacity). */
-const FADE_START = 0.6;
-
-interface IdwResult {
-  value: number;
-  nearestDist: number;
-}
-
-function idw(lat: number, lng: number, points: PrecipitationPoint[], power = 2.5): IdwResult {
+function idw(lat: number, lng: number, points: PrecipitationPoint[], power = 2.5): number {
   let sumWeights = 0;
   let sumValues = 0;
-  let nearestDist = Infinity;
 
   for (const p of points) {
     const dlat = p.lat - lat;
     const dlng = p.lng - lng;
     const dist = Math.sqrt(dlat * dlat + dlng * dlng);
 
-    if (dist < nearestDist) nearestDist = dist;
-    if (dist < 0.001) return { value: p.precipitation, nearestDist: 0 };
+    if (dist < 0.001) return p.precipitation;
 
     const w = 1 / (dist ** power);
     sumWeights += w;
     sumValues += w * p.precipitation;
   }
 
-  return { value: sumWeights > 0 ? sumValues / sumWeights : 0, nearestDist };
+  return sumWeights > 0 ? sumValues / sumWeights : 0;
 }
 
 // ── Canvas generation ───────────────────────────────────────────────────
@@ -70,8 +58,9 @@ const CANVAS_H = 320;
 export function generatePrecipitationImage(
   points: PrecipitationPoint[],
 ): string | null {
-  const validPoints = points.filter((p) => p.precipitation > 0.5);
-  if (validPoints.length === 0) return null;
+  // Use ALL grid points (including zeros) — zero-rain stations act as anchors
+  // that naturally fade the interpolation to transparent in dry areas.
+  if (points.length === 0 || points.every((p) => p.precipitation < TRACE)) return null;
 
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_W;
@@ -94,18 +83,13 @@ export function generatePrecipitationImage(
         continue;
       }
 
-      const { value: precip, nearestDist } = idw(lat, lng, validPoints);
+      const precip = idw(lat, lng, points);
 
-      // Too far from any data point — transparent
-      if (nearestDist > MAX_RADIUS || precip < TRACE) {
+      // Below trace threshold = invisible (naturally faded by zero-rain neighbors)
+      if (precip < TRACE) {
         imageData.data[idx + 3] = 0;
         continue;
       }
-
-      // Distance fade: full opacity within FADE_START, linear fade to 0 at MAX_RADIUS
-      const distanceFade = nearestDist <= MAX_RADIUS * FADE_START
-        ? 1.0
-        : 1.0 - (nearestDist - MAX_RADIUS * FADE_START) / (MAX_RADIUS * (1 - FADE_START));
 
       // Weather-radar color ramp: green → yellow → orange → red → magenta
       let r: number, g: number, b: number, a: number;
@@ -145,9 +129,6 @@ export function generatePrecipitationImage(
         b = 200;
         a = 245;
       }
-
-      // Apply distance fade to alpha
-      a = Math.round(a * distanceFade);
 
       imageData.data[idx] = r;
       imageData.data[idx + 1] = g;

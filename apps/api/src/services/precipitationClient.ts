@@ -14,8 +14,9 @@ const log = logger.child({ service: "precipitation" });
 
 const WEATHER_API_BASE = "https://api.open-meteo.com/v1/forecast";
 
-// ── Dagestan precipitation grid (~25 points) ─────────────────────────────
-// Covers mountains, foothills, and coastal plain from ~41.3°N to 44.3°N
+// ── Dagestan precipitation grid (~48 points) ────────────────────────────
+// Dense grid covering mountains, foothills, and coastal plain 41.2°N–44.4°N.
+// ~0.4° spacing for smooth IDW interpolation on frontend.
 
 export interface GridPoint {
   lat: number;
@@ -23,38 +24,60 @@ export interface GridPoint {
 }
 
 export const DAGESTAN_PRECIP_GRID: GridPoint[] = [
-  // Southern mountains (Samur basin)
-  { lat: 41.4, lng: 47.9 },
-  { lat: 41.7, lng: 47.5 },
-  { lat: 41.7, lng: 48.2 },
-  // Central-south mountains (Sulak headwaters)
-  { lat: 42.2, lng: 46.5 },
-  { lat: 42.2, lng: 47.2 },
-  { lat: 42.5, lng: 46.0 },
-  { lat: 42.5, lng: 46.8 },
-  { lat: 42.5, lng: 47.5 },
-  // Central Dagestan (Sulak gorge area)
-  { lat: 42.8, lng: 46.5 },
-  { lat: 42.8, lng: 47.0 },
-  { lat: 42.8, lng: 47.6 },
-  // Makhachkala area / coastal
-  { lat: 43.0, lng: 47.2 },
-  { lat: 43.0, lng: 47.8 },
-  { lat: 43.2, lng: 47.0 },
-  { lat: 43.2, lng: 47.5 },
-  // Northern foothills (Terek basin)
-  { lat: 43.5, lng: 46.3 },
-  { lat: 43.5, lng: 47.0 },
-  { lat: 43.5, lng: 47.5 },
-  // Northern plain
+  // Southern mountains (Samur basin) — row 41.2–41.8
+  { lat: 41.2, lng: 47.8 },
+  { lat: 41.5, lng: 47.4 },
+  { lat: 41.5, lng: 47.9 },
+  { lat: 41.5, lng: 48.4 },
+  { lat: 41.8, lng: 47.2 },
+  { lat: 41.8, lng: 47.7 },
+  { lat: 41.8, lng: 48.2 },
+  // Central-south mountains — row 42.0–42.4
+  { lat: 42.0, lng: 46.4 },
+  { lat: 42.0, lng: 46.9 },
+  { lat: 42.0, lng: 47.4 },
+  { lat: 42.0, lng: 47.9 },
+  { lat: 42.3, lng: 46.0 },
+  { lat: 42.3, lng: 46.5 },
+  { lat: 42.3, lng: 47.0 },
+  { lat: 42.3, lng: 47.5 },
+  { lat: 42.3, lng: 48.0 },
+  // Central Dagestan (Sulak gorge) — row 42.6–42.9
+  { lat: 42.6, lng: 46.2 },
+  { lat: 42.6, lng: 46.7 },
+  { lat: 42.6, lng: 47.2 },
+  { lat: 42.6, lng: 47.7 },
+  { lat: 42.9, lng: 46.5 },
+  { lat: 42.9, lng: 47.0 },
+  { lat: 42.9, lng: 47.5 },
+  { lat: 42.9, lng: 48.0 },
+  // Makhachkala area — row 43.0–43.3
+  { lat: 43.1, lng: 46.8 },
+  { lat: 43.1, lng: 47.3 },
+  { lat: 43.1, lng: 47.8 },
+  { lat: 43.3, lng: 46.5 },
+  { lat: 43.3, lng: 47.0 },
+  { lat: 43.3, lng: 47.5 },
+  // Northern foothills — row 43.5–43.8
+  { lat: 43.5, lng: 46.2 },
+  { lat: 43.5, lng: 46.7 },
+  { lat: 43.5, lng: 47.2 },
+  { lat: 43.5, lng: 47.7 },
+  { lat: 43.8, lng: 46.0 },
   { lat: 43.8, lng: 46.5 },
   { lat: 43.8, lng: 47.0 },
-  { lat: 43.8, lng: 47.6 },
+  { lat: 43.8, lng: 47.5 },
+  // Northern plain — row 44.0–44.4
+  { lat: 44.0, lng: 46.2 },
+  { lat: 44.0, lng: 46.7 },
+  { lat: 44.0, lng: 47.2 },
+  { lat: 44.2, lng: 45.9 },
+  { lat: 44.2, lng: 46.4 },
+  { lat: 44.2, lng: 46.9 },
   // Far north (Terek delta)
-  { lat: 44.0, lng: 46.3 },
-  { lat: 44.0, lng: 47.0 },
-  { lat: 44.3, lng: 46.5 },
-  { lat: 44.3, lng: 47.2 },
+  { lat: 44.4, lng: 46.2 },
+  { lat: 44.4, lng: 46.7 },
+  { lat: 44.4, lng: 47.2 },
 ];
 
 // ── Types ────────────────────────────────────────────────────────────────
