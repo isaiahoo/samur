@@ -1841,3 +1841,91 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .eq-detail-badge--danger { background: #fef2f2; color: #991b1b; }
 .eq-detail-badge--warning { background: #fffbeb; color: #92400e; }
 .eq-detail-badge--info { background: #fefce8; color: #854d0e; }
+
+/* ── Accessibility: prefers-reduced-motion ─────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Dark mode ─────────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: #60a5fa;
+    --color-danger: #f87171;
+    --color-warning: #fbbf24;
+    --color-success: #4ade80;
+    --color-text: #e2e8f0;
+    --color-muted: #94a3b8;
+    --color-bg: #0f172a;
+    --color-surface: #1e293b;
+    --color-border: #334155;
+  }
+
+  body {
+    color-scheme: dark;
+  }
+
+  .app-header {
+    background: #0f172a;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .offline-badge {
+    background: #92400e;
+    color: #fbbf24;
+  }
+
+  /* Bottom sheet */
+  .bottom-sheet { background: var(--color-surface); }
+  .bottom-sheet-handle { background: #475569; }
+
+  /* Cards & surfaces */
+  .timeline-card,
+  .help-card,
+  .alert-card,
+  .news-card,
+  .shelter-card,
+  .info-card,
+  .stat-card,
+  .admin-card {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+  }
+
+  /* Status badges */
+  .badge {
+    border-color: var(--color-border);
+  }
+
+  /* Tab bar */
+  .app-tabbar {
+    background: #0f172a;
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* Map legends */
+  .eq-legend,
+  .layer-panel,
+  .nerv-layers {
+    background: rgba(30, 41, 59, 0.92);
+    color: var(--color-text);
+  }
+
+  /* Inputs */
+  input, textarea, select {
+    background: #1e293b;
+    color: var(--color-text);
+    border-color: var(--color-border);
+  }
+
+  /* Spinner */
+  .spinner { border-color: var(--color-border); border-top-color: var(--color-primary); }
+
+  /* Toast */
+  .toast { background: #334155; color: var(--color-text); }
+}

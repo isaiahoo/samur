@@ -1,0 +1,95 @@
+{
+  "common": {
+    "loading": "Загрузка...",
+    "error": "Ошибка",
+    "retry": "Повторить",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "delete": "Удалить",
+    "confirm": "Подтвердить",
+    "close": "Закрыть",
+    "back": "Назад",
+    "next": "Далее",
+    "search": "Поиск",
+    "noData": "Нет данных",
+    "offline": "Офлайн",
+    "online": "Онлайн"
+  },
+  "nav": {
+    "map": "Карта",
+    "help": "Помощь",
+    "alerts": "Оповещения",
+    "news": "Новости",
+    "info": "Инфо"
+  },
+  "error": {
+    "title": "Что-то пошло не так",
+    "description": "Произошла непредвиденная ошибка. Попробуйте обновить страницу.",
+    "reload": "Обновить страницу"
+  },
+  "auth": {
+    "login": "Войти",
+    "logout": "Выйти",
+    "email": "Email",
+    "password": "Пароль",
+    "register": "Регистрация"
+  },
+  "incident": {
+    "title": "Инцидент",
+    "report": "Сообщить об инциденте",
+    "type": "Тип",
+    "severity": "Серьёзность",
+    "description": "Описание",
+    "address": "Адрес",
+    "status": {
+      "unverified": "Не проверен",
+      "verified": "Подтверждён",
+      "resolved": "Разрешён",
+      "false_report": "Ложная тревога"
+    }
+  },
+  "help": {
+    "title": "Запрос помощи",
+    "create": "Запросить помощь",
+    "category": "Категория",
+    "urgency": "Срочность",
+    "contactName": "Контактное имя",
+    "contactPhone": "Телефон",
+    "status": {
+      "open": "Открыт",
+      "claimed": "Принят",
+      "in_progress": "В работе",
+      "completed": "Выполнен",
+      "cancelled": "Отменён"
+    }
+  },
+  "alert": {
+    "title": "Оповещение",
+    "severity": {
+      "info": "Информация",
+      "warning": "Предупреждение",
+      "danger": "Опасность",
+      "critical": "Критическое"
+    }
+  },
+  "shelter": {
+    "title": "Укрытие",
+    "capacity": "Вместимость",
+    "occupancy": "Заполненность",
+    "address": "Адрес",
+    "status": {
+      "open": "Открыто",
+      "closed": "Закрыто",
+      "full": "Заполнено"
+    }
+  },
+  "river": {
+    "level": "Уровень воды",
+    "trend": {
+      "rising": "Растёт",
+      "falling": "Падает",
+      "stable": "Стабильный"
+    },
+    "danger": "Опасный уровень"
+  }
+}

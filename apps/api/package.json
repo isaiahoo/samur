@@ -13,6 +13,7 @@
   "dependencies": {
     "@samur/db": "*",
     "@samur/shared": "*",
+    "@sentry/node": "^10.48.0",
     "@socket.io/redis-adapter": "^8.3.0",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",

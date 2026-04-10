@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { Request, Response, NextFunction } from "express";
+import * as Sentry from "@sentry/node";
 import { logger } from "../lib/logger.js";
 
 export class AppError extends Error {
@@ -36,6 +37,7 @@ export function errorHandler(
 
   // Log unexpected errors
   logger.error({ err }, "Unhandled error");
+  Sentry.captureException(err);
 
   res.status(500).json({
     success: false,

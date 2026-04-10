@@ -789,14 +789,14 @@ sha256sum "$BACKUP_DIR/$FILENAME" > "$BACKUP_DIR/$FILENAME.sha256"
 - [x] VK: offline queue
 - [x] Both: extract shared location validation
 
-### Week 6+ — Quality (Low)
-- [ ] Service test suite (riverScraper, earthquakeClient, newsFetcher, etc.)
-- [ ] i18n framework setup
-- [ ] Dark mode + prefers-reduced-motion
-- [ ] Sentry integration
-- [ ] Prometheus alerting rules + expanded scraping
-- [ ] Deploy rollback mechanism
-- [ ] Meshtastic bridge thread safety + dedup
+### Week 6+ — Quality (Low) ✅
+- [x] Service test suite (statusTransitions + newsFetcher helpers — 45 tests)
+- [x] i18n framework setup (i18next + react-i18next, ru/en translations)
+- [x] Dark mode + prefers-reduced-motion
+- [x] Sentry integration (API + PWA, conditional on SENTRY_DSN / VITE_SENTRY_DSN)
+- [x] Prometheus alerting rules + expanded scraping (node/postgres/redis exporters)
+- [x] Deploy rollback mechanism (version tagging + `--rollback` flag)
+- [x] Meshtastic bridge thread safety + dedup (node_id validation, per-river dangerLevelCm, 5-min dedup)
 
 ---
 

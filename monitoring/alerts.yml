@@ -1,0 +1,79 @@
+groups:
+  - name: samur-api
+    rules:
+      # API is down
+      - alert: ApiDown
+        expr: up{job="samur-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Samur API is unreachable"
+          description: "The samur-api target has been down for over 2 minutes."
+
+      # High request latency (> 2s p95)
+      - alert: HighRequestLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="samur-api"}[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API request latency (p95 > 2s)"
+
+      # High error rate (> 5% of requests returning 5xx)
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{job="samur-api", status=~"5.."}[5m]))
+          / sum(rate(http_requests_total{job="samur-api"}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API error rate exceeds 5%"
+
+      # Too many open connections
+      - alert: TooManyConnections
+        expr: nodejs_active_handles_total{job="samur-api"} > 500
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of active Node.js handles"
+
+  - name: samur-infra
+    rules:
+      # PostgreSQL is down
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL is unreachable"
+
+      # Redis is down
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis is unreachable"
+
+      # High memory usage on Node.js process (> 512MB)
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes{job="samur-api"} > 536870912
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API process memory exceeds 512MB"
+
+      # Event loop lag (> 100ms)
+      - alert: EventLoopLag
+        expr: nodejs_eventloop_lag_seconds{job="samur-api"} > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Node.js event loop lag exceeds 100ms"

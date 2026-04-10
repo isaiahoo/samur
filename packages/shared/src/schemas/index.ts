@@ -284,7 +284,7 @@ export const SmsWebhookSchema = z.object({
 });
 
 export const MeshtasticWebhookSchema = z.object({
-  node_id: z.string(),
+  node_id: z.string().regex(/^[0-9a-f]{4,8}$/i, "Invalid Meshtastic node ID format"),
   message: z.string().min(1).max(500),
   lat: z.number().optional(),
   lng: z.number().optional(),
@@ -309,7 +309,7 @@ export type ShelterQuery = z.infer<typeof ShelterQuerySchema>;
 export type RiverLevelQuery = z.infer<typeof RiverLevelQuerySchema>;
 export type MapClusterQuery = z.infer<typeof MapClusterQuerySchema>;
 export const MeshtasticHeartbeatSchema = z.object({
-  node_id: z.string(),
+  node_id: z.string().regex(/^[0-9a-f]{4,8}$/i, "Invalid Meshtastic node ID format"),
   uptime_seconds: z.number().optional(),
   battery_level: z.number().optional(),
   channel_utilization: z.number().optional(),

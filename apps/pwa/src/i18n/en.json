@@ -1,0 +1,95 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "search": "Search",
+    "noData": "No data",
+    "offline": "Offline",
+    "online": "Online"
+  },
+  "nav": {
+    "map": "Map",
+    "help": "Help",
+    "alerts": "Alerts",
+    "news": "News",
+    "info": "Info"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred. Please try refreshing the page.",
+    "reload": "Refresh page"
+  },
+  "auth": {
+    "login": "Log in",
+    "logout": "Log out",
+    "email": "Email",
+    "password": "Password",
+    "register": "Register"
+  },
+  "incident": {
+    "title": "Incident",
+    "report": "Report an incident",
+    "type": "Type",
+    "severity": "Severity",
+    "description": "Description",
+    "address": "Address",
+    "status": {
+      "unverified": "Unverified",
+      "verified": "Verified",
+      "resolved": "Resolved",
+      "false_report": "False report"
+    }
+  },
+  "help": {
+    "title": "Help request",
+    "create": "Request help",
+    "category": "Category",
+    "urgency": "Urgency",
+    "contactName": "Contact name",
+    "contactPhone": "Phone",
+    "status": {
+      "open": "Open",
+      "claimed": "Claimed",
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "alert": {
+    "title": "Alert",
+    "severity": {
+      "info": "Info",
+      "warning": "Warning",
+      "danger": "Danger",
+      "critical": "Critical"
+    }
+  },
+  "shelter": {
+    "title": "Shelter",
+    "capacity": "Capacity",
+    "occupancy": "Occupancy",
+    "address": "Address",
+    "status": {
+      "open": "Open",
+      "closed": "Closed",
+      "full": "Full"
+    }
+  },
+  "river": {
+    "level": "Water level",
+    "trend": {
+      "rising": "Rising",
+      "falling": "Falling",
+      "stable": "Stable"
+    },
+    "danger": "Danger level"
+  }
+}

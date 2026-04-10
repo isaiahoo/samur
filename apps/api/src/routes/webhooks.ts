@@ -9,6 +9,7 @@ import {
   MeshtasticHeartbeatSchema,
 } from "@samur/shared";
 import { emitIncidentCreated, emitHelpRequestCreated } from "../lib/emitter.js";
+import { DAGESTAN_GAUGES } from "../services/gaugeStations.js";
 import type { Incident, HelpRequest, HelpCategory } from "@samur/shared";
 
 const router = Router();
@@ -398,6 +399,30 @@ router.post(
           const levelCm = parseFloat(parts[parts.length - 1]);
 
           if (!isNaN(levelCm) && riverName) {
+            // Look up per-river danger level from gauge config
+            const gauge = DAGESTAN_GAUGES.find(
+              (g) => g.riverName.toLowerCase() === riverName.toLowerCase(),
+            );
+            const dangerLevelCm = gauge?.dangerLevelCm ?? 500;
+
+            // Dedup: skip if identical reading exists within 5 minutes
+            const recentDupe = await prisma.riverLevel.findFirst({
+              where: {
+                riverName,
+                stationName: `Meshtastic ${node_id}`,
+                levelCm,
+                measuredAt: { gte: new Date(Date.now() - 5 * 60_000) },
+              },
+            });
+
+            if (recentDupe) {
+              res.json({
+                success: true,
+                data: { type: "river_level", reply: `Дубликат — уровень уже записан` },
+              });
+              return;
+            }
+
             await prisma.riverLevel.create({
               data: {
                 riverName,
@@ -405,7 +430,7 @@ router.post(
                 lat: effectiveLat,
                 lng: effectiveLng,
                 levelCm,
-                dangerLevelCm: 500, // default danger level
+                dangerLevelCm,
                 trend: "stable",
                 measuredAt: new Date(),
               },

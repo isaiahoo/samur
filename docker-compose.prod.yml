@@ -225,9 +225,48 @@ services:
     restart: unless-stopped
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheusdata:/prometheus
     expose:
       - "9090"
+    profiles:
+      - monitoring
+
+  # ── Exporters (optional monitoring) ────────────────────────────────────
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: samur-node-exporter
+    restart: unless-stopped
+    expose:
+      - "9100"
+    profiles:
+      - monitoring
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: samur-postgres-exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-samur}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-samur}?sslmode=disable"
+    expose:
+      - "9187"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - monitoring
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: samur-redis-exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    expose:
+      - "9121"
+    depends_on:
+      redis:
+        condition: service_healthy
     profiles:
       - monitoring
 
