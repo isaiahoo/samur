@@ -139,7 +139,7 @@ a { color: var(--color-primary); text-decoration: none; }
   background: var(--color-surface);
   border-radius: 16px 16px 0 0;
   width: 100%;
-  max-height: 80dvh;
+  max-height: 60dvh;
   overflow-y: auto;
   animation: sheetUp 0.25s ease-out;
 }
@@ -544,6 +544,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .tier-hero--2 { color: #D97706; }
 .tier-hero--3 { color: #DC2626; }
 .tier-hero--4 { color: #991B1B; }
+.tier-hero-sub { font-size: 14px; font-weight: 500; color: var(--color-muted); margin-left: 6px; }
+.detail-tech { font-size: 13px; color: var(--color-muted); margin: 8px 0; }
 
 .tier-action {
   font-size: 13px;
@@ -2229,4 +2231,84 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
   /* Toast */
   .toast { background: #334155; color: var(--color-text); }
+
+  /* ── Detail panel dark mode ────────────────────────────────────────────── */
+
+  /* Tier banners — softer, translucent backgrounds */
+  .tier-banner--1 { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+  .tier-banner--2 { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+  .tier-banner--3 { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+  .tier-banner--4 { background: rgba(153, 27, 27, 0.3); color: #fca5a5; }
+
+  /* Tier hero — brighter on dark */
+  .tier-hero--1 { color: #4ade80; }
+  .tier-hero--2 { color: #fbbf24; }
+  .tier-hero--3 { color: #f87171; }
+  .tier-hero--4 { color: #fca5a5; }
+
+  /* Tier action — translucent dark fills */
+  .tier-action--1 { background: rgba(34, 197, 94, 0.1); color: #4ade80; }
+  .tier-action--2 { background: rgba(245, 158, 11, 0.1); color: #fbbf24; }
+  .tier-action--3 { background: rgba(239, 68, 68, 0.1); color: #f87171; }
+  .tier-action--4 { background: rgba(153, 27, 27, 0.15); color: #fca5a5; }
+
+  /* Forecast warnings */
+  .forecast-warning--elevated {
+    background: rgba(245, 158, 11, 0.1);
+    color: #fbbf24;
+    border-left-color: rgba(245, 158, 11, 0.5);
+  }
+  .forecast-warning--danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: #f87171;
+    border-left-color: rgba(239, 68, 68, 0.5);
+  }
+
+  /* Upstream warning */
+  .upstream-warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: #fbbf24;
+    border-left-color: rgba(245, 158, 11, 0.5);
+  }
+  .upstream-warning-eta { color: #d4a017; }
+
+  /* Soil moisture indicator */
+  .soil-status--dry { background: rgba(148, 163, 184, 0.1); color: #94a3b8; border-left-color: #475569; }
+  .soil-status--normal { background: rgba(34, 197, 94, 0.1); color: #4ade80; border-left-color: rgba(34, 197, 94, 0.5); }
+  .soil-status--normal .soil-status-value { color: #4ade80; }
+  .soil-status--elevated { background: rgba(6, 182, 212, 0.1); color: #22d3ee; border-left-color: rgba(6, 182, 212, 0.5); }
+  .soil-status--elevated .soil-status-value { color: #22d3ee; }
+  .soil-status--saturated { background: rgba(139, 92, 246, 0.1); color: #a78bfa; border-left-color: rgba(139, 92, 246, 0.5); }
+  .soil-status--saturated .soil-status-value { color: #a78bfa; }
+  .soil-status--critical { background: rgba(239, 68, 68, 0.1); color: #f87171; border-left-color: rgba(239, 68, 68, 0.5); }
+  .soil-status--critical .soil-status-value { color: #f87171; }
+
+  /* Gauge chart */
+  .gauge-chart-container {
+    background: rgba(15, 23, 42, 0.6);
+    border-color: rgba(51, 65, 85, 0.5);
+  }
+  .gauge-chart-title { color: #94a3b8; }
+  .gauge-chart-label { color: #64748b; }
+  .gauge-chart-loading {
+    background: rgba(15, 23, 42, 0.6);
+    border-color: rgba(51, 65, 85, 0.5);
+    color: #64748b;
+  }
+  .gauge-chart-tooltip {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  }
+  .gauge-chart-tooltip-date { color: #94a3b8; }
+  .gauge-chart-tooltip-value { color: #e2e8f0; }
+  .gauge-chart-legend { color: #64748b; }
+
+  /* Earthquake detail */
+  .eq-detail-badge--danger { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+  .eq-detail-badge--warning { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+  .eq-detail-badge--info { background: rgba(234, 179, 8, 0.15); color: #facc15; }
+
+  /* Stale data warning */
+  .detail-stale { color: #f87171; }
 }

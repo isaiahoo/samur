@@ -114,7 +114,7 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
       {hasData && tier.pctOfMean > 0 && (
         <div className={`tier-hero tier-hero--${tier.tier}`}>
           {tier.pctOfMean}%
-          <span style={{ fontSize: 14, fontWeight: 500, color: "#64748b", marginLeft: 6 }}>
+          <span className="tier-hero-sub">
             от нормы {arrow}
           </span>
         </div>
@@ -154,7 +154,7 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
       )}
 
       {/* Technical details */}
-      {hasData && <p style={{ fontSize: 13, color: "#475569", margin: "8px 0" }}>{techText}</p>}
+      {hasData && <p className="detail-tech">{techText}</p>}
 
       {/* Recharts chart — observed + forecast + threshold lines */}
       {hasData && historyLoading && (
