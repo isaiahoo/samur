@@ -22,6 +22,7 @@ const log = logger.child({ service: "earthquake" });
 // ── Config ──────────────────────────────────────────────────────────────
 
 const USGS_API = "https://earthquake.usgs.gov/fdsnws/event/1/query";
+const EMSC_API = "https://www.seismicportal.eu/fdsnws/event/1/query";
 
 /** Caucasus bounding box (covers Dagestan + surrounding seismic zone) */
 const BBOX = {
@@ -31,7 +32,7 @@ const BBOX = {
   maxlon: 49.0,
 } as const;
 
-const MIN_MAGNITUDE = 3.5;
+const MIN_MAGNITUDE = 2.5;
 const LOOKBACK_DAYS = 7;
 
 /** Alert thresholds */
@@ -58,6 +59,25 @@ interface UsgsFeature {
 interface UsgsResponse {
   type: "FeatureCollection";
   features: UsgsFeature[];
+}
+
+interface EmscFeature {
+  id: string;
+  properties: {
+    mag: number | null;
+    flynn_region: string | null;
+    time: string; // ISO string
+    depth: number | null;
+    unid: string;
+  };
+  geometry: {
+    coordinates: [number, number, number]; // [lng, lat, -depthKm]
+  };
+}
+
+interface EmscResponse {
+  type: "FeatureCollection";
+  features: EmscFeature[];
 }
 
 // ── In-memory cache for API responses ───────────────────────────────────
@@ -150,15 +170,22 @@ function findNearbyStations(lat: number, lng: number, radiusKm: number): Array<R
     .sort((a, b) => a.distanceKm - b.distanceKm);
 }
 
-// ── Main fetch ──────────────────────────────────────────────────────────
+// ── Source fetchers ─────────────────────────────────────────────────────
 
-/**
- * Fetch recent earthquakes from USGS, store to DB, trigger alerts for M4.5+.
- */
-export async function fetchEarthquakes(): Promise<EarthquakeEvent[]> {
-  const startTime = new Date();
-  startTime.setDate(startTime.getDate() - LOOKBACK_DAYS);
+interface RawEvent {
+  externalId: string;
+  magnitude: number;
+  depth: number;
+  lat: number;
+  lng: number;
+  place: string;
+  time: string;
+  felt: number | null;
+  mmi: number | null;
+  source: string;
+}
 
+async function fetchFromUSGS(startDate: string): Promise<RawEvent[]> {
   const params = new URLSearchParams({
     format: "geojson",
     minlatitude: String(BBOX.minlat),
@@ -166,25 +193,14 @@ export async function fetchEarthquakes(): Promise<EarthquakeEvent[]> {
     minlongitude: String(BBOX.minlon),
     maxlongitude: String(BBOX.maxlon),
     minmagnitude: String(MIN_MAGNITUDE),
-    starttime: startTime.toISOString().split("T")[0],
+    starttime: startDate,
     orderby: "time",
   });
 
-  const url = `${USGS_API}?${params}`;
-  log.info("Fetching earthquakes from USGS");
+  const data = await fetchJSON<UsgsResponse>(`${USGS_API}?${params}`, { service: "earthquake" });
+  if (!data || !Array.isArray(data.features)) return [];
 
-  const data = await fetchJSON<UsgsResponse>(url, { service: "earthquake" });
-
-  if (!data || !Array.isArray(data.features)) {
-    log.error("USGS earthquake API returned no data");
-    return cachedEvents;
-  }
-
-  const events: EarthquakeEvent[] = [];
-
-  // Prune stale alert dedup entries
-  pruneAlertedIds();
-
+  const events: RawEvent[] = [];
   for (const feature of data.features) {
     const { properties: p, geometry: g } = feature;
     if (!p || !g || p.type !== "earthquake") continue;
@@ -192,10 +208,8 @@ export async function fetchEarthquakes(): Promise<EarthquakeEvent[]> {
     if (!Array.isArray(g.coordinates) || g.coordinates.length < 3) continue;
 
     const [lng, lat, depthKm] = g.coordinates;
-
-    const event: EarthquakeEvent = {
-      id: "", // will be set after DB upsert
-      usgsId: feature.id,
+    events.push({
+      externalId: `usgs:${feature.id}`,
       magnitude: Math.round(p.mag * 10) / 10,
       depth: Math.round(depthKm * 10) / 10,
       lat: Math.round(lat * 1000) / 1000,
@@ -205,9 +219,102 @@ export async function fetchEarthquakes(): Promise<EarthquakeEvent[]> {
       felt: p.felt ?? null,
       mmi: p.mmi !== null ? Math.round(p.mmi * 10) / 10 : null,
       source: "usgs",
+    });
+  }
+  return events;
+}
+
+async function fetchFromEMSC(startDate: string): Promise<RawEvent[]> {
+  const params = new URLSearchParams({
+    format: "json",
+    minlat: String(BBOX.minlat),
+    maxlat: String(BBOX.maxlat),
+    minlon: String(BBOX.minlon),
+    maxlon: String(BBOX.maxlon),
+    minmag: String(MIN_MAGNITUDE),
+    start: startDate,
+    limit: "100",
+  });
+
+  const data = await fetchJSON<EmscResponse>(`${EMSC_API}?${params}`, { service: "earthquake" });
+  if (!data || !Array.isArray(data.features)) return [];
+
+  const events: RawEvent[] = [];
+  for (const feature of data.features) {
+    const { properties: p, geometry: g } = feature;
+    if (!p || !g) continue;
+    if (p.mag === null || p.mag < MIN_MAGNITUDE) continue;
+    if (!Array.isArray(g.coordinates) || g.coordinates.length < 3) continue;
+
+    const [lng, lat, negDepth] = g.coordinates;
+    events.push({
+      externalId: `emsc:${p.unid || feature.id}`,
+      magnitude: Math.round(p.mag * 10) / 10,
+      depth: Math.round(Math.abs(negDepth) * 10) / 10,
+      lat: Math.round(lat * 1000) / 1000,
+      lng: Math.round(lng * 1000) / 1000,
+      place: p.flynn_region ?? "Unknown location",
+      time: new Date(p.time).toISOString(),
+      felt: null,
+      mmi: null,
+      source: "emsc",
+    });
+  }
+  return events;
+}
+
+// ── Main fetch ──────────────────────────────────────────────────────────
+
+/**
+ * Fetch recent earthquakes from EMSC (primary) + USGS (secondary),
+ * store to DB, trigger alerts for significant events.
+ */
+export async function fetchEarthquakes(): Promise<EarthquakeEvent[]> {
+  const startTime = new Date();
+  startTime.setDate(startTime.getDate() - LOOKBACK_DAYS);
+  const startDate = startTime.toISOString().split("T")[0];
+
+  log.info("Fetching earthquakes from EMSC + USGS");
+
+  // Fetch from both sources in parallel; don't let one failure block the other
+  const [emscEvents, usgsEvents] = await Promise.all([
+    fetchFromEMSC(startDate).catch((err) => {
+      log.error({ err }, "EMSC fetch failed");
+      return [] as RawEvent[];
+    }),
+    fetchFromUSGS(startDate).catch((err) => {
+      log.error({ err }, "USGS fetch failed");
+      return [] as RawEvent[];
+    }),
+  ]);
+
+  // Merge: EMSC first (better Caucasus coverage), then USGS for any extras
+  const rawEvents = [...emscEvents, ...usgsEvents];
+
+  if (rawEvents.length === 0 && cachedEvents.length > 0) {
+    log.warn("Both earthquake sources returned 0 events, keeping cache");
+    return cachedEvents;
+  }
+
+  const events: EarthquakeEvent[] = [];
+
+  pruneAlertedIds();
+
+  for (const raw of rawEvents) {
+    const event: EarthquakeEvent = {
+      id: "",
+      usgsId: raw.externalId,
+      magnitude: raw.magnitude,
+      depth: raw.depth,
+      lat: raw.lat,
+      lng: raw.lng,
+      place: raw.place,
+      time: raw.time,
+      felt: raw.felt,
+      mmi: raw.mmi,
+      source: raw.source,
     };
 
-    // Upsert to DB (dedup by usgsId)
     try {
       const record = await prisma.earthquake.upsert({
         where: { usgsId: event.usgsId },
@@ -234,19 +341,20 @@ export async function fetchEarthquakes(): Promise<EarthquakeEvent[]> {
       event.id = record.id;
       events.push(event);
 
-      // Check if this event needs an alert
       await checkAndTriggerEarthquakeAlert(event);
     } catch (err) {
       log.error({ err, usgsId: event.usgsId }, "Failed to upsert earthquake");
     }
   }
 
-  // Update cache
   cachedEvents = events;
   cachedAt = Date.now();
 
   const significant = events.filter((e) => e.magnitude >= ALERT_MAG_WEBSOCKET).length;
-  log.info({ total: events.length, significant }, "Earthquake data updated");
+  log.info(
+    { total: events.length, emsc: emscEvents.length, usgs: usgsEvents.length, significant },
+    "Earthquake data updated",
+  );
 
   return events;
 }

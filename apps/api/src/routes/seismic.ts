@@ -19,7 +19,7 @@ router.get("/recent", (req, res) => {
   const days = Math.min(Math.max(Number.isNaN(parsedDays) ? 7 : parsedDays, 1), 30);
 
   const parsedMinMag = parseFloat(req.query.minmag as string);
-  const minMag = Math.min(Math.max(Number.isNaN(parsedMinMag) ? 3.5 : parsedMinMag, 0), 10);
+  const minMag = Math.min(Math.max(Number.isNaN(parsedMinMag) ? 2.5 : parsedMinMag, 0), 10);
 
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
