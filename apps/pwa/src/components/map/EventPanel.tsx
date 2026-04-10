@@ -35,12 +35,14 @@ function Section({ title, count, color, children }: { title: string; count: numb
   return (
     <div className="ep-section">
       <button className="ep-section-header" onClick={() => setOpen(!open)}>
-        <span className="ep-section-dot" style={{ background: color }} />
+        <span className="ep-section-indicator" style={{ background: color }} />
         <span className="ep-section-title">{title}</span>
         <span className="ep-section-count">{count}</span>
         <span className={`ep-section-chevron${open ? " ep-section-chevron--open" : ""}`}>&#9656;</span>
       </button>
-      {open && <div className="ep-section-body">{children}</div>}
+      <div className={`ep-section-body${open ? " ep-section-body--open" : ""}`}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -84,11 +86,18 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
     || (layers.earthquakes && earthquakes.length > 0)
     || (layers.shelters && shelters.length > 0);
 
+  const totalCount = (layers.incidents ? incidents.length : 0)
+    + (layers.helpRequests ? helpRequests.length : 0)
+    + (layers.riverLevels ? riverLevels.length : 0)
+    + (layers.earthquakes ? earthquakes.length : 0)
+    + (layers.shelters ? shelters.length : 0);
+
   return (
     <div className="ep">
       <div className="ep-header">
-        <span className="ep-header-title">СОБЫТИЯ</span>
+        <span className="ep-header-title">МОНИТОРИНГ</span>
         <span className="ep-header-line" />
+        <span className="ep-header-count">{totalCount}</span>
       </div>
 
       {!hasAny && <p className="ep-empty">Нет активных событий</p>}
