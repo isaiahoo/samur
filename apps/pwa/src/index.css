@@ -559,6 +559,184 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .tier-action--3 { background: #FEF2F2; color: #DC2626; }
 .tier-action--4 { background: #FEF2F2; color: #991B1B; font-weight: 700; }
 
+/* ── Damage scenario card ─────────────────────────────────────────────── */
+.damage-scenario {
+  margin: 12px 0 8px;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 12px;
+  background: #F8FAFC;
+}
+.damage-scenario-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.damage-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.damage-tab {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748B;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+.damage-tab:hover { background: #F1F5F9; }
+.damage-tab--active.damage-tab--moderate { background: #FFFBEB; color: #B45309; border-color: #F59E0B; }
+.damage-tab--active.damage-tab--severe { background: #FEF2F2; color: #B91C1C; border-color: #EF4444; }
+.damage-tab--active.damage-tab--catastrophic { background: #FAF5FF; color: #6D28D9; border-color: #8B5CF6; }
+
+.damage-card { margin-top: 4px; }
+.damage-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.damage-card-period {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748B;
+}
+.damage-card-discharge {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94A3B8;
+  font-variant-numeric: tabular-nums;
+}
+.damage-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.damage-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+.damage-stat-icon { font-size: 14px; flex-shrink: 0; }
+.damage-stat-value {
+  font-weight: 700;
+  color: #1E293B;
+  font-variant-numeric: tabular-nums;
+}
+.damage-stat-label { color: #64748B; }
+
+.damage-cost {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+.damage-card--moderate .damage-cost { background: #FFFBEB; }
+.damage-card--severe .damage-cost { background: #FEF2F2; }
+.damage-card--catastrophic .damage-cost { background: #FAF5FF; }
+.damage-cost-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: #1E293B;
+}
+.damage-card--moderate .damage-cost-value { color: #B45309; }
+.damage-card--severe .damage-cost-value { color: #B91C1C; }
+.damage-card--catastrophic .damage-cost-value { color: #6D28D9; }
+.damage-cost-label {
+  font-size: 11px;
+  color: #94A3B8;
+}
+
+.damage-settlements {
+  font-size: 11px;
+  color: #64748B;
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+.damage-settlements-label { font-weight: 600; }
+
+.damage-analogue {
+  font-size: 11px;
+  color: #94A3B8;
+  font-style: italic;
+  margin-bottom: 6px;
+}
+
+.damage-probability {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.damage-probability-bar {
+  flex: 1;
+  height: 4px;
+  background: #E2E8F0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.damage-probability-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+.damage-card--moderate .damage-probability-fill { background: #F59E0B; }
+.damage-card--severe .damage-probability-fill { background: #EF4444; }
+.damage-card--catastrophic .damage-probability-fill { background: #8B5CF6; }
+.damage-probability-text {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94A3B8;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.damage-expand {
+  display: block;
+  width: 100%;
+  padding: 4px;
+  border: none;
+  background: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94A3B8;
+  cursor: pointer;
+  text-align: center;
+}
+.damage-expand:hover { color: #64748B; }
+
+.damage-details {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #E2E8F0;
+}
+.damage-description {
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.5;
+  margin: 0 0 6px;
+}
+.damage-infra-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 11px;
+  color: #64748B;
+  line-height: 1.6;
+}
+
 /* ── Forecast warning badge ─────────────────────────────────────────────── */
 .forecast-warning {
   font-size: 13px;
@@ -2311,4 +2489,40 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
   /* Stale data warning */
   .detail-stale { color: #f87171; }
+
+  /* Damage scenario — dark mode */
+  .damage-scenario {
+    background: rgba(15, 23, 42, 0.5);
+    border-color: rgba(51, 65, 85, 0.5);
+  }
+  .damage-scenario-title { color: #94a3b8; }
+  .damage-tab {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: rgba(51, 65, 85, 0.5);
+    color: #94a3b8;
+  }
+  .damage-tab:hover { background: rgba(51, 65, 85, 0.5); }
+  .damage-tab--active.damage-tab--moderate { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); }
+  .damage-tab--active.damage-tab--severe { background: rgba(239, 68, 68, 0.15); color: #f87171; border-color: rgba(239, 68, 68, 0.4); }
+  .damage-tab--active.damage-tab--catastrophic { background: rgba(139, 92, 246, 0.15); color: #a78bfa; border-color: rgba(139, 92, 246, 0.4); }
+  .damage-card-period { color: #94a3b8; }
+  .damage-card-discharge { color: #64748b; }
+  .damage-stat-value { color: #e2e8f0; }
+  .damage-stat-label { color: #64748b; }
+  .damage-card--moderate .damage-cost { background: rgba(245, 158, 11, 0.1); }
+  .damage-card--severe .damage-cost { background: rgba(239, 68, 68, 0.1); }
+  .damage-card--catastrophic .damage-cost { background: rgba(139, 92, 246, 0.1); }
+  .damage-card--moderate .damage-cost-value { color: #fbbf24; }
+  .damage-card--severe .damage-cost-value { color: #f87171; }
+  .damage-card--catastrophic .damage-cost-value { color: #a78bfa; }
+  .damage-cost-label { color: #64748b; }
+  .damage-settlements { color: #94a3b8; }
+  .damage-analogue { color: #64748b; }
+  .damage-probability-bar { background: rgba(51, 65, 85, 0.5); }
+  .damage-probability-text { color: #64748b; }
+  .damage-expand { color: #64748b; }
+  .damage-expand:hover { color: #94a3b8; }
+  .damage-details { border-top-color: rgba(51, 65, 85, 0.5); }
+  .damage-description { color: #cbd5e1; }
+  .damage-infra-list { color: #94a3b8; }
 }

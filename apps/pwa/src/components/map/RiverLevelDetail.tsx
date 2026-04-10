@@ -4,6 +4,7 @@ import type { RiverLevel } from "@samur/shared";
 import { formatRelativeTime } from "@samur/shared";
 import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning, checkUpstreamDanger } from "./gaugeUtils.js";
 import { GaugeChart, type HistoryPoint } from "./GaugeChart.js";
+import { DamageScenario } from "./DamageScenario.js";
 import { getRiverLevelHistory } from "../../services/api.js";
 import type { SoilMoisturePoint } from "./geoJsonHelpers.js";
 
@@ -176,6 +177,9 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
           {TIER_ACTIONS[tier.tier]}
         </div>
       )}
+
+      {/* Damage scenario */}
+      {hasData && <DamageScenario riverName={r.riverName} currentTier={tier} />}
 
       {hasData && <p className="detail-meta">{formatRelativeTime(r.measuredAt)}</p>}
     </div>
