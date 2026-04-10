@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import type { GaugeTier } from "./gaugeUtils.js";
 import {
   getScenariosForRiver,
@@ -9,6 +9,55 @@ import {
   type FloodScenario,
 } from "./floodScenarios.js";
 import type { ScenarioAwareness, ScenarioProximity, ProximityBarData } from "./scenarioAwareness.js";
+
+// ── Info tooltip (tap-to-toggle, mobile-friendly) ────────────────────────
+
+function InfoTip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [open]);
+
+  return (
+    <span className="info-tip" ref={ref}>
+      <button
+        className="info-tip-btn"
+        onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+        aria-label="Подробнее о расчёте"
+      >?</button>
+      {open && <span className="info-tip-popup">{text}</span>}
+    </span>
+  );
+}
+
+const METHODOLOGY = {
+  proximity:
+    "Близость = (текущий расход − норма) / (порог сценария − норма). " +
+    "Метод EFAS (Kellens et al., 2013). Норма — среднегодовой расход станции.",
+  returnPeriod:
+    "Период повторяемости оценён методом Гумбеля (экстремальное распределение). " +
+    "Используются пороги сценариев как якорные точки. Показывается только при близости ≥ 15% к первому порогу.",
+  timeToThreshold:
+    "Линейная экстраполяция по последним 3 наблюдениям (метод UK Environment Agency). " +
+    "Показывается только при восходящем тренде.",
+  probability:
+    "Вероятность наступления за 10 лет: P = 1 − (1 − 1/T)^10, " +
+    "где T — период повторяемости сценария.",
+  cardProximity:
+    "Процент приближения текущего расхода к порогу данного сценария. " +
+    "0% = на уровне нормы, 100% = порог достигнут.",
+} as const;
 
 interface DamageScenarioProps {
   riverName: string;
@@ -51,7 +100,9 @@ function ProximityBar({ awareness }: { awareness: ScenarioAwareness }) {
   return (
     <div className="proximity-section">
       <div className="proximity-header">
-        <span className="proximity-title">Близость к порогам</span>
+        <span className="proximity-title">
+          Близость к порогам <InfoTip text={METHODOLOGY.proximity} />
+        </span>
         <span className="proximity-current">
           {formatNumber(Math.round(current))} {unit}
         </span>
@@ -94,12 +145,15 @@ function ProximityBar({ awareness }: { awareness: ScenarioAwareness }) {
       {(returnPeriod || timeToThreshold) && (
         <div className="proximity-meta">
           <span className="proximity-return-period">
-            {returnPeriod ? returnPeriod.label : ""}
+            {returnPeriod ? (
+              <>{returnPeriod.label} <InfoTip text={METHODOLOGY.returnPeriod} /></>
+            ) : ""}
           </span>
           {timeToThreshold && (
             <span className="proximity-eta">
               <span className="proximity-eta-arrow">{"\u2191"}</span>
               {timeToThreshold.etaLabel} до {"\u00AB"}{timeToThreshold.targetLabel}{"\u00BB"}
+              {" "}<InfoTip text={METHODOLOGY.timeToThreshold} />
             </span>
           )}
         </div>
@@ -135,6 +189,7 @@ function ScenarioCard({
           ) : (
             <span className="damage-card-proximity-text">
               {proximity.proximityPct}% до {formatNumber(proximity.thresholdM3s)} м{"\u00B3"}/с
+              {" "}<InfoTip text={METHODOLOGY.cardProximity} />
             </span>
           )}
         </div>
@@ -195,6 +250,7 @@ function ScenarioCard({
         </div>
         <span className="damage-probability-text">
           {Math.round(s.probability10yr * 100)}% за 10 лет
+          {" "}<InfoTip text={METHODOLOGY.probability} />
         </span>
       </div>
 
