@@ -6,6 +6,7 @@ import { createSOS } from "../services/api.js";
 import { addToOutbox } from "../services/db.js";
 import { useOnline } from "../hooks/useOnline.js";
 import { useUIStore } from "../store/ui.js";
+import { MAKHACHKALA_CENTER } from "@samur/shared";
 
 type Stage = "idle" | "confirm" | "situation" | "sending" | "sent" | "error";
 
@@ -36,6 +37,10 @@ export function SOSButton() {
   // Acquire GPS when confirm overlay opens
   const acquireLocation = useCallback(() => {
     if (locationRef.current) return;
+    if (!navigator.geolocation) {
+      // Geolocation unavailable (HTTP or unsupported browser)
+      return;
+    }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -50,18 +55,13 @@ export function SOSButton() {
   // Send the SOS signal — reads from refs to avoid stale closures
   const sendSOS = useCallback(async (situation?: SosSituation) => {
     const loc = locationRef.current;
-    if (!loc) {
-      showToast("Не удалось определить местоположение", "error");
-      return;
-    }
+    // Use GPS if available, otherwise fallback to Makhachkala center
+    const lat = loc?.lat ?? MAKHACHKALA_CENTER.lat;
+    const lng = loc?.lng ?? MAKHACHKALA_CENTER.lng;
     setStage("sending");
 
     const batteryLevel = await getBatteryLevel();
-    const payload: Record<string, unknown> = {
-      lat: loc.lat,
-      lng: loc.lng,
-      batteryLevel,
-    };
+    const payload: Record<string, unknown> = { lat, lng, batteryLevel };
     if (situation) payload.situation = situation;
 
     try {
@@ -231,7 +231,7 @@ export function SOSButton() {
           <p className="sos-location-status">
             {locating && "Определяем местоположение..."}
             {location && `Координаты получены (${Math.round(location.accuracy)}м)`}
-            {!locating && !location && "Ожидание GPS..."}
+            {!locating && !location && "GPS недоступен — будет отправлен без координат"}
           </p>
 
           <button className="sos-cancel-btn" onClick={cancel}>Отмена</button>

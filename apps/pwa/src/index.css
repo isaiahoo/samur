@@ -2579,7 +2579,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .sos-fab {
   position: fixed;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 70px);
-  right: 16px;
+  left: 16px;
   z-index: 1500;
   width: 52px;
   height: 52px;
