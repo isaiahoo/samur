@@ -282,4 +282,8 @@ export async function getLatestRiverLevels(): Promise<RiverLevel[]> {
   return data;
 }
 
+export async function getMe(token: string): Promise<Record<string, unknown>> {
+  return request<Record<string, unknown>>("GET", "/auth/me", undefined, token);
+}
+
 export { ApiError };

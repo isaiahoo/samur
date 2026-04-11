@@ -1,20 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { login, register, telegramAuth } from "../services/api.js";
+import { login, register, telegramInit, telegramCheck } from "../services/api.js";
 import { useAuthStore } from "../store/auth.js";
 import { useUIStore } from "../store/ui.js";
 import type { User } from "@samur/shared";
-
-interface TelegramUser {
-  id: number;
-  first_name: string;
-  last_name?: string;
-  username?: string;
-  photo_url?: string;
-  auth_date: number;
-  hash: string;
-}
 
 const TG_BOT_NAME = "samurchs_bot";
 const VK_APP_ID = "54531890";
@@ -52,11 +42,69 @@ export function LoginPage() {
   const [role, setRole] = useState("resident");
   const [submitting, setSubmitting] = useState(false);
   const [tgLoading, setTgLoading] = useState(false);
+  const [tgPolling, setTgPolling] = useState(false);
 
   const setAuth = useAuthStore((s) => s.setAuth);
   const showToast = useUIStore((s) => s.showToast);
   const navigate = useNavigate();
-  const tgContainerRef = useRef<HTMLDivElement>(null);
+  const tgPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => {
+      if (tgPollRef.current) clearInterval(tgPollRef.current);
+    };
+  }, []);
+
+  const handleTelegramLogin = async () => {
+    setTgLoading(true);
+    try {
+      const res = await telegramInit();
+      const { token } = res.data as { token: string };
+
+      // Open Telegram app via tg:// protocol (bypasses t.me domain block in Russia)
+      window.location.href = `tg://resolve?domain=${TG_BOT_NAME}&start=login_${token}`;
+
+      // Start polling for auth completion
+      setTgPolling(true);
+      let attempts = 0;
+      const maxAttempts = 60; // ~2 minutes at 2s intervals
+
+      tgPollRef.current = setInterval(async () => {
+        attempts++;
+        if (attempts > maxAttempts) {
+          clearInterval(tgPollRef.current!);
+          tgPollRef.current = null;
+          setTgPolling(false);
+          setTgLoading(false);
+          showToast("Время ожидания истекло. Попробуйте снова.", "error");
+          return;
+        }
+
+        try {
+          const check = await telegramCheck(token);
+          const data = check.data as { status: string; token?: string; user?: User };
+          if (data.status === "ok" && data.token && data.user) {
+            clearInterval(tgPollRef.current!);
+            tgPollRef.current = null;
+            setTgPolling(false);
+            setAuth(data.token, data.user);
+            showToast("Вход выполнен через Telegram", "success");
+            navigate("/");
+          }
+        } catch {
+          // Token expired or error — stop polling
+          clearInterval(tgPollRef.current!);
+          tgPollRef.current = null;
+          setTgPolling(false);
+          setTgLoading(false);
+        }
+      }, 2000);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Ошибка", "error");
+      setTgLoading(false);
+    }
+  };
 
   const handleVkLogin = async () => {
     const codeVerifier = generateCodeVerifier();
@@ -80,57 +128,6 @@ export function LoginPage() {
 
     window.location.href = `https://id.vk.com/authorize?${params.toString()}`;
   };
-
-  const handleTelegramAuth = useCallback(
-    async (tgUser: TelegramUser) => {
-      setTgLoading(true);
-      try {
-        const res = await telegramAuth(tgUser);
-        const data = res.data as { token: string; user: User };
-        setAuth(data.token, data.user);
-        showToast("Вход выполнен через Telegram", "success");
-        navigate("/");
-      } catch (err) {
-        showToast(
-          err instanceof Error ? err.message : "Ошибка входа через Telegram",
-          "error",
-        );
-      } finally {
-        setTgLoading(false);
-      }
-    },
-    [setAuth, showToast, navigate],
-  );
-
-  // Load Telegram Login Widget
-  useEffect(() => {
-    // Expose callback globally for the widget
-    (window as unknown as Record<string, unknown>).__onTelegramAuth = (
-      user: TelegramUser,
-    ) => {
-      handleTelegramAuth(user);
-    };
-
-    const container = tgContainerRef.current;
-    if (!container) return;
-
-    // Clear previous widget
-    container.innerHTML = "";
-
-    const script = document.createElement("script");
-    script.src = "https://telegram.org/js/telegram-widget.js?22";
-    script.async = true;
-    script.setAttribute("data-telegram-login", TG_BOT_NAME);
-    script.setAttribute("data-size", "large");
-    script.setAttribute("data-radius", "8");
-    script.setAttribute("data-onauth", "__onTelegramAuth(user)");
-    script.setAttribute("data-request-access", "write");
-    container.appendChild(script);
-
-    return () => {
-      delete (window as unknown as Record<string, unknown>).__onTelegramAuth;
-    };
-  }, [handleTelegramAuth]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,14 +172,17 @@ export function LoginPage() {
             Войти через VK
           </button>
 
-          <div
-            ref={tgContainerRef}
-            className="tg-login-container"
-            style={{ minHeight: 40 }}
-          />
-          {tgLoading && (
-            <p className="social-login-loading">Вход через Telegram...</p>
-          )}
+          <button
+            className="btn-tg-login"
+            onClick={handleTelegramLogin}
+            disabled={submitting || tgLoading}
+            type="button"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+            </svg>
+            {tgPolling ? "Ожидание подтверждения..." : "Войти через Telegram"}
+          </button>
         </div>
 
         <div className="login-divider">

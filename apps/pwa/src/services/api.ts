@@ -74,6 +74,18 @@ export function vkExchange(data: {
   });
 }
 
+export function telegramInit() {
+  return request<ApiResponse<{ token: string }>>("/auth/telegram/init", {
+    method: "POST",
+  });
+}
+
+export function telegramCheck(token: string) {
+  return request<ApiResponse<{ status: string; token?: string; user?: unknown }>>(
+    `/auth/telegram/check?token=${encodeURIComponent(token)}`,
+  );
+}
+
 export function telegramAuth(data: {
   id: number;
   first_name: string;

@@ -8,6 +8,7 @@ import { validateBody } from "../middleware/validate.js";
 import { TelegramAuthSchema } from "@samur/shared";
 import { AppError } from "../middleware/error.js";
 import { logger } from "../lib/logger.js";
+import { getRedis } from "../lib/redis.js";
 
 const router = Router();
 
@@ -144,5 +145,71 @@ router.post(
     }
   },
 );
+
+/**
+ * POST /api/v1/auth/telegram/init
+ *
+ * Generates a unique auth token for Telegram deep link login.
+ * The PWA opens tg://resolve?domain=BOT&start=login_TOKEN
+ * and then polls /telegram/check until the bot confirms auth.
+ */
+router.post("/telegram/init", async (_req, res, next) => {
+  try {
+    const redis = getRedis();
+    if (!redis) {
+      throw new AppError(503, "REDIS_UNAVAILABLE", "Сервис временно недоступен");
+    }
+
+    const token = crypto.randomBytes(24).toString("hex"); // 48 chars
+    await redis.set(`tg_auth:${token}`, "pending", "EX", 300); // 5 min TTL
+
+    res.json({ success: true, data: { token } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/v1/auth/telegram/check?token=TOKEN
+ *
+ * Polls for Telegram deep link auth completion.
+ * Returns { status: "pending" } or { status: "ok", token, user }.
+ */
+router.get("/telegram/check", async (req, res, next) => {
+  try {
+    const { token } = req.query as { token?: string };
+    if (!token) {
+      throw new AppError(400, "MISSING_TOKEN", "token обязателен");
+    }
+
+    const redis = getRedis();
+    if (!redis) {
+      throw new AppError(503, "REDIS_UNAVAILABLE", "Сервис временно недоступен");
+    }
+
+    const value = await redis.get(`tg_auth:${token}`);
+
+    if (!value) {
+      throw new AppError(404, "TOKEN_EXPIRED", "Токен истёк или не найден");
+    }
+
+    if (value === "pending") {
+      res.json({ success: true, data: { status: "pending" } });
+      return;
+    }
+
+    // Bot stored JSON: { jwt, user }
+    try {
+      const result = JSON.parse(value) as { jwt: string; user: unknown };
+      // Clean up after successful read
+      await redis.del(`tg_auth:${token}`);
+      res.json({ success: true, data: { status: "ok", token: result.jwt, user: result.user } });
+    } catch {
+      throw new AppError(500, "INVALID_AUTH_DATA", "Ошибка данных авторизации");
+    }
+  } catch (err) {
+    next(err);
+  }
+});
 
 export default router;

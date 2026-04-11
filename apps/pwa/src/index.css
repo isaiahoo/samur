@@ -1316,9 +1316,28 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   gap: 12px;
   margin-bottom: 4px;
 }
-.tg-login-container { display: flex; justify-content: center; width: 100%; }
-.tg-login-container iframe { border-radius: 8px !important; }
 .social-login-loading { font-size: 13px; color: #64748b; margin: 0; }
+
+.btn-tg-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: #2aabee;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-tg-login:hover { background: #229ed9; }
+.btn-tg-login:active { background: #1e8fc4; }
+.btn-tg-login:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-tg-login svg { flex-shrink: 0; }
 
 .btn-vk-login {
   display: flex;
@@ -3239,6 +3258,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .login-divider { color: #64748b; }
   .login-divider::before, .login-divider::after { background: var(--color-border); }
   .login-switch { color: #94a3b8; }
+  .btn-tg-login { background: #2aabee; }
+  .btn-tg-login:hover { background: #40b8f5; }
   .btn-vk-login { background: #0077ff; }
   .btn-vk-login:hover { background: #338aff; }
   .vk-callback-error { color: #f87171; }
