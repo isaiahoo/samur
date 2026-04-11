@@ -183,6 +183,7 @@ a { color: var(--color-primary); text-decoration: none; }
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  min-height: 0;
 }
 .app-tabbar {
   display: flex;
@@ -253,7 +254,7 @@ a { color: var(--color-primary); text-decoration: none; }
 
 .toast {
   position: fixed;
-  bottom: 80px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
   left: 50%;
   transform: translateX(-50%);
   padding: 10px 20px;
@@ -397,7 +398,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .modal-header h3 { font-size: 18px; }
 
-.map-page { position: relative; height: 100%; }
+.map-page { position: relative; height: 100%; overflow: hidden; }
 .map-container { width: 100%; height: 100%; z-index: 1; }
 /* Hide all MapLibre loading/spinner indicators */
 .maplibregl-ctrl-loading,
@@ -415,6 +416,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   justify-content: center;
   z-index: 10;
   background: rgba(255,255,255,0.8);
+}
+@media (prefers-color-scheme: dark) {
+  .map-loading { background: rgba(24, 24, 27, 0.8); }
 }
 .map-controls {
   position: absolute;
@@ -1179,7 +1183,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   text-overflow: ellipsis;
 }
 
-.help-page { padding-bottom: 80px; }
+.help-page { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 80px); }
 .help-tabs, .info-tabs { display: flex; border-bottom: 1px solid #e4e4e7; }
 .help-tab {
   flex: 1;
@@ -1212,7 +1216,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .help-card-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .help-card-status { font-size: 12px; color: #71717a; font-weight: 500; }
 
-.alerts-page { padding: 0 0 16px; }
+.alerts-page { padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 24px); }
 .alert-banner {
   padding: 12px 16px;
   display: flex;
@@ -1250,7 +1254,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .alert-title { font-size: 16px; margin-bottom: 4px; }
 .alert-body { font-size: 14px; color: #52525b; line-height: 1.5; }
 
-.info-page { padding-bottom: 16px; }
+.info-page { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); }
 .emergency-info { padding: 16px; }
 .info-section { margin-bottom: 24px; }
 .info-section h3 { font-size: 17px; margin-bottom: 12px; color: #27272a; }
@@ -1522,7 +1526,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .empty-state { display: flex; justify-content: center; padding: 48px 16px; color: #71717a; font-size: 15px; }
 
 /* ── News page ──────────────────────────────────────────────────────── */
-.news-page { padding: 0 0 16px; }
+.news-page { padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 24px); }
 .news-filters {
   display: flex; gap: 8px; padding: 12px 16px; overflow-x: auto;
   -webkit-overflow-scrolling: touch; scrollbar-width: none;
@@ -1590,6 +1594,12 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   right: 0;
   z-index: 10;
   pointer-events: auto;
+}
+@media (max-width: 768px) {
+  .timeline-slider {
+    bottom: 0;
+    padding-bottom: 4px;
+  }
 }
 
 .timeline-track-wrapper {
@@ -2190,7 +2200,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 /* ── NERV Controls: FAB ───────────────────────────────────────────────────── */
 .fab {
   position: fixed;
-  bottom: 80px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
   right: 16px;
   width: 44px;
   height: 44px;
@@ -2753,19 +2763,20 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 @media (max-width: 768px) {
   .ep {
     top: auto;
-    bottom: 56px;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
     left: 0;
     right: 0;
     width: 100%;
     height: auto;
-    max-height: 40vh;
+    max-height: 38vh;
     border-left: none;
     border-top: 1px solid rgba(120, 120, 130, 0.12);
     border-radius: 10px 10px 0 0;
+    padding-bottom: 16px;
   }
   .ep-toggle {
     top: auto;
-    bottom: 56px;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
     right: 50%;
     transform: translateX(50%) translateY(-100%);
     width: 48px;
@@ -2776,7 +2787,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   }
   .ep-toggle--open {
     right: 50%;
-    bottom: calc(56px + 40vh);
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 38vh);
   }
   .map-page--panel-open .map-controls { right: 12px; }
 }
