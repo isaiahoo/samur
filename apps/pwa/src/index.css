@@ -2777,7 +2777,6 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     left: 0;
     right: 0;
     width: 100%;
-    height: auto;
     max-height: 38vh;
     border-left: none;
     border-top: 1px solid rgba(0, 0, 0, 0.08);
@@ -2785,14 +2784,20 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     padding-bottom: 16px;
     transform: none;
     pointer-events: auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
-  /* Mobile collapsed: just show header + handle */
+  /* Mobile collapsed: just show header + handle, no scroll */
   .ep--collapsed {
     max-height: none;
-    height: auto;
     overflow: hidden;
     transform: none;
     pointer-events: auto;
+  }
+  /* Sticky header doesn't work well on iOS inside abs containers — make it static on mobile */
+  .ep .ep-header {
+    position: static;
+    backdrop-filter: none;
   }
   /* Hide desktop toggle on mobile */
   .ep-toggle { display: none; }
