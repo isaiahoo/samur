@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { login, register, telegramInit, telegramCheck } from "../services/api.js";
+import { login, register, telegramInit, telegramCheck, ApiError } from "../services/api.js";
 import { useAuthStore } from "../store/auth.js";
 import { useUIStore } from "../store/ui.js";
 import type { User } from "@samur/shared";
@@ -63,7 +63,17 @@ export function LoginPage() {
       const { token } = res.data as { token: string };
 
       // Open Telegram app via tg:// protocol (bypasses t.me domain block in Russia)
-      window.location.href = `tg://resolve?domain=${TG_BOT_NAME}&start=login_${token}`;
+      // Falls back to t.me link after a short delay (for desktop or if tg:// not handled)
+      const tgDeepLink = `tg://resolve?domain=${TG_BOT_NAME}&start=login_${token}`;
+      const tgWebLink = `https://t.me/${TG_BOT_NAME}?start=login_${token}`;
+
+      window.location.href = tgDeepLink;
+      // If tg:// didn't open the app, try web link after 1.5s
+      setTimeout(() => {
+        if (document.hasFocus()) {
+          window.open(tgWebLink, "_blank");
+        }
+      }, 1500);
 
       // Start polling for auth completion
       setTgPolling(true);
@@ -92,12 +102,16 @@ export function LoginPage() {
             showToast("Вход выполнен через Telegram", "success");
             navigate("/");
           }
-        } catch {
-          // Token expired or error — stop polling
-          clearInterval(tgPollRef.current!);
-          tgPollRef.current = null;
-          setTgPolling(false);
-          setTgLoading(false);
+        } catch (err) {
+          // 404 = token expired (stop); other errors = transient (keep polling)
+          if (err instanceof ApiError && err.status === 404) {
+            clearInterval(tgPollRef.current!);
+            tgPollRef.current = null;
+            setTgPolling(false);
+            setTgLoading(false);
+            showToast("Время ожидания истекло. Попробуйте снова.", "error");
+          }
+          // else: transient error, keep polling
         }
       }, 2000);
     } catch (err) {

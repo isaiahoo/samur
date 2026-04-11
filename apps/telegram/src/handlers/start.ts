@@ -2,17 +2,19 @@
 import type TelegramBot from "node-telegram-bot-api";
 import { getToken } from "../auth.js";
 import { redis } from "../redis.js";
-import { getMe } from "../api.js";
+import { authenticateForPWA } from "../api.js";
 
 /**
  * Handle deep link login: /start login_TOKEN
- * Authenticates user via bot, stores JWT in Redis for PWA to pick up.
+ * Uses the dedicated /auth/telegram endpoint (same as the PWA's own auth)
+ * so user is created/found by tgId — not the bot's fake phone registration.
  */
 async function handleDeepLinkLogin(
   bot: TelegramBot,
   chatId: number,
   tgId: number,
-  name: string,
+  firstName: string,
+  lastName: string | undefined,
   authToken: string,
 ): Promise<void> {
   // Check if this auth token exists and is pending
@@ -23,16 +25,13 @@ async function handleDeepLinkLogin(
   }
 
   try {
-    // Get JWT for this user
-    const jwt = await getToken(chatId, tgId, name);
-
-    // Fetch user info
-    const user = await getMe(jwt);
+    // Use the PWA's own Telegram auth endpoint — creates/finds user by tgId
+    const result = await authenticateForPWA(tgId, firstName, lastName);
 
     // Store result in Redis for the PWA to pick up
     await redis.set(
       `tg_auth:${authToken}`,
-      JSON.stringify({ jwt, user }),
+      JSON.stringify({ jwt: result.token, user: result.user }),
       "EX",
       300,
     );
@@ -59,7 +58,12 @@ export function registerStartHandler(bot: TelegramBot): void {
     // Handle deep link login
     if (payload?.startsWith("login_")) {
       const authToken = payload.slice(6); // remove "login_" prefix
-      await handleDeepLinkLogin(bot, chatId, msg.from!.id, name, authToken);
+      await handleDeepLinkLogin(
+        bot, chatId, msg.from!.id,
+        msg.from!.first_name,
+        msg.from?.last_name,
+        authToken,
+      );
       return;
     }
 

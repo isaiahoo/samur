@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import crypto from "node:crypto";
 import { config } from "./config.js";
 import type {
   ApiResponse,
@@ -284,6 +285,41 @@ export async function getLatestRiverLevels(): Promise<RiverLevel[]> {
 
 export async function getMe(token: string): Promise<Record<string, unknown>> {
   return request<Record<string, unknown>>("GET", "/auth/me", undefined, token);
+}
+
+/**
+ * Authenticate a Telegram user via the PWA's /auth/telegram endpoint.
+ * The bot generates the HMAC hash using the bot token — same verification
+ * as the Telegram Login Widget, but constructed server-side.
+ */
+export async function authenticateForPWA(
+  tgId: number,
+  firstName: string,
+  lastName?: string,
+): Promise<{ token: string; user: Record<string, unknown> }> {
+  const authDate = Math.floor(Date.now() / 1000);
+  const data: Record<string, string | number> = {
+    id: tgId,
+    first_name: firstName,
+    auth_date: authDate,
+  };
+  if (lastName) data.last_name = lastName;
+
+  // Generate HMAC-SHA256 hash — same algorithm as Telegram Login Widget verification
+  const secretKey = crypto.createHash("sha256").update(config.TG_BOT_TOKEN).digest();
+  const checkString = Object.keys(data)
+    .sort()
+    .map((k) => `${k}=${data[k]}`)
+    .join("\n");
+  const hash = crypto.createHmac("sha256", secretKey).update(checkString).digest("hex");
+
+  data.hash = hash;
+
+  return request<{ token: string; user: Record<string, unknown> }>(
+    "POST",
+    "/auth/telegram",
+    data,
+  );
 }
 
 export { ApiError };
