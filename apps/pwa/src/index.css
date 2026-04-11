@@ -334,7 +334,12 @@ a { color: var(--color-primary); text-decoration: none; }
 .btn-danger { background: #ef4444; color: #fff; }
 .btn-sm { padding: 6px 12px; font-size: 13px; min-height: 36px; }
 .btn-lg { width: 100%; padding: 12px; font-size: 16px; }
-.btn-close { background: none; border: none; font-size: 20px; color: #71717a; cursor: pointer; padding: 8px; min-width: 44px; min-height: 44px; }
+.btn-close {
+  background: rgba(0, 0, 0, 0.06); border: none; font-size: 16px; color: #52525b;
+  cursor: pointer; padding: 0; width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  min-width: 44px; min-height: 44px;
+}
 .btn-link { background: none; border: none; color: #2563eb; cursor: pointer; font-size: inherit; text-decoration: underline; }
 
 .severity-buttons, .urgency-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -463,9 +468,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   background: rgba(0, 0, 0, 0.15);
   margin: 8px auto 0;
 }
-.report-form { padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); max-width: 480px; margin: 0 auto; }
-.report-form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.report-form-header h2 { font-size: 20px; font-weight: 600; }
+.report-form { padding: 0 16px 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); max-width: 480px; margin: 0 auto; }
+.report-form-header {
+  display: flex; justify-content: space-between; align-items: center;
+  position: sticky; top: 0; z-index: 1;
+  background: inherit; padding: 12px 0; margin-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+.report-form-header h2 { font-size: 18px; font-weight: 600; }
 .report-step { margin-bottom: 20px; }
 .report-step h3 { font-size: 16px; margin-bottom: 12px; color: #3f3f46; }
 .report-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
