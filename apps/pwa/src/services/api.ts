@@ -62,6 +62,18 @@ export function register(name: string, phone: string, password: string, role?: s
   });
 }
 
+export function vkExchange(data: {
+  code: string;
+  codeVerifier: string;
+  redirectUri: string;
+  deviceId?: string;
+}) {
+  return request<ApiResponse<{ token: string; user: unknown }>>("/auth/vk/exchange", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 export function telegramAuth(data: {
   id: number;
   first_name: string;

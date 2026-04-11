@@ -11,6 +11,7 @@ const AlertsPage = lazy(() => import("./pages/AlertsPage.js").then((m) => ({ def
 const NewsPage = lazy(() => import("./pages/NewsPage.js").then((m) => ({ default: m.NewsPage })));
 const InfoPage = lazy(() => import("./pages/InfoPage.js").then((m) => ({ default: m.InfoPage })));
 const LoginPage = lazy(() => import("./pages/LoginPage.js").then((m) => ({ default: m.LoginPage })));
+const VkCallbackPage = lazy(() => import("./pages/VkCallbackPage.js").then((m) => ({ default: m.VkCallbackPage })));
 const AdminPage = lazy(() => import("./pages/admin/AdminPage.js").then((m) => ({ default: m.AdminPage })));
 
 export function App() {
@@ -27,6 +28,7 @@ export function App() {
             <Route path="/info" element={<InfoPage />} />
           </Route>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/vk/callback" element={<VkCallbackPage />} />
           <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </Suspense>

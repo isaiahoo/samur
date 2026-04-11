@@ -1320,6 +1320,40 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .tg-login-container iframe { border-radius: 8px !important; }
 .social-login-loading { font-size: 13px; color: #64748b; margin: 0; }
 
+.btn-vk-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: #0077ff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-vk-login:hover { background: #0066dd; }
+.btn-vk-login:active { background: #0055cc; }
+.btn-vk-login:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-vk-login svg { flex-shrink: 0; }
+
+.vk-callback-error {
+  color: #dc2626;
+  font-size: 14px;
+  text-align: center;
+  margin: 16px 0;
+}
+.vk-callback-loading {
+  color: #64748b;
+  font-size: 14px;
+  text-align: center;
+  margin: 24px 0;
+}
+
 .login-divider {
   display: flex;
   align-items: center;
@@ -3205,6 +3239,10 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .login-divider { color: #64748b; }
   .login-divider::before, .login-divider::after { background: var(--color-border); }
   .login-switch { color: #94a3b8; }
+  .btn-vk-login { background: #0077ff; }
+  .btn-vk-login:hover { background: #338aff; }
+  .vk-callback-error { color: #f87171; }
+  .vk-callback-loading { color: #94a3b8; }
 
   /* Profile button & menu */
   .profile-btn { background: #334155; color: #94a3b8; }
