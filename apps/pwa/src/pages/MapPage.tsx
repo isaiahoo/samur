@@ -60,7 +60,8 @@ export function MapPage() {
   const soilMoistureRef = useRef<SoilMoisturePoint[]>([]);
   const mapViewRef = useRef<MapViewHandle>(null);
   const [eventPanelOpen, setEventPanelOpen] = useState(true);
-  const { position, requestPosition } = useGeolocation();
+  const { position, status: geoStatus, requestPosition } = useGeolocation();
+  const [geoBannerDismissed, setGeoBannerDismissed] = useState(false);
   const openSheet = useUIStore((s) => s.openSheet);
   const closeSheet = useUIStore((s) => s.closeSheet);
   const setCrisis = useUIStore((s) => s.setCrisis);
@@ -194,8 +195,9 @@ export function MapPage() {
     };
   }, [fetchData, fetchRiverLevels, fetchPrecipData, fetchSoilMoistureData, fetchSnowData, fetchRunoffData, fetchEarthquakeData, fetchForecastData]);
 
-  // Geolocation is requested on user interaction (locate button, report form,
-  // SOS) — not on mount, because iOS Safari silently blocks non-gesture requests.
+  useEffect(() => {
+    requestPosition();
+  }, [requestPosition]);
 
   useSocketEvent("incident:created", (inc) => {
     setIncidents((prev) => [inc, ...prev]);
@@ -358,6 +360,16 @@ export function MapPage() {
         onMarkerClick={handleMarkerClick}
         onMapMove={handleMapMove}
       />
+
+      {geoStatus === "denied" && !geoBannerDismissed && (
+        <div className="geo-banner">
+          <span className="geo-banner-text">
+            Геолокация отключена. Откройте <b>Настройки &gt; Конфиденциальность &gt; Службы геолокации &gt; Safari</b> и разрешите доступ.
+          </span>
+          <button className="geo-banner-retry" onClick={requestPosition}>Повторить</button>
+          <button className="geo-banner-close" onClick={() => setGeoBannerDismissed(true)} aria-label="Закрыть">&times;</button>
+        </div>
+      )}
 
       {/* Toggle button — desktop: side tab, mobile: bottom bar */}
       {!eventPanelOpen && (
