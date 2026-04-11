@@ -433,11 +433,19 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 .report-overlay {
   position: fixed;
-  inset: 0;
+  bottom: 0; left: 0; right: 0;
+  max-height: 92vh;
   background: #fff;
   z-index: 2000;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+  animation: report-slide-up 0.25s ease-out;
+}
+@keyframes report-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }
 .report-overlay-backdrop {
   position: fixed;
@@ -445,6 +453,15 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   background: rgba(0, 0, 0, 0.4);
   z-index: 1999;
   -webkit-tap-highlight-color: transparent;
+}
+.report-overlay::before {
+  content: "";
+  display: block;
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.15);
+  margin: 8px auto 0;
 }
 .report-form { padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); max-width: 480px; margin: 0 auto; }
 .report-form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -2210,8 +2227,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   position: fixed;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
   right: 16px;
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background: #2563eb;
   color: #fff;
@@ -2219,28 +2236,15 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3), 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35), 0 1px 3px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   z-index: 500;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
 }
 .fab:active {
   transform: scale(0.92);
   box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
-}
-.fab-label {
-  position: absolute;
-  right: 56px;
-  background: #fff;
-  color: #27272a;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 4px 10px;
-  border-radius: 6px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-  white-space: nowrap;
-  pointer-events: none;
 }
 
 /* ── NERV Controls: Layer Toggle ──────────────────────────────────────────── */
@@ -3498,7 +3502,6 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
   /* Report form */
   .report-overlay { background: var(--color-bg); }
-  .fab-label { background: #27272a; color: #e4e4e7; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); }
   .report-step h3 { color: #e4e4e7; }
   .report-type-btn {
     background: var(--color-surface);
