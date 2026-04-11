@@ -437,10 +437,18 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   background: #fff;
   z-index: 2000;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
-.report-form { padding: 16px; max-width: 480px; margin: 0 auto; }
+.report-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1999;
+  -webkit-tap-highlight-color: transparent;
+}
+.report-form { padding: 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); max-width: 480px; margin: 0 auto; }
 .report-form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.report-form-header h2 { font-size: 20px; }
+.report-form-header h2 { font-size: 20px; font-weight: 600; }
 .report-step { margin-bottom: 20px; }
 .report-step h3 { font-size: 16px; margin-bottom: 12px; color: #3f3f46; }
 .report-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
@@ -2200,31 +2208,39 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 /* ── NERV Controls: FAB ───────────────────────────────────────────────────── */
 .fab {
   position: fixed;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
   right: 16px;
-  width: 44px;
-  height: 44px;
-  border-radius: 2px;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
-  color: #EF4444;
-  border: 1px solid rgba(239, 68, 68, 0.6);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #fff;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.15), inset 0 0 12px rgba(239, 68, 68, 0.05);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3), 0 1px 3px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   z-index: 500;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s, box-shadow 0.15s;
 }
 .fab:active {
-  border-color: #EF4444;
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+  transform: scale(0.92);
+  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
 }
-.crisis-mode .fab {
-  border-color: #EF4444;
-  background: rgba(127, 29, 29, 0.8);
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.3);
+.fab-label {
+  position: absolute;
+  right: 56px;
+  background: #fff;
+  color: #27272a;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 /* ── NERV Controls: Layer Toggle ──────────────────────────────────────────── */
@@ -3482,6 +3498,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
   /* Report form */
   .report-overlay { background: var(--color-bg); }
+  .fab-label { background: #27272a; color: #e4e4e7; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); }
   .report-step h3 { color: #e4e4e7; }
   .report-type-btn {
     background: var(--color-surface);
