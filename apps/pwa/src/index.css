@@ -2561,6 +2561,16 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   transform: translateX(0);
   transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
+/* Desktop: collapsed = slide off-screen */
+.ep--collapsed {
+  transform: translateX(100%);
+  pointer-events: none;
+}
+
+/* Mobile handle — hidden on desktop */
+.ep-handle {
+  display: none;
+}
 
 .ep-header {
   display: flex;
@@ -2773,21 +2783,36 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     border-top: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 10px 10px 0 0;
     padding-bottom: 16px;
+    transform: none;
+    pointer-events: auto;
   }
-  .ep-toggle {
-    top: auto;
-    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
-    right: 50%;
-    transform: translateX(50%) translateY(-100%);
-    width: 48px;
-    height: 22px;
-    border-radius: 6px 6px 0 0;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-bottom: none;
+  /* Mobile collapsed: just show header + handle */
+  .ep--collapsed {
+    max-height: none;
+    height: auto;
+    overflow: hidden;
+    transform: none;
+    pointer-events: auto;
   }
-  .ep-toggle--open {
-    right: 50%;
-    bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 38vh);
+  /* Hide desktop toggle on mobile */
+  .ep-toggle { display: none; }
+  /* Show mobile handle */
+  .ep-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 8px 0 2px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ep-handle-bar {
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(0, 0, 0, 0.15);
   }
   .map-page--panel-open .map-controls { right: 12px; }
 }
@@ -3167,9 +3192,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .ep-row-title { color: #e4e4e7; }
   .ep-row-tag { background: rgba(255, 255, 255, 0.08); color: #a1a1aa; }
   .ep-row-sub { color: #71717a; }
+  .ep-handle-bar { background: rgba(255, 255, 255, 0.2); }
   @media (max-width: 768px) {
     .ep { border-top-color: rgba(255, 255, 255, 0.08); }
-    .ep-toggle { border-color: rgba(255, 255, 255, 0.1); }
   }
 
   /* Inputs */

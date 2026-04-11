@@ -360,6 +360,7 @@ export function MapPage() {
         onMapMove={handleMapMove}
       />
 
+      {/* Desktop: side-tab toggle (hidden on mobile via CSS) */}
       <button
         className={`ep-toggle${eventPanelOpen ? " ep-toggle--open" : ""}`}
         onClick={() => setEventPanelOpen(!eventPanelOpen)}
@@ -368,17 +369,17 @@ export function MapPage() {
         {eventPanelOpen ? "\u25B6" : "\u25C0"}
       </button>
 
-      {eventPanelOpen && (
-        <EventPanel
-          incidents={incidents}
-          helpRequests={helpRequests}
-          shelters={shelters}
-          riverLevels={effectiveRiverLevels}
-          earthquakes={earthquakes}
-          layers={layers}
-          onEventClick={handleEventPanelClick}
-        />
-      )}
+      <EventPanel
+        incidents={incidents}
+        helpRequests={helpRequests}
+        shelters={shelters}
+        riverLevels={effectiveRiverLevels}
+        earthquakes={earthquakes}
+        layers={layers}
+        onEventClick={handleEventPanelClick}
+        open={eventPanelOpen}
+        onToggle={() => setEventPanelOpen(!eventPanelOpen)}
+      />
 
       <div className="map-controls">
         <LayerToggle

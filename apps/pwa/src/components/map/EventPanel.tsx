@@ -25,6 +25,10 @@ interface EventPanelProps {
   earthquakes: EarthquakeEvent[];
   layers: Record<string, boolean>;
   onEventClick: (type: MarkerType, item: unknown, key: string) => void;
+  /** Mobile: is the panel body expanded? */
+  open?: boolean;
+  /** Mobile: toggle expand/collapse */
+  onToggle?: () => void;
 }
 
 // ── Collapsible section ────────────────────────────────────────────────────
@@ -49,7 +53,7 @@ function Section({ title, count, color, children }: { title: string; count: numb
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export function EventPanel({ incidents, helpRequests, shelters, riverLevels, earthquakes, layers, onEventClick }: EventPanelProps) {
+export function EventPanel({ incidents, helpRequests, shelters, riverLevels, earthquakes, layers, onEventClick, open, onToggle }: EventPanelProps) {
   const sortedIncidents = useMemo(
     () => [...incidents].sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9)).slice(0, 20),
     [incidents],
@@ -93,15 +97,22 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
     + (layers.shelters ? shelters.length : 0);
 
   return (
-    <div className="ep">
-      <div className="ep-header">
+    <div className={`ep${open === false ? " ep--collapsed" : ""}`}>
+      {/* Mobile drag handle — tapping toggles expand/collapse */}
+      {onToggle && (
+        <button className="ep-handle" onClick={onToggle} aria-label="Свернуть/развернуть панель">
+          <span className="ep-handle-bar" />
+        </button>
+      )}
+      <div className="ep-header" onClick={onToggle} role={onToggle ? "button" : undefined}>
         <span className="ep-header-title">МОНИТОРИНГ</span>
         <span className="ep-header-line" />
         <span className="ep-header-count">{totalCount}</span>
       </div>
 
-      {!hasAny && <p className="ep-empty">Нет активных событий</p>}
+      {!hasAny && open !== false && <p className="ep-empty">Нет активных событий</p>}
 
+      {open !== false && (<>
       {/* ── Incidents ──────────────────────────────────────────── */}
       {layers.incidents && sortedIncidents.length > 0 && (
         <Section title="Инциденты" count={incidents.length} color="#EF4444">
@@ -192,6 +203,7 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
           ))}
         </Section>
       )}
+      </>)}
     </div>
   );
 }
