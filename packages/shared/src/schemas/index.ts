@@ -233,6 +233,7 @@ export const PhoneVerifySchema = z.object({
   phone: phone,
   code: z.string().regex(/^\d{4,6}$/, "Код должен состоять из 4-6 цифр"),
   name: z.string().min(1).max(200).optional(),
+  role: z.enum(["resident", "volunteer"]).optional(),
 });
 
 export const SortOrderSchema = z.enum(["asc", "desc"]).default("desc");

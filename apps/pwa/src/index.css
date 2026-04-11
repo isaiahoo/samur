@@ -1495,6 +1495,25 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   margin: 0;
 }
 
+/* Role selector */
+.role-select {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.role-option {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 8px; border: 2px solid #e4e4e7; border-radius: 10px;
+  background: #fff; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.role-option--active {
+  border-color: #2563eb; background: rgba(37, 99, 235, 0.04);
+}
+.role-option-icon { font-size: 24px; }
+.role-option-label { font-size: 13px; font-weight: 600; color: #27272a; }
+.role-option-desc { font-size: 11px; color: #a1a1aa; }
+
 .admin-page {
   min-height: 100dvh;
   background: #fafafa;

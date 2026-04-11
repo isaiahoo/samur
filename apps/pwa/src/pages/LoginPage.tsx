@@ -38,6 +38,7 @@ export function LoginPage() {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  const [role, setRole] = useState<"resident" | "volunteer">("resident");
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [submitting, setSubmitting] = useState(false);
   const [tgLoading, setTgLoading] = useState(false);
@@ -178,7 +179,7 @@ export function LoginPage() {
     if (code.length < 4) return;
     setSubmitting(true);
     try {
-      const res = await phoneVerify(phone, code, name || undefined);
+      const res = await phoneVerify(phone, code, name || undefined, role);
       const data = res.data as { token: string; user: User; isNew: boolean };
       setAuth(data.token, data.user);
       showToast("Вход выполнен", "success");
@@ -216,7 +217,7 @@ export function LoginPage() {
       <div className="login-card">
         <div className="login-header">
           <h2>Самур</h2>
-          <p className="login-subtitle">Координация помощи</p>
+          <p className="login-subtitle">Вход и регистрация</p>
         </div>
 
         {/* Social Login */}
@@ -313,15 +314,39 @@ export function LoginPage() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="login-name">Имя (для новых пользователей)</label>
+              <label htmlFor="login-name">Ваше имя</label>
               <input
                 id="login-name"
                 className="form-input"
                 type="text"
-                placeholder="Ваше имя"
+                placeholder="Как вас зовут?"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
+            </div>
+
+            <div className="form-group">
+              <label>Я хочу</label>
+              <div className="role-select">
+                <button
+                  type="button"
+                  className={`role-option${role === "resident" ? " role-option--active" : ""}`}
+                  onClick={() => setRole("resident")}
+                >
+                  <span className="role-option-icon">🏠</span>
+                  <span className="role-option-label">Получать помощь</span>
+                  <span className="role-option-desc">Житель</span>
+                </button>
+                <button
+                  type="button"
+                  className={`role-option${role === "volunteer" ? " role-option--active" : ""}`}
+                  onClick={() => setRole("volunteer")}
+                >
+                  <span className="role-option-icon">🤝</span>
+                  <span className="role-option-label">Помогать</span>
+                  <span className="role-option-desc">Волонтёр</span>
+                </button>
+              </div>
             </div>
 
             <button

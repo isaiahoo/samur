@@ -56,6 +56,10 @@ function normalizePhone(phone: string): string {
   if (digits.length === 11 && digits.startsWith("8")) {
     digits = "7" + digits.slice(1);
   }
+  // 10-digit number without country code — prepend 7 (Russia)
+  if (digits.length === 10 && digits.startsWith("9")) {
+    digits = "7" + digits;
+  }
   return digits;
 }
 
@@ -146,7 +150,7 @@ router.post(
   validateBody(PhoneVerifySchema),
   async (req, res, next) => {
     try {
-      const { phone, code, name } = req.body;
+      const { phone, code, name, role: requestedRole } = req.body;
       const digits = normalizePhone(phone);
 
       const redis = getRedis();
@@ -197,11 +201,13 @@ router.post(
 
       if (!user) {
         // New user — create account
+        const validRoles = ["resident", "volunteer"];
+        const role = validRoles.includes(requestedRole) ? requestedRole : "resident";
         user = await prisma.user.create({
           data: {
             name: name || "Пользователь",
             phone: normalizedPhone,
-            role: "resident",
+            role,
           },
         });
         logger.info({ userId: user.id, phone: normalizedPhone }, "New user created via phone verification");

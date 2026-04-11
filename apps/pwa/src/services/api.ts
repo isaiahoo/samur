@@ -93,10 +93,10 @@ export function phoneRequest(phone: string) {
   });
 }
 
-export function phoneVerify(phone: string, code: string, name?: string) {
+export function phoneVerify(phone: string, code: string, name?: string, role?: string) {
   return request<ApiResponse<{ token: string; user: unknown; isNew: boolean }>>("/auth/phone/verify", {
     method: "POST",
-    body: JSON.stringify({ phone, code, name }),
+    body: JSON.stringify({ phone, code, name, role }),
   });
 }
 
