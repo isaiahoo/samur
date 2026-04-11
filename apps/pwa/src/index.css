@@ -2246,6 +2246,11 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   transform: scale(0.92);
   box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
 }
+@media (max-width: 768px) {
+  .fab {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 104px);
+  }
+}
 
 /* ── NERV Controls: Layer Toggle ──────────────────────────────────────────── */
 .nerv-layers {
