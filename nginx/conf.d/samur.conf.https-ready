@@ -1,7 +1,7 @@
 # HTTP → HTTPS redirect + ACME challenge
 server {
     listen 80;
-    server_name _;
+    server_name samurchs.ru;
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
@@ -15,7 +15,7 @@ server {
 # Main HTTPS server
 server {
     listen 443 ssl http2;
-    server_name _;
+    server_name samurchs.ru;
 
     # SSL certificates (managed by certbot)
     ssl_certificate /etc/letsencrypt/live/samur/fullchain.pem;
@@ -31,7 +31,7 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://vk.com; style-src 'self' https://unpkg.com; img-src 'self' data: https://*.tile.openstreetmap.org https://unpkg.com; connect-src 'self' wss: https://api.telegram.org; frame-ancestors 'self' https://vk.com;" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://vk.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://api.maptiler.com https://unpkg.com; connect-src 'self' wss: https://api.telegram.org https://api.maptiler.com https://flood-api.open-meteo.com; font-src 'self' data:; worker-src 'self' blob:; frame-ancestors 'self' https://vk.com;" always;
 
     # ── API ──
     location /api/ {
