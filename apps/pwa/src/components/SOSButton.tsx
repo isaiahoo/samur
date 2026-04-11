@@ -12,13 +12,6 @@ type Stage = "idle" | "confirm" | "situation" | "sending" | "sent" | "error";
 const HOLD_DURATION = 2000;
 const AUTO_SEND_DELAY = 5000;
 
-const SITUATION_ICONS: Record<string, string> = {
-  roof: "M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10",
-  water_inside: "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM12 3C6.5 3 2 6.58 2 11c0 1.5.5 3.5 2 5l-1 3 3-1c1.5 1 3 1.5 4.5 1.5",
-  road: "M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13V7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4",
-  medical: "M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z",
-};
-
 export function SOSButton() {
   const [stage, setStage] = useState<Stage>("idle");
   const [holdProgress, setHoldProgress] = useState(0);
@@ -31,13 +24,18 @@ export function SOSButton() {
   const holdRafRef = useRef<number>(0);
   const autoSendTimerRef = useRef<ReturnType<typeof setTimeout>>(0 as unknown as ReturnType<typeof setTimeout>);
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval>>(0 as unknown as ReturnType<typeof setInterval>);
+  // Keep location in a ref so async callbacks always see the latest value
+  const locationRef = useRef(location);
+  locationRef.current = location;
 
   const online = useOnline();
+  const onlineRef = useRef(online);
+  onlineRef.current = online;
   const showToast = useUIStore((s) => s.showToast);
 
   // Acquire GPS when confirm overlay opens
   const acquireLocation = useCallback(() => {
-    if (location) return;
+    if (locationRef.current) return;
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -47,23 +45,27 @@ export function SOSButton() {
       () => setLocating(false),
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
     );
-  }, [location]);
+  }, []);
 
-  // Send the SOS signal
+  // Send the SOS signal — reads from refs to avoid stale closures
   const sendSOS = useCallback(async (situation?: SosSituation) => {
-    if (!location) return;
+    const loc = locationRef.current;
+    if (!loc) {
+      showToast("Не удалось определить местоположение", "error");
+      return;
+    }
     setStage("sending");
 
     const batteryLevel = await getBatteryLevel();
     const payload: Record<string, unknown> = {
-      lat: location.lat,
-      lng: location.lng,
+      lat: loc.lat,
+      lng: loc.lng,
       batteryLevel,
     };
     if (situation) payload.situation = situation;
 
     try {
-      if (online) {
+      if (onlineRef.current) {
         const res = await createSOS(payload);
         const data = res.data as { id: string } | undefined;
         setSentId(data?.id ?? null);
@@ -76,7 +78,7 @@ export function SOSButton() {
       setStage("error");
       showToast("Ошибка отправки SOS", "error");
     }
-  }, [location, online, showToast]);
+  }, [showToast]);
 
   // Long-press handlers
   const onHoldStart = useCallback(() => {
@@ -89,7 +91,6 @@ export function SOSButton() {
       setHoldProgress(progress);
 
       if (progress >= 1) {
-        // Activated!
         try { navigator.vibrate?.([100, 50, 100, 50, 100]); } catch {}
         setStage("situation");
         setHoldProgress(0);
@@ -147,6 +148,7 @@ export function SOSButton() {
     setStage("idle");
     setHoldProgress(0);
     setSentId(null);
+    setLocation(null);
     clearTimeout(autoSendTimerRef.current);
     clearInterval(countdownIntervalRef.current);
   }, []);
@@ -155,6 +157,7 @@ export function SOSButton() {
     setStage("idle");
     setHoldProgress(0);
     setSentId(null);
+    setLocation(null);
   }, []);
 
   // Escape key to cancel/close
@@ -183,26 +186,34 @@ export function SOSButton() {
     );
   }
 
-  // All other stages render in full-screen overlay
+  // Full-screen overlay for all active stages
   return (
-    <div className="sos-overlay" role="dialog" aria-label="Экстренный сигнал SOS" aria-modal="true">
+    <div className="sos-overlay" role="alertdialog" aria-label="Экстренный сигнал SOS" aria-modal="true">
       {stage === "confirm" && (
-        <div className="sos-confirm">
-          <p className="sos-confirm-title">Я в беде</p>
-          <p className="sos-confirm-subtitle">
-            Удерживайте кнопку 2 секунды для отправки сигнала SOS
+        <div className="sos-panel">
+          <div className="sos-panel-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </div>
+          <p className="sos-panel-title">Я в беде</p>
+          <p className="sos-panel-subtitle">
+            Удерживайте кнопку 2 секунды
           </p>
 
           <div className="sos-hold-wrapper">
             <svg className="sos-hold-ring" viewBox="0 0 120 120">
-              <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="6" />
+              <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="5" />
               <circle
                 cx="60" cy="60" r="54"
-                fill="none" stroke="#fff" strokeWidth="6"
+                fill="none" stroke="#ef4444" strokeWidth="5"
                 strokeDasharray={`${2 * Math.PI * 54}`}
                 strokeDashoffset={`${2 * Math.PI * 54 * (1 - holdProgress)}`}
                 strokeLinecap="round"
                 transform="rotate(-90 60 60)"
+                className="sos-hold-ring-progress"
               />
             </svg>
             <button
@@ -217,41 +228,70 @@ export function SOSButton() {
             </button>
           </div>
 
-          {locating && <p className="sos-locating">Определяем местоположение...</p>}
-          {location && (
-            <p className="sos-locating sos-located">
-              Координаты получены (точность: {Math.round(location.accuracy)}м)
-            </p>
-          )}
+          <p className="sos-location-status">
+            {locating && "Определяем местоположение..."}
+            {location && `Координаты получены (${Math.round(location.accuracy)}м)`}
+            {!locating && !location && "Ожидание GPS..."}
+          </p>
 
-          <button className="sos-cancel" onClick={cancel}>Отмена</button>
+          <button className="sos-cancel-btn" onClick={cancel}>Отмена</button>
         </div>
       )}
 
       {stage === "situation" && (
-        <div className="sos-situation">
-          <p className="sos-situation-title">Выберите ситуацию</p>
-          <p className="sos-situation-countdown">
-            Автоматическая отправка через {autoSendCountdown}с
+        <div className="sos-panel">
+          <p className="sos-panel-title">Выберите ситуацию</p>
+          <p className="sos-countdown-text">
+            Отправка через <span className="sos-countdown-num">{autoSendCountdown}</span>с
           </p>
 
           <div className="sos-situation-grid">
-            {(Object.keys(SOS_SITUATION_LABELS) as SosSituation[]).map((sit) => (
-              <button
-                key={sit}
-                className="sos-situation-btn"
-                onClick={() => selectSituation(sit)}
-              >
-                <svg width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                  <path d={SITUATION_ICONS[sit]} />
+            <button className="sos-sit-btn" onClick={() => selectSituation("roof")}>
+              <span className="sos-sit-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12l9-8 9 8" />
+                  <path d="M5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9" />
                 </svg>
-                <span>{SOS_SITUATION_LABELS[sit]}</span>
-              </button>
-            ))}
+              </span>
+              <span className="sos-sit-label">На крыше</span>
+              <span className="sos-sit-sub">верхний этаж</span>
+            </button>
+            <button className="sos-sit-btn" onClick={() => selectSituation("water_inside")}>
+              <span className="sos-sit-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2l-5.5 9a6.5 6.5 0 1011 0z" />
+                </svg>
+              </span>
+              <span className="sos-sit-label">Вода в доме</span>
+              <span className="sos-sit-sub">затопление</span>
+            </button>
+            <button className="sos-sit-btn" onClick={() => selectSituation("road")}>
+              <span className="sos-sit-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 17H3a2 2 0 01-2-2V9a2 2 0 012-2h2" />
+                  <path d="M19 17h2a2 2 0 002-2V9a2 2 0 00-2-2h-2" />
+                  <rect x="5" y="5" width="14" height="14" rx="2" />
+                  <circle cx="9" cy="17" r="1" />
+                  <circle cx="15" cy="17" r="1" />
+                </svg>
+              </span>
+              <span className="sos-sit-label">На дороге</span>
+              <span className="sos-sit-sub">в машине</span>
+            </button>
+            <button className="sos-sit-btn" onClick={() => selectSituation("medical")}>
+              <span className="sos-sit-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 6v12M6 12h12" />
+                  <rect x="3" y="3" width="18" height="18" rx="3" />
+                </svg>
+              </span>
+              <span className="sos-sit-label">Медпомощь</span>
+              <span className="sos-sit-sub">нужен врач</span>
+            </button>
           </div>
 
           <button
-            className="sos-skip"
+            className="sos-skip-btn"
             onClick={() => {
               clearTimeout(autoSendTimerRef.current);
               clearInterval(countdownIntervalRef.current);
@@ -264,44 +304,51 @@ export function SOSButton() {
       )}
 
       {stage === "sending" && (
-        <div className="sos-status">
+        <div className="sos-panel">
           <div className="sos-spinner" />
-          <p className="sos-status-text">Отправка сигнала...</p>
+          <p className="sos-panel-subtitle">Отправка сигнала...</p>
         </div>
       )}
 
       {stage === "sent" && (
-        <div className="sos-status">
-          <div className="sos-check">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <div className="sos-panel">
+          <div className="sos-check-icon">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 6L9 17l-5-5" />
             </svg>
           </div>
-          <p className="sos-status-title">SOS ОТПРАВЛЕН</p>
+          <p className="sos-sent-title">SOS ОТПРАВЛЕН</p>
           {!online && (
-            <p className="sos-status-offline">
+            <p className="sos-offline-note">
               Нет связи. Сигнал сохранён и будет отправлен при подключении.
             </p>
           )}
-          {online && <p className="sos-status-subtitle">Ожидайте помощи</p>}
-          {sentId && <p className="sos-status-id">ID: {sentId.slice(0, 8)}</p>}
+          {online && <p className="sos-panel-subtitle">Ожидайте помощи</p>}
           {location && (
-            <p className="sos-status-coords">
+            <p className="sos-meta">
               {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
             </p>
           )}
-          <button className="sos-close-btn" onClick={close}>Закрыть</button>
+          {sentId && <p className="sos-meta">ID: {sentId.slice(0, 8)}</p>}
+          <button className="sos-done-btn" onClick={close}>Закрыть</button>
         </div>
       )}
 
       {stage === "error" && (
-        <div className="sos-status">
-          <p className="sos-status-title sos-status-error">Ошибка отправки</p>
-          <p className="sos-status-subtitle">Попробуйте ещё раз</p>
+        <div className="sos-panel">
+          <div className="sos-panel-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+          </div>
+          <p className="sos-panel-title" style={{ color: "#f87171" }}>Ошибка отправки</p>
+          <p className="sos-panel-subtitle">Попробуйте ещё раз</p>
           <button className="sos-retry-btn" onClick={() => setStage("confirm")}>
             Повторить
           </button>
-          <button className="sos-cancel" onClick={cancel}>Закрыть</button>
+          <button className="sos-cancel-btn" onClick={cancel}>Закрыть</button>
         </div>
       )}
     </div>
