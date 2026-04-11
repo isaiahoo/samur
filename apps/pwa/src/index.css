@@ -2551,15 +2551,23 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px);
   border-left: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #27272a;
+  font-size: 12px;
+  transform: translateX(0);
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* Scrollable body — the only part that scrolls */
+.ep-body {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
-  color: #27272a;
-  font-size: 12px;
   padding-bottom: 16px;
-  transform: translateX(0);
-  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 /* Desktop: collapsed = slide off-screen */
 .ep--collapsed {
@@ -2772,7 +2780,6 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 @media (max-width: 768px) {
   .ep {
-    /* Fixed positioning escapes parent overflow:hidden — required for iOS Safari scroll */
     position: fixed;
     top: auto;
     bottom: calc(56px + env(safe-area-inset-bottom, 0px));
@@ -2783,26 +2790,30 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     border-left: none;
     border-top: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 10px 10px 0 0;
-    padding-bottom: 16px;
     transform: none;
     pointer-events: auto;
+    overflow: hidden;
+  }
+  /* The inner body is the scroll target on mobile */
+  .ep-body {
     overflow-y: scroll;
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
     touch-action: pan-y;
+    overscroll-behavior: contain;
   }
-  /* Mobile collapsed: just show header + handle, no scroll */
+  /* Mobile collapsed: just show handle + header */
   .ep--collapsed {
     max-height: none;
-    overflow: hidden;
     transform: none;
     pointer-events: auto;
   }
-  /* Sticky header doesn't work well on iOS inside abs containers — make it static on mobile */
+  .ep--collapsed .ep-body { display: none; }
+  /* Make header static on mobile */
   .ep .ep-header {
     position: static;
     backdrop-filter: none;
     cursor: pointer;
+    flex-shrink: 0;
   }
   /* Hide desktop toggle on mobile */
   .ep-toggle { display: none; }
@@ -2816,6 +2827,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     background: none;
     border: none;
     cursor: pointer;
+    flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
   }
   .ep-handle-bar {

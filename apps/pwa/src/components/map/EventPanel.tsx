@@ -110,100 +110,102 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
         <span className="ep-header-count">{totalCount}</span>
       </div>
 
-      {!hasAny && open !== false && <p className="ep-empty">Нет активных событий</p>}
+      {open !== false && (
+        <div className="ep-body">
+          {!hasAny && <p className="ep-empty">Нет активных событий</p>}
 
-      {open !== false && (<>
-      {/* ── Incidents ──────────────────────────────────────────── */}
-      {layers.incidents && sortedIncidents.length > 0 && (
-        <Section title="Инциденты" count={incidents.length} color="#EF4444">
-          {sortedIncidents.map((inc) => (
-            <button key={inc.id} className="ep-row" onClick={() => onEventClick("incident", inc, inc.id)}>
-              <span className="ep-row-badge" style={{ background: SEVERITY_COLORS[inc.severity] ?? "#71717a" }} />
-              <span className="ep-row-body">
-                <span className="ep-row-title">{INCIDENT_TYPE_LABELS[inc.type] ?? inc.type}</span>
-                <span className="ep-row-sub">{inc.address || formatRelativeTime(inc.createdAt)}</span>
-              </span>
-            </button>
-          ))}
-        </Section>
-      )}
+          {/* ── Incidents ──────────────────────────────────────────── */}
+          {layers.incidents && sortedIncidents.length > 0 && (
+            <Section title="Инциденты" count={incidents.length} color="#EF4444">
+              {sortedIncidents.map((inc) => (
+                <button key={inc.id} className="ep-row" onClick={() => onEventClick("incident", inc, inc.id)}>
+                  <span className="ep-row-badge" style={{ background: SEVERITY_COLORS[inc.severity] ?? "#71717a" }} />
+                  <span className="ep-row-body">
+                    <span className="ep-row-title">{INCIDENT_TYPE_LABELS[inc.type] ?? inc.type}</span>
+                    <span className="ep-row-sub">{inc.address || formatRelativeTime(inc.createdAt)}</span>
+                  </span>
+                </button>
+              ))}
+            </Section>
+          )}
 
-      {/* ── Help Requests ─────────────────────────────────────── */}
-      {layers.helpRequests && sortedHelp.length > 0 && (
-        <Section title="Запросы помощи" count={helpRequests.length} color="#8B5CF6">
-          {sortedHelp.map((hr) => (
-            <button key={hr.id} className="ep-row" onClick={() => onEventClick("helpRequest", hr, hr.id)}>
-              <span className="ep-row-badge" style={{ background: SEVERITY_COLORS[hr.urgency] ?? "#71717a" }} />
-              <span className="ep-row-body">
-                <span className="ep-row-title">
-                  {HELP_CATEGORY_LABELS[hr.category] ?? hr.category}
-                  <span className="ep-row-tag">{hr.type === "offer" ? "помощь" : "нужна"}</span>
-                </span>
-                <span className="ep-row-sub">{hr.address || formatRelativeTime(hr.createdAt)}</span>
-              </span>
-            </button>
-          ))}
-        </Section>
-      )}
+          {/* ── Help Requests ─────────────────────────────────────── */}
+          {layers.helpRequests && sortedHelp.length > 0 && (
+            <Section title="Запросы помощи" count={helpRequests.length} color="#8B5CF6">
+              {sortedHelp.map((hr) => (
+                <button key={hr.id} className="ep-row" onClick={() => onEventClick("helpRequest", hr, hr.id)}>
+                  <span className="ep-row-badge" style={{ background: SEVERITY_COLORS[hr.urgency] ?? "#71717a" }} />
+                  <span className="ep-row-body">
+                    <span className="ep-row-title">
+                      {HELP_CATEGORY_LABELS[hr.category] ?? hr.category}
+                      <span className="ep-row-tag">{hr.type === "offer" ? "помощь" : "нужна"}</span>
+                    </span>
+                    <span className="ep-row-sub">{hr.address || formatRelativeTime(hr.createdAt)}</span>
+                  </span>
+                </button>
+              ))}
+            </Section>
+          )}
 
-      {/* ── River Levels ──────────────────────────────────────── */}
-      {layers.riverLevels && sortedRivers.length > 0 && (
-        <Section title="Уровень рек" count={riverLevels.length} color="#3B82F6">
-          {sortedRivers.map(({ r, tier }) => (
-            <button
-              key={`${r.riverName}::${r.stationName}`}
-              className="ep-row"
-              onClick={() => onEventClick("riverLevel", r, `${r.riverName}::${r.stationName}`)}
-            >
-              <span className="ep-row-badge" style={{ background: TIER_COLORS[tier.hasData ? tier.tier : "nodata"] }} />
-              <span className="ep-row-body">
-                <span className="ep-row-title">
-                  {r.riverName} · {r.stationName}
-                  <span className="ep-row-arrow">{trendArrow(r.trend)}</span>
-                </span>
-                <span className="ep-row-sub">
-                  {tier.hasData ? `${TIER_LABELS[tier.tier]} · ${tier.pctOfMean}%` : "Нет данных"}
-                </span>
-              </span>
-            </button>
-          ))}
-        </Section>
-      )}
+          {/* ── River Levels ──────────────────────────────────────── */}
+          {layers.riverLevels && sortedRivers.length > 0 && (
+            <Section title="Уровень рек" count={riverLevels.length} color="#3B82F6">
+              {sortedRivers.map(({ r, tier }) => (
+                <button
+                  key={`${r.riverName}::${r.stationName}`}
+                  className="ep-row"
+                  onClick={() => onEventClick("riverLevel", r, `${r.riverName}::${r.stationName}`)}
+                >
+                  <span className="ep-row-badge" style={{ background: TIER_COLORS[tier.hasData ? tier.tier : "nodata"] }} />
+                  <span className="ep-row-body">
+                    <span className="ep-row-title">
+                      {r.riverName} · {r.stationName}
+                      <span className="ep-row-arrow">{trendArrow(r.trend)}</span>
+                    </span>
+                    <span className="ep-row-sub">
+                      {tier.hasData ? `${TIER_LABELS[tier.tier]} · ${tier.pctOfMean}%` : "Нет данных"}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </Section>
+          )}
 
-      {/* ── Earthquakes ───────────────────────────────────────── */}
-      {layers.earthquakes && sortedEq.length > 0 && (
-        <Section title="Землетрясения" count={earthquakes.length} color="#F97316">
-          {sortedEq.map((eq) => (
-            <button key={eq.usgsId} className="ep-row" onClick={() => onEventClick("earthquake", eq, eq.usgsId)}>
-              <span className="ep-row-mag" style={{ color: eq.magnitude >= 5 ? "#EF4444" : eq.magnitude >= 4 ? "#F97316" : "#EAB308" }}>
-                M{eq.magnitude}
-              </span>
-              <span className="ep-row-body">
-                <span className="ep-row-title">{eq.place}</span>
-                <span className="ep-row-sub">Глубина {eq.depth} км · {formatRelativeTime(eq.time)}</span>
-              </span>
-            </button>
-          ))}
-        </Section>
-      )}
+          {/* ── Earthquakes ───────────────────────────────────────── */}
+          {layers.earthquakes && sortedEq.length > 0 && (
+            <Section title="Землетрясения" count={earthquakes.length} color="#F97316">
+              {sortedEq.map((eq) => (
+                <button key={eq.usgsId} className="ep-row" onClick={() => onEventClick("earthquake", eq, eq.usgsId)}>
+                  <span className="ep-row-mag" style={{ color: eq.magnitude >= 5 ? "#EF4444" : eq.magnitude >= 4 ? "#F97316" : "#EAB308" }}>
+                    M{eq.magnitude}
+                  </span>
+                  <span className="ep-row-body">
+                    <span className="ep-row-title">{eq.place}</span>
+                    <span className="ep-row-sub">Глубина {eq.depth} км · {formatRelativeTime(eq.time)}</span>
+                  </span>
+                </button>
+              ))}
+            </Section>
+          )}
 
-      {/* ── Shelters ──────────────────────────────────────────── */}
-      {layers.shelters && sortedShelters.length > 0 && (
-        <Section title="Убежища" count={shelters.length} color="#22C55E">
-          {sortedShelters.map((s) => (
-            <button key={s.id} className="ep-row" onClick={() => onEventClick("shelter", s, s.id)}>
-              <span className="ep-row-badge" style={{ background: s.status === "open" ? "#22C55E" : s.status === "full" ? "#F59E0B" : "#a1a1aa" }} />
-              <span className="ep-row-body">
-                <span className="ep-row-title">{s.name}</span>
-                <span className="ep-row-sub">
-                  {SHELTER_STATUS_LABELS[s.status]} · {s.currentOccupancy}/{s.capacity}
-                </span>
-              </span>
-            </button>
-          ))}
-        </Section>
+          {/* ── Shelters ──────────────────────────────────────────── */}
+          {layers.shelters && sortedShelters.length > 0 && (
+            <Section title="Убежища" count={shelters.length} color="#22C55E">
+              {sortedShelters.map((s) => (
+                <button key={s.id} className="ep-row" onClick={() => onEventClick("shelter", s, s.id)}>
+                  <span className="ep-row-badge" style={{ background: s.status === "open" ? "#22C55E" : s.status === "full" ? "#F59E0B" : "#a1a1aa" }} />
+                  <span className="ep-row-body">
+                    <span className="ep-row-title">{s.name}</span>
+                    <span className="ep-row-sub">
+                      {SHELTER_STATUS_LABELS[s.status]} · {s.currentOccupancy}/{s.capacity}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </Section>
+          )}
+        </div>
       )}
-      </>)}
     </div>
   );
 }
