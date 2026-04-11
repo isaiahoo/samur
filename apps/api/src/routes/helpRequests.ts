@@ -21,6 +21,12 @@ import {
   emitSOSCreated,
 } from "../lib/emitter.js";
 import { paramId } from "../lib/params.js";
+import {
+  checkSosRateLimit,
+  findExistingAnonymousSOS,
+  computeConfidenceScore,
+  isCrisisMode,
+} from "../lib/sosVerification.js";
 
 const router = Router();
 
@@ -91,8 +97,23 @@ router.post(
   async (req, res, next) => {
     try {
       const { lat, lng, situation, peopleCount, contactPhone, contactName, batteryLevel, source } = req.body;
+      const clientIp = req.ip ?? "unknown";
 
-      // Duplicate prevention: if authenticated user has active SOS, return it
+      // Tier 1.1 — Per-IP SOS rate limit (1 per 5 min)
+      const rateCheck = await checkSosRateLimit(clientIp);
+      if (!rateCheck.allowed) {
+        res.status(429).json({
+          success: false,
+          error: {
+            code: "SOS_RATE_LIMITED",
+            message: "Вы уже отправили сигнал SOS. Подождите 5 минут.",
+            retryAfterSeconds: rateCheck.retryAfterSeconds,
+          },
+        });
+        return;
+      }
+
+      // Duplicate prevention: authenticated user — check by userId
       if (req.user?.sub) {
         const existing = await prisma.helpRequest.findFirst({
           where: {
@@ -113,16 +134,49 @@ router.post(
         }
       }
 
+      // Tier 1.2 — Anonymous dedup by IP + coordinates (30 min, 1km radius)
+      if (!req.user?.sub) {
+        const existingAnon = await findExistingAnonymousSOS(clientIp, lat, lng);
+        if (existingAnon) {
+          const full = await prisma.helpRequest.findFirst({
+            where: { id: existingAnon.id, deletedAt: null },
+            include: {
+              author: { select: { id: true, name: true, role: true } },
+              claimer: { select: { id: true, name: true, role: true } },
+            },
+          });
+          res.status(200).json({ success: true, data: full });
+          return;
+        }
+      }
+
+      // Tier 1.3 — Contextual confidence score + Tier 1.4 — Adaptive crisis mode
+      const [confidenceScore, crisisActive] = await Promise.all([
+        computeConfidenceScore({
+          lat,
+          lng,
+          isAuthenticated: !!req.user?.sub,
+          hasSituation: !!situation,
+          batteryLevel,
+        }),
+        isCrisisMode(),
+      ]);
+
+      // During crisis: all SOS are critical. Normal mode with score < 20: flag for verification
+      const urgency = crisisActive || confidenceScore >= 20 ? "critical" : "urgent";
+
       const hr = await prisma.helpRequest.create({
         data: {
           userId: req.user?.sub ?? null,
           type: "need",
           category: "rescue",
-          urgency: "critical",
+          urgency,
           isSOS: true,
           situation: situation ?? null,
           peopleCount: peopleCount ?? null,
           batteryLevel: batteryLevel ?? null,
+          sourceIp: clientIp,
+          confidenceScore,
           lat,
           lng,
           contactPhone: contactPhone ?? null,

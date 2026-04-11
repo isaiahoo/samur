@@ -102,6 +102,8 @@ export interface HelpRequest {
   situation: SosSituation | null;
   peopleCount: number | null;
   batteryLevel: number | null;
+  sourceIp: string | null;
+  confidenceScore: number | null;
   source: Source;
   createdAt: string;
   updatedAt: string;

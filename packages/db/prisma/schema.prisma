@@ -187,8 +187,10 @@ model HelpRequest {
   isSOS        Boolean           @default(false) @map("is_sos")
   situation    String?
   peopleCount  Int?              @map("people_count")
-  batteryLevel Int?              @map("battery_level")
-  source       Source            @default(pwa)
+  batteryLevel    Int?              @map("battery_level")
+  sourceIp        String?           @map("source_ip")
+  confidenceScore Int?              @map("confidence_score")
+  source          Source            @default(pwa)
   version      Int               @default(0)
   createdAt    DateTime          @default(now()) @map("created_at")
   updatedAt    DateTime          @updatedAt @map("updated_at")
