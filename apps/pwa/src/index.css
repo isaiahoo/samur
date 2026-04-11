@@ -1207,7 +1207,37 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   max-width: 400px;
   border: 1px solid #e2e8f0;
 }
-.login-card h2 { font-size: 24px; margin-bottom: 24px; text-align: center; }
+.login-header { text-align: center; margin-bottom: 24px; }
+.login-header h2 { font-size: 24px; margin-bottom: 4px; }
+.login-subtitle { font-size: 14px; color: #64748b; margin: 0; }
+
+.social-login-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.tg-login-container { display: flex; justify-content: center; width: 100%; }
+.tg-login-container iframe { border-radius: 8px !important; }
+.social-login-loading { font-size: 13px; color: #64748b; margin: 0; }
+
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: #94a3b8;
+  font-size: 13px;
+}
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
 .login-switch { text-align: center; margin-top: 16px; font-size: 14px; color: #64748b; }
 
 .admin-page {
@@ -3069,4 +3099,12 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .damage-card-proximity-bar { background: rgba(51, 65, 85, 0.5); }
   .damage-card-proximity-text { color: #64748b; }
   .damage-card-proximity-exceeded { color: #fca5a5; }
+
+  /* Login page */
+  .login-page { background: var(--color-bg); }
+  .login-card { background: var(--color-surface); border-color: var(--color-border); }
+  .login-subtitle { color: #94a3b8; }
+  .login-divider { color: #64748b; }
+  .login-divider::before, .login-divider::after { background: var(--color-border); }
+  .login-switch { color: #94a3b8; }
 }

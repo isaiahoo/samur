@@ -62,6 +62,21 @@ export function register(name: string, phone: string, password: string, role?: s
   });
 }
 
+export function telegramAuth(data: {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  auth_date: number;
+  hash: string;
+}) {
+  return request<ApiResponse<{ token: string; user: unknown }>>("/auth/telegram", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 export function getMe() {
   return request<ApiResponse>("/auth/me");
 }

@@ -202,6 +202,16 @@ export const CreateRiverLevelSchema = z.object({
   measuredAt: z.string().datetime(),
 });
 
+export const TelegramAuthSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  first_name: z.string().min(1).max(200),
+  last_name: z.string().max(200).optional(),
+  username: z.string().max(200).optional(),
+  photo_url: z.string().url().optional(),
+  auth_date: z.coerce.number().int().positive(),
+  hash: z.string().length(64),
+});
+
 export const LoginSchema = z.object({
   phone: phone,
   password: z.string().min(6).max(128),
@@ -315,6 +325,7 @@ export type UpdateAlertInput = z.infer<typeof UpdateAlertSchema>;
 export type CreateShelterInput = z.infer<typeof CreateShelterSchema>;
 export type UpdateShelterInput = z.infer<typeof UpdateShelterSchema>;
 export type CreateRiverLevelInput = z.infer<typeof CreateRiverLevelSchema>;
+export type TelegramAuthInput = z.infer<typeof TelegramAuthSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 export type IncidentQuery = z.infer<typeof IncidentQuerySchema>;
