@@ -2536,10 +2536,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   align-items: center;
   justify-content: center;
   font-size: 11px;
-  transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s;
 }
 .ep-toggle:hover { background: rgba(255, 255, 255, 0.95); color: #52525b; }
-.ep-toggle--open { right: 300px; }
+.ep-toggle-label { display: none; }
 
 .ep {
   position: absolute;
@@ -2556,10 +2555,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   overflow: hidden;
   color: #27272a;
   font-size: 12px;
-  transform: translateX(0);
-  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
-/* Scrollable body — the only part that scrolls */
+/* Scrollable body */
 .ep-body {
   flex: 1;
   min-height: 0;
@@ -2569,14 +2566,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
   padding-bottom: 16px;
 }
-/* Desktop: collapsed = slide off-screen */
-.ep--collapsed {
-  transform: translateX(100%);
-  pointer-events: none;
-}
-
-/* Mobile handle — hidden on desktop */
-.ep-handle {
+/* Close button — visible on mobile, hidden on desktop */
+.ep-close {
   display: none;
 }
 
@@ -2779,6 +2770,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 /* ── Event panel responsive ────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
+  /* ── Panel: full-width bottom sheet ── */
   .ep {
     position: fixed;
     top: auto;
@@ -2788,65 +2780,69 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     width: 100%;
     max-height: 40vh;
     border-left: none;
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 12px 12px 0 0;
-    transform: none;
-    pointer-events: auto;
-    overflow: hidden;
-    /* Solid background — no backdrop-filter, no GPU compositing lag */
     background: #fff;
     backdrop-filter: none;
-    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
   }
-  /* Inner body scrolls */
-  .ep-body {
-    overflow-y: scroll;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-y;
-    overscroll-behavior: contain;
-  }
-  /* ── Collapsed: tiny pill only ── */
-  .ep--collapsed {
-    max-height: none;
-    transform: none;
-    pointer-events: auto;
-    border-top: none;
-    border-radius: 12px 12px 0 0;
-    box-shadow: 0 -1px 6px rgba(0, 0, 0, 0.06);
-  }
-  .ep--collapsed .ep-header { display: none; }
-  .ep--collapsed .ep-body { display: none; }
-  .ep--collapsed .ep-handle { padding: 6px 0; }
-  /* Header static on mobile */
   .ep .ep-header {
     position: static;
     backdrop-filter: none;
     background: #fff;
-    cursor: pointer;
     flex-shrink: 0;
+    border-radius: 12px 12px 0 0;
   }
-  /* Hide desktop toggle */
-  .ep-toggle { display: none; }
-  /* Mobile handle */
-  .ep-handle {
+  .ep-body {
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+  /* Close button — X in header */
+  .ep-close {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    padding: 8px 0 2px;
-    background: none;
+    width: 28px;
+    height: 28px;
     border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.06);
+    color: #71717a;
+    font-size: 14px;
     cursor: pointer;
     flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
+    margin-left: 4px;
   }
-  .ep-handle-bar {
-    width: 36px;
-    height: 4px;
-    border-radius: 2px;
-    background: rgba(0, 0, 0, 0.15);
+  .ep-close:active { background: rgba(0, 0, 0, 0.12); }
+  /* ── Toggle button: bottom bar when panel closed ── */
+  .ep-toggle {
+    position: fixed;
+    top: auto;
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 36px;
+    transform: none;
+    border: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 0;
+    background: #fff;
+    backdrop-filter: none;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+    justify-content: center;
+    gap: 8px;
   }
-  .map-page--panel-open .map-controls { right: 12px; }
+  .ep-toggle-label {
+    display: inline;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    color: #a1a1aa;
+  }
 }
 
 /* ── Accessibility: prefers-reduced-motion ─────────────────────────────── */
@@ -3224,14 +3220,20 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .ep-row-title { color: #e4e4e7; }
   .ep-row-tag { background: rgba(255, 255, 255, 0.08); color: #a1a1aa; }
   .ep-row-sub { color: #71717a; }
-  .ep-handle-bar { background: rgba(255, 255, 255, 0.2); }
   @media (max-width: 768px) {
     .ep {
       background: #27272a;
       border-top-color: rgba(255, 255, 255, 0.08);
-      box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
     }
     .ep .ep-header { background: #27272a; }
+    .ep-close { background: rgba(255, 255, 255, 0.1); color: #a1a1aa; }
+    .ep-close:active { background: rgba(255, 255, 255, 0.2); }
+    .ep-toggle {
+      background: #27272a;
+      border-top-color: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.3);
+    }
   }
 
   /* Inputs */

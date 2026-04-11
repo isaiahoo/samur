@@ -360,26 +360,29 @@ export function MapPage() {
         onMapMove={handleMapMove}
       />
 
-      {/* Desktop: side-tab toggle (hidden on mobile via CSS) */}
-      <button
-        className={`ep-toggle${eventPanelOpen ? " ep-toggle--open" : ""}`}
-        onClick={() => setEventPanelOpen(!eventPanelOpen)}
-        aria-label={eventPanelOpen ? "Скрыть панель событий" : "Показать панель событий"}
-      >
-        {eventPanelOpen ? "\u25B6" : "\u25C0"}
-      </button>
+      {/* Toggle button — desktop: side tab, mobile: bottom bar */}
+      {!eventPanelOpen && (
+        <button
+          className="ep-toggle"
+          onClick={() => setEventPanelOpen(true)}
+          aria-label="Показать панель событий"
+        >
+          <span className="ep-toggle-label">МОНИТОРИНГ</span>
+        </button>
+      )}
 
-      <EventPanel
-        incidents={incidents}
-        helpRequests={helpRequests}
-        shelters={shelters}
-        riverLevels={effectiveRiverLevels}
-        earthquakes={earthquakes}
-        layers={layers}
-        onEventClick={handleEventPanelClick}
-        open={eventPanelOpen}
-        onToggle={() => setEventPanelOpen(!eventPanelOpen)}
-      />
+      {eventPanelOpen && (
+        <EventPanel
+          incidents={incidents}
+          helpRequests={helpRequests}
+          shelters={shelters}
+          riverLevels={effectiveRiverLevels}
+          earthquakes={earthquakes}
+          layers={layers}
+          onEventClick={handleEventPanelClick}
+          onClose={() => setEventPanelOpen(false)}
+        />
+      )}
 
       <div className="map-controls">
         <LayerToggle
