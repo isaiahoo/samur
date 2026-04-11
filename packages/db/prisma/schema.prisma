@@ -184,6 +184,10 @@ model HelpRequest {
   contactName  String?           @map("contact_name")
   status       HelpRequestStatus @default(open)
   claimedBy    String?           @map("claimed_by")
+  isSOS        Boolean           @default(false) @map("is_sos")
+  situation    String?
+  peopleCount  Int?              @map("people_count")
+  batteryLevel Int?              @map("battery_level")
   source       Source            @default(pwa)
   version      Int               @default(0)
   createdAt    DateTime          @default(now()) @map("created_at")
@@ -198,6 +202,7 @@ model HelpRequest {
   @@index([claimedBy])
   @@index([status, type])
   @@index([status, category])
+  @@index([isSOS, status])
   @@index([urgency])
   @@index([createdAt])
   @@index([source])

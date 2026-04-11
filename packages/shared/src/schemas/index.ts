@@ -47,6 +47,8 @@ export const HelpCategorySchema = z.enum([
 
 export const UrgencySchema = z.enum(["normal", "urgent", "critical"]);
 
+export const SosSituationSchema = z.enum(["roof", "water_inside", "road", "medical"]);
+
 export const HelpRequestStatusSchema = z.enum([
   "open",
   "claimed",
@@ -124,6 +126,19 @@ export const UpdateHelpRequestSchema = z.object({
   contactPhone: phone.optional(),
   contactName: z.string().max(200).optional(),
 });
+
+export const CreateSOSSchema = z.object({
+  lat,
+  lng,
+  situation: SosSituationSchema.optional(),
+  peopleCount: z.number().int().min(1).max(100).optional(),
+  contactPhone: phone.optional(),
+  contactName: z.string().max(200).optional(),
+  batteryLevel: z.number().int().min(0).max(100).optional(),
+  source: SourceSchema.optional(),
+});
+
+export type CreateSOSInput = z.infer<typeof CreateSOSSchema>;
 
 export const CreateAlertSchema = z.object({
   urgency: AlertUrgencySchema,

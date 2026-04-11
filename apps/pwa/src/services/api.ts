@@ -109,6 +109,13 @@ export function createHelpRequest(data: Record<string, unknown>) {
   });
 }
 
+export function createSOS(data: Record<string, unknown>) {
+  return request<ApiResponse>("/help-requests/sos", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
 export function updateHelpRequest(id: string, data: Record<string, unknown>) {
   return request<ApiResponse>(`/help-requests/${id}`, {
     method: "PATCH",

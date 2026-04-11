@@ -33,6 +33,8 @@ export type HelpCategory =
 
 export type Urgency = "normal" | "urgent" | "critical";
 
+export type SosSituation = "roof" | "water_inside" | "road" | "medical";
+
 export type HelpRequestStatus =
   | "open"
   | "claimed"
@@ -96,6 +98,10 @@ export interface HelpRequest {
   contactName: string | null;
   status: HelpRequestStatus;
   claimedBy: string | null;
+  isSOS: boolean;
+  situation: SosSituation | null;
+  peopleCount: number | null;
+  batteryLevel: number | null;
   source: Source;
   createdAt: string;
   updatedAt: string;
@@ -264,6 +270,7 @@ export interface ServerToClientEvents {
   "river_level:updated": (level: RiverLevel) => void;
   "shelter:updated": (shelter: Shelter) => void;
   "earthquake:new": (earthquake: EarthquakeEvent) => void;
+  "sos:created": (request: HelpRequest) => void;
 }
 
 export interface ClientToServerEvents {

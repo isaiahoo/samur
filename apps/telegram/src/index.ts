@@ -16,6 +16,7 @@ import { registerAlertsHandler } from "./handlers/alerts.js";
 import { registerLevelHandler } from "./handlers/level.js";
 import { registerGroupHandler } from "./handlers/group.js";
 import { registerTextHandler } from "./handlers/text.js";
+import { registerSOSHandler, handleSOSCallback, isInSOSFlow, handleSOSLocation, cancelSOSFlow } from "./handlers/sos.js";
 
 // Connect Redis (lazy — triggers actual connection)
 redis.connect().catch((err) => {
@@ -34,6 +35,7 @@ registerStatusHandler(bot);
 registerSheltersHandler(bot);
 registerAlertsHandler(bot);
 registerLevelHandler(bot);
+registerSOSHandler(bot);
 registerGroupHandler(bot);
 
 // Text/location handler must be registered last — it's a catch-all
@@ -97,6 +99,13 @@ bot.on("callback_query", async (query) => {
       return;
     }
 
+    // SOS flow callbacks
+    if (data.startsWith("sos:")) {
+      await handleSOSCallback(bot, chatId, data, messageId, fromId, fromName);
+      await bot.answerCallbackQuery(query.id);
+      return;
+    }
+
     // Cancel help request
     if (data.startsWith("cancel:")) {
       await handleCancelCallback(bot, chatId, data, messageId, fromId, fromName);
@@ -146,6 +155,7 @@ startQueueProcessor(async (entry) => {
 bot
   .setMyCommands([
     { command: "start", description: "Начать работу с ботом" },
+    { command: "sos", description: "🆘 Я в беде — экстренный сигнал" },
     { command: "report", description: "Сообщить об инциденте" },
     { command: "help", description: "Попросить или предложить помощь" },
     { command: "status", description: "Проверить статус заявок" },

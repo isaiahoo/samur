@@ -3,6 +3,7 @@ import type TelegramBot from "node-telegram-bot-api";
 import { getState } from "../state.js";
 import { handleReportMessage } from "./report.js";
 import { handleHelpMessage } from "./help.js";
+import { isInSOSFlow, handleSOSLocation, cancelSOSFlow } from "./sos.js";
 
 const INTENT_PATTERNS: { pattern: RegExp; suggestion: string; command: string }[] = [
   {
@@ -33,6 +34,21 @@ export function registerTextHandler(bot: TelegramBot): void {
 
     // Skip if it's a command
     if (msg.text?.startsWith("/")) return;
+
+    // SOS flow: intercept location or cancel
+    if (isInSOSFlow(chatId)) {
+      if (msg.location) {
+        const fromId = msg.from?.id ?? chatId;
+        const fromName = [msg.from?.first_name, msg.from?.last_name].filter(Boolean).join(" ") || "Пользователь";
+        await handleSOSLocation(bot, chatId, msg.location.latitude, msg.location.longitude, fromId, fromName);
+        return;
+      }
+      if (msg.text === "Отмена") {
+        cancelSOSFlow(chatId);
+        await bot.sendMessage(chatId, "SOS отменён.", { reply_markup: { remove_keyboard: true } });
+        return;
+      }
+    }
 
     // Check if user is in a conversation flow
     const state = await getState(chatId);

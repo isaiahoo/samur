@@ -64,6 +64,10 @@ export function emitHelpRequestClaimed(request: HelpRequest): void {
   emitToNearby("help_request:claimed", request);
 }
 
+export function emitSOSCreated(request: HelpRequest): void {
+  getIO().emit("sos:created", request);
+}
+
 export function emitAlertBroadcast(alert: Alert): void {
   getIO().emit("alert:broadcast", alert);
 }

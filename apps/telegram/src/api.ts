@@ -225,6 +225,24 @@ export async function getUserHelpRequests(
   return data;
 }
 
+export async function createSOS(
+  data: {
+    lat: number;
+    lng: number;
+    situation?: string;
+    peopleCount?: number;
+    contactName?: string;
+  },
+  token: string,
+): Promise<HelpRequest> {
+  return request<HelpRequest>(
+    "POST",
+    "/help-requests/sos",
+    { ...data, source: "telegram" },
+    token,
+  );
+}
+
 export async function cancelHelpRequest(
   id: string,
   token: string,

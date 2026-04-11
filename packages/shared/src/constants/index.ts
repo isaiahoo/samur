@@ -193,6 +193,20 @@ export const ALERT_URGENCY_COLORS: Record<string, string> = {
   critical: "#EF4444",
 };
 
+export const SOS_SITUATION_LABELS: Record<string, string> = {
+  roof: "На крыше / верхний этаж",
+  water_inside: "Вода в доме",
+  road: "На дороге / в машине",
+  medical: "Нужна медпомощь",
+};
+
+export const SOS_SITUATIONS = [
+  "roof",
+  "water_inside",
+  "road",
+  "medical",
+] as const;
+
 export const DAGESTAN_BOUNDS = {
   north: 44.3,
   south: 41.1,

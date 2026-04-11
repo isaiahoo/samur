@@ -4,6 +4,7 @@ import { useUIStore } from "../store/ui.js";
 import { useOnline } from "../hooks/useOnline.js";
 import { BottomSheet } from "./BottomSheet.js";
 import { Toast } from "./Toast.js";
+import { SOSButton } from "./SOSButton.js";
 
 export function Layout() {
   const unread = useUIStore((s) => s.unreadAlerts);
@@ -60,6 +61,8 @@ export function Layout() {
           <span>Инфо</span>
         </NavLink>
       </nav>
+
+      <SOSButton />
 
       {sheetContent && (
         <BottomSheet onClose={closeSheet}>{sheetContent}</BottomSheet>

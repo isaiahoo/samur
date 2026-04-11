@@ -8,6 +8,7 @@ import {
   CreateHelpRequestSchema,
   UpdateHelpRequestSchema,
   HelpRequestQuerySchema,
+  CreateSOSSchema,
 } from "@samur/shared";
 import type { HelpRequest } from "@samur/shared";
 import { AppError } from "../middleware/error.js";
@@ -17,6 +18,7 @@ import {
   emitHelpRequestCreated,
   emitHelpRequestUpdated,
   emitHelpRequestClaimed,
+  emitSOSCreated,
 } from "../lib/emitter.js";
 import { paramId } from "../lib/params.js";
 
@@ -77,6 +79,70 @@ router.get(
         data: items,
         meta: { total, page: q.page, limit: q.limit },
       });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+router.post(
+  "/sos",
+  validateBody(CreateSOSSchema),
+  async (req, res, next) => {
+    try {
+      const { lat, lng, situation, peopleCount, contactPhone, contactName, batteryLevel, source } = req.body;
+
+      // Duplicate prevention: if authenticated user has active SOS, return it
+      if (req.user?.sub) {
+        const existing = await prisma.helpRequest.findFirst({
+          where: {
+            userId: req.user.sub,
+            isSOS: true,
+            status: { in: ["open", "claimed", "in_progress"] },
+            deletedAt: null,
+          },
+          include: {
+            author: { select: { id: true, name: true, role: true } },
+            claimer: { select: { id: true, name: true, role: true } },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+        if (existing) {
+          res.status(200).json({ success: true, data: existing });
+          return;
+        }
+      }
+
+      const hr = await prisma.helpRequest.create({
+        data: {
+          userId: req.user?.sub ?? null,
+          type: "need",
+          category: "rescue",
+          urgency: "critical",
+          isSOS: true,
+          situation: situation ?? null,
+          peopleCount: peopleCount ?? null,
+          batteryLevel: batteryLevel ?? null,
+          lat,
+          lng,
+          contactPhone: contactPhone ?? null,
+          contactName: contactName ?? null,
+          source: source ?? "pwa",
+          description: situation
+            ? `SOS — ${situation}`
+            : "SOS",
+        },
+        include: {
+          author: { select: { id: true, name: true, role: true } },
+          claimer: { select: { id: true, name: true, role: true } },
+        },
+      });
+
+      const typed = hr as unknown as HelpRequest;
+      emitSOSCreated(typed);
+      emitHelpRequestCreated(typed);
+
+      res.status(201).json({ success: true, data: hr });
     } catch (err) {
       next(err);
     }
