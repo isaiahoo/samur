@@ -260,7 +260,7 @@ export const GaugeChart = memo(function GaugeChart({
                 type="monotone"
                 dataKey="p75"
                 stroke="none"
-                fill="#94A3B8"
+                fill="#9ca3af"
                 fillOpacity={0.10}
                 connectNulls
                 dot={false}
@@ -283,7 +283,7 @@ export const GaugeChart = memo(function GaugeChart({
             <ReferenceArea
               y1={meanVal * 0.7}
               y2={meanVal * 1.3}
-              fill="#94A3B8"
+              fill="#9ca3af"
               fillOpacity={0.08}
               ifOverflow="extendDomain"
             />
@@ -291,15 +291,15 @@ export const GaugeChart = memo(function GaugeChart({
 
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 11, fill: "#64748b" }}
+            tick={{ fontSize: 11, fill: "#6b7280" }}
             tickLine={false}
-            axisLine={{ stroke: "#E2E8F0" }}
+            axisLine={{ stroke: "#e5e7eb" }}
             interval="preserveStartEnd"
             allowDuplicatedCategory={false}
           />
           <YAxis
             domain={[yMin, yMax]}
-            tick={{ fontSize: 10, fill: "#64748b" }}
+            tick={{ fontSize: 10, fill: "#6b7280" }}
             tickLine={false}
             axisLine={false}
             width={40}
@@ -357,14 +357,14 @@ export const GaugeChart = memo(function GaugeChart({
           {meanVal > 0 && (
             <ReferenceLine
               y={meanVal}
-              stroke="#94a3b8"
+              stroke="#9ca3af"
               strokeDasharray="4 4"
               strokeWidth={1}
               label={{
                 value: "Норма",
                 position: "insideBottomRight",
                 fontSize: 10,
-                fill: "#64748b",
+                fill: "#6b7280",
                 offset: 4,
               }}
             />
@@ -373,7 +373,7 @@ export const GaugeChart = memo(function GaugeChart({
           {/* "NOW" vertical line — prominent */}
           <ReferenceLine
             x={todayDate}
-            stroke="#1E293B"
+            stroke="#1f2937"
             strokeWidth={1.5}
             strokeDasharray="4 3"
             label={{
@@ -381,7 +381,7 @@ export const GaugeChart = memo(function GaugeChart({
               position: "top",
               fontSize: 11,
               fontWeight: 600,
-              fill: "#1E293B",
+              fill: "#1f2937",
             }}
           />
 
@@ -414,7 +414,7 @@ export const GaugeChart = memo(function GaugeChart({
         )}
         {meanVal > 0 && (
           <span className="gauge-chart-legend-item">
-            <span className="gauge-chart-legend-dot" style={{ background: "#94a3b8" }} /> Норма
+            <span className="gauge-chart-legend-dot" style={{ background: "#9ca3af" }} /> Норма
           </span>
         )}
       </div>
