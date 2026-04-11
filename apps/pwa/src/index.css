@@ -2525,12 +2525,12 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   z-index: 510;
   width: 24px;
   height: 56px;
-  border: 1px solid rgba(140, 140, 150, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-right: none;
   border-radius: 6px 0 0 6px;
-  background: rgba(15, 15, 18, 0.75);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(10px);
-  color: rgba(160, 160, 170, 0.7);
+  color: #71717a;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -2538,7 +2538,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   font-size: 11px;
   transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s;
 }
-.ep-toggle:hover { background: rgba(15, 15, 18, 0.9); color: rgba(180, 180, 190, 0.9); }
+.ep-toggle:hover { background: rgba(255, 255, 255, 0.95); color: #52525b; }
 .ep-toggle--open { right: 300px; }
 
 .ep {
@@ -2548,14 +2548,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   bottom: 0;
   width: 300px;
   z-index: 500;
-  background: rgba(10, 10, 12, 0.88);
+  background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px);
-  border-left: 1px solid rgba(120, 120, 130, 0.12);
+  border-left: 1px solid rgba(0, 0, 0, 0.08);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
-  scrollbar-color: rgba(120, 120, 130, 0.2) transparent;
-  color: rgba(200, 200, 210, 0.85);
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+  color: #27272a;
   font-size: 12px;
   padding-bottom: 16px;
   transform: translateX(0);
@@ -2569,29 +2569,29 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   padding: 12px 14px 8px;
   position: sticky;
   top: 0;
-  background: rgba(10, 10, 12, 0.95);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(8px);
   z-index: 1;
-  border-bottom: 1px solid rgba(120, 120, 130, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 .ep-header-title {
   font-family: "Courier New", Courier, monospace;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 2.5px;
-  color: rgba(150, 150, 160, 0.6);
+  color: #a1a1aa;
   white-space: nowrap;
 }
 .ep-header-line {
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, rgba(100, 100, 110, 0.15), transparent);
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.1), transparent);
 }
 .ep-header-count {
   font-family: "Courier New", Courier, monospace;
   font-size: 10px;
   font-weight: 700;
-  color: rgba(150, 150, 160, 0.5);
+  color: #a1a1aa;
   min-width: 16px;
   text-align: right;
 }
@@ -2599,13 +2599,13 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .ep-empty {
   padding: 32px 16px;
   text-align: center;
-  color: rgba(140, 140, 150, 0.4);
+  color: #a1a1aa;
   font-size: 11px;
   letter-spacing: 0.5px;
 }
 
 /* Section */
-.ep-section { border-bottom: 1px solid rgba(120, 120, 130, 0.06); }
+.ep-section { border-bottom: 1px solid rgba(0, 0, 0, 0.05); }
 
 .ep-section-header {
   display: flex;
@@ -2615,7 +2615,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   padding: 9px 14px;
   background: none;
   border: none;
-  color: rgba(200, 200, 210, 0.8);
+  color: #27272a;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.3px;
@@ -2623,14 +2623,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   text-align: left;
   transition: background 0.2s ease;
 }
-.ep-section-header:hover { background: rgba(80, 80, 90, 0.08); }
+.ep-section-header:hover { background: rgba(0, 0, 0, 0.04); }
 
 .ep-section-indicator {
   width: 3px;
   height: 14px;
   border-radius: 2px;
   flex-shrink: 0;
-  opacity: 0.7;
+  opacity: 0.85;
 }
 
 .ep-section-title { flex: 1; }
@@ -2638,14 +2638,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .ep-section-count {
   font-family: "Courier New", Courier, monospace;
   font-size: 10px;
-  color: rgba(140, 140, 150, 0.4);
+  color: #a1a1aa;
   min-width: 18px;
   text-align: right;
 }
 
 .ep-section-chevron {
   font-size: 9px;
-  color: rgba(140, 140, 150, 0.3);
+  color: #a1a1aa;
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-block;
 }
@@ -2684,8 +2684,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   border-left: 2px solid transparent;
 }
 .ep-row:hover {
-  background: rgba(80, 80, 90, 0.1);
-  border-left-color: rgba(100, 100, 110, 0.3);
+  background: rgba(0, 0, 0, 0.04);
+  border-left-color: rgba(0, 0, 0, 0.15);
 }
 .ep-row:active { transform: scale(0.99); }
 
@@ -2718,7 +2718,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .ep-row-title {
   font-size: 11px;
   font-weight: 500;
-  color: rgba(215, 215, 220, 0.9);
+  color: #27272a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2732,8 +2732,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   font-weight: 600;
   padding: 1px 5px;
   border-radius: 3px;
-  background: rgba(140, 140, 155, 0.12);
-  color: rgba(170, 170, 180, 0.7);
+  background: rgba(0, 0, 0, 0.06);
+  color: #71717a;
   flex-shrink: 0;
   letter-spacing: 0.3px;
 }
@@ -2745,7 +2745,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 .ep-row-sub {
   font-size: 10px;
-  color: rgba(150, 150, 160, 0.5);
+  color: #71717a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2770,7 +2770,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     height: auto;
     max-height: 38vh;
     border-left: none;
-    border-top: 1px solid rgba(120, 120, 130, 0.12);
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 10px 10px 0 0;
     padding-bottom: 16px;
   }
@@ -2782,7 +2782,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     width: 48px;
     height: 22px;
     border-radius: 6px 6px 0 0;
-    border: 1px solid rgba(120, 120, 130, 0.2);
+    border: 1px solid rgba(0, 0, 0, 0.1);
     border-bottom: none;
   }
   .ep-toggle--open {
@@ -3138,6 +3138,38 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .nerv-layers {
     background: rgba(39, 39, 42, 0.92);
     color: var(--color-text);
+  }
+
+  /* Event panel — dark mode */
+  .ep-toggle {
+    background: rgba(24, 24, 27, 0.8);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #a1a1aa;
+  }
+  .ep-toggle:hover { background: rgba(24, 24, 27, 0.95); color: #d4d4d8; }
+  .ep {
+    background: rgba(24, 24, 27, 0.92);
+    border-left-color: rgba(255, 255, 255, 0.08);
+    scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+    color: #d4d4d8;
+  }
+  .ep-header {
+    background: rgba(24, 24, 27, 0.95);
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+  .ep-section { border-bottom-color: rgba(255, 255, 255, 0.05); }
+  .ep-section-header { color: #d4d4d8; }
+  .ep-section-header:hover { background: rgba(255, 255, 255, 0.05); }
+  .ep-row:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-left-color: rgba(255, 255, 255, 0.15);
+  }
+  .ep-row-title { color: #e4e4e7; }
+  .ep-row-tag { background: rgba(255, 255, 255, 0.08); color: #a1a1aa; }
+  .ep-row-sub { color: #71717a; }
+  @media (max-width: 768px) {
+    .ep { border-top-color: rgba(255, 255, 255, 0.08); }
+    .ep-toggle { border-color: rgba(255, 255, 255, 0.1); }
   }
 
   /* Inputs */
