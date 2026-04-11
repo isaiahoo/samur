@@ -158,14 +158,19 @@ export function LoginPage() {
   const handlePhoneRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phone.trim()) return;
+    // If cooldown is still active (e.g. user tapped "change" and came back),
+    // go straight to code step without re-requesting
+    if (countdown > 0) {
+      setStep("code");
+      setTimeout(() => codeInputRef.current?.focus(), 100);
+      return;
+    }
     setSubmitting(true);
     try {
-      const res = await phoneRequest(phone);
-      const data = res.data as { method: string; expiresIn: number };
+      await phoneRequest(phone);
       setStep("code");
-      startCountdown(120); // 2 min cooldown for resend
+      startCountdown(120);
       showToast("Ожидайте звонок", "success");
-      // Focus code input after render
       setTimeout(() => codeInputRef.current?.focus(), 100);
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : "Ошибка отправки", "error");
