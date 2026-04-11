@@ -11,9 +11,9 @@
   --color-bg: #f8fafc;
   --color-surface: #fff;
   --color-border: #e2e8f0;
-  --tier-1: #22c55e;
-  --tier-2: #f59e0b;
-  --tier-3: #ef4444;
+  --tier-1: #16a34a;
+  --tier-2: #b45309;
+  --tier-3: #dc2626;
   --tier-4: #991b1b;
   --z-header: 1000;
   --z-sheet: 2000;
@@ -121,7 +121,7 @@ a { color: var(--color-primary); text-decoration: none; }
 }
 .profile-menu-role {
   font-size: 12px;
-  color: #94a3b8;
+  color: #64748b;
   margin-top: 2px;
 }
 
@@ -148,8 +148,8 @@ a { color: var(--color-primary); text-decoration: none; }
 .profile-menu-logout:active { background: #fef2f2; }
 .offline-badge {
   font-size: 11px;
-  background: var(--color-warning);
-  color: var(--color-text);
+  background: #92400e;
+  color: #fef3c7;
   padding: 2px 8px;
   border-radius: 10px;
   font-weight: 600;
@@ -266,9 +266,9 @@ a { color: var(--color-primary); text-decoration: none; }
   max-width: calc(100vw - 32px);
   text-align: center;
 }
-.toast--success { background: #22c55e; }
-.toast--error { background: #ef4444; }
-.toast--info { background: #3b82f6; }
+.toast--success { background: #15803d; }
+.toast--error { background: #dc2626; }
+.toast--info { background: #2563eb; }
 @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 .urgency-badge {
@@ -347,13 +347,13 @@ a { color: var(--color-primary); text-decoration: none; }
   min-height: 36px;
 }
 .btn-severity.active, .btn-urgency.active { border-color: currentColor; }
-.btn-severity--low { color: #3b82f6; }
-.btn-severity--medium { color: #f59e0b; }
-.btn-severity--high { color: #f97316; }
-.btn-severity--critical { color: #ef4444; }
-.btn-urgency--info { color: #3b82f6; }
-.btn-urgency--warning { color: #f59e0b; }
-.btn-urgency--critical { color: #ef4444; }
+.btn-severity--low { color: #2563eb; }
+.btn-severity--medium { color: #b45309; }
+.btn-severity--high { color: #ea580c; }
+.btn-severity--critical { color: #dc2626; }
+.btn-urgency--info { color: #2563eb; }
+.btn-urgency--warning { color: #b45309; }
+.btn-urgency--critical { color: #dc2626; }
 
 .form-group { margin-bottom: 12px; }
 .form-group label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 4px; }
@@ -560,26 +560,26 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .gauge-card-body { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
 .gauge-card-tier { font-size: 13px; font-weight: 700; white-space: nowrap; }
-.gauge-card-pct { font-size: 11px; color: #64748b; white-space: nowrap; }
+.gauge-card-pct { font-size: 11px; color: #475569; white-space: nowrap; }
 
-/* Tier colors */
-.tier-1 { background: #22C55E; }
-.tier-2 { background: #F59E0B; }
-.tier-3 { background: #EF4444; }
+/* Tier colors — darkened for white text contrast (WCAG AA ≥ 3:1 for bold) */
+.tier-1 { background: #16a34a; }
+.tier-2 { background: #b45309; }
+.tier-3 { background: #dc2626; }
 .tier-4 { background: #991B1B; }
-.tier-nodata { background: #94A3B8; opacity: 0.7; }
+.tier-nodata { background: #64748b; opacity: 0.7; }
 
 /* Card tier — left border + text color, not background */
-.gauge-card.tier-1 { background: #fff; border-left-color: #22C55E; }
-.gauge-card.tier-2 { background: #fff; border-left-color: #F59E0B; }
-.gauge-card.tier-3 { background: #fff; border-left-color: #EF4444; }
+.gauge-card.tier-1 { background: #fff; border-left-color: #16a34a; }
+.gauge-card.tier-2 { background: #fff; border-left-color: #d97706; }
+.gauge-card.tier-3 { background: #fff; border-left-color: #dc2626; }
 .gauge-card.tier-4 { background: #fff; border-left-color: #991B1B; }
-.gauge-card.tier-1 .gauge-card-tier { color: #16A34A; }
-.gauge-card.tier-2 .gauge-card-tier { color: #D97706; }
-.gauge-card.tier-3 .gauge-card-tier { color: #DC2626; }
+.gauge-card.tier-1 .gauge-card-tier { color: #15803d; }
+.gauge-card.tier-2 .gauge-card-tier { color: #b45309; }
+.gauge-card.tier-3 .gauge-card-tier { color: #b91c1c; }
 .gauge-card.tier-4 .gauge-card-tier { color: #991B1B; }
-.gauge-card.tier-nodata { background: #f8fafc; border-left-color: #94A3B8; opacity: 0.8; }
-.gauge-card.tier-nodata .gauge-card-tier { color: #94A3B8; }
+.gauge-card.tier-nodata { background: #f8fafc; border-left-color: #64748b; opacity: 0.8; }
+.gauge-card.tier-nodata .gauge-card-tier { color: #64748b; }
 
 /* Pulse animation for danger tiers (3+) — uses outline to preserve box-shadow */
 @keyframes gauge-pulse {
@@ -627,8 +627,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
-.tier-banner--1 { background: #22C55E; }
-.tier-banner--2 { background: #F59E0B; }
+.tier-banner--1 { background: #16a34a; color: #fff; }
+.tier-banner--2 { background: #d97706; color: #fff; }
 .tier-banner--3 { background: #EF4444; }
 .tier-banner--4 { background: #991B1B; }
 
@@ -711,7 +711,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .damage-card-discharge {
   font-size: 11px;
   font-weight: 500;
-  color: #94A3B8;
+  color: #64748b;
   font-variant-numeric: tabular-nums;
 }
 .damage-stats {
@@ -755,7 +755,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .damage-card--catastrophic .damage-cost-value { color: #6D28D9; }
 .damage-cost-label {
   font-size: 11px;
-  color: #94A3B8;
+  color: #64748b;
 }
 
 .damage-settlements {
@@ -768,7 +768,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 .damage-analogue {
   font-size: 11px;
-  color: #94A3B8;
+  color: #64748b;
   font-style: italic;
   margin-bottom: 6px;
 }
@@ -797,7 +797,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .damage-probability-text {
   font-size: 10px;
   font-weight: 600;
-  color: #94A3B8;
+  color: #64748b;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -810,11 +810,11 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   background: none;
   font-size: 11px;
   font-weight: 600;
-  color: #94A3B8;
+  color: #64748b;
   cursor: pointer;
   text-align: center;
 }
-.damage-expand:hover { color: #64748B; }
+.damage-expand:hover { color: #475569; }
 
 .damage-details {
   margin-top: 6px;
@@ -1124,7 +1124,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   border-radius: 10px;
   border: 1px solid #E8ECF0;
   font-size: 13px;
-  color: #94a3b8;
+  color: #64748b;
   margin: 10px 0 6px;
 }
 
@@ -1139,7 +1139,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .gauge-chart-tooltip-date { color: #64748b; margin-bottom: 3px; font-size: 11px; }
 .gauge-chart-tooltip-value { font-weight: 700; color: #1E293B; font-size: 14px; }
-.gauge-chart-tooltip-forecast { font-weight: 500; color: #94A3B8; font-size: 12px; }
+.gauge-chart-tooltip-forecast { font-weight: 500; color: #64748b; font-size: 12px; }
 .gauge-chart-tooltip-status { font-weight: 600; font-size: 11px; margin-top: 3px; }
 
 .gauge-chart-legend {
@@ -1316,7 +1316,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   gap: 12px;
   margin-bottom: 4px;
 }
-.social-login-loading { font-size: 13px; color: #64748b; margin: 0; }
+.social-login-loading { font-size: 13px; color: #475569; margin: 0; }
 
 .btn-tg-login {
   display: flex;
@@ -1378,7 +1378,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   align-items: center;
   gap: 12px;
   margin: 20px 0;
-  color: #94a3b8;
+  color: #64748b;
   font-size: 13px;
 }
 .login-divider::before,
@@ -1424,7 +1424,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .resend-timer {
   font-size: 13px;
-  color: #94a3b8;
+  color: #64748b;
   margin: 0;
 }
 
@@ -1443,7 +1443,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   padding: 12px 16px;
   font-size: 13px;
   font-weight: 600;
-  color: #94a3b8;
+  color: #cbd5e1;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
@@ -1519,7 +1519,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 .text-muted { color: #64748b; font-size: 13px; }
 .text-success { color: #16a34a; font-size: 13px; }
-.empty-state { display: flex; justify-content: center; padding: 48px 16px; color: #94a3b8; font-size: 15px; }
+.empty-state { display: flex; justify-content: center; padding: 48px 16px; color: #64748b; font-size: 15px; }
 
 /* ── News page ──────────────────────────────────────────────────────── */
 .news-page { padding: 0 0 16px; }
@@ -1557,7 +1557,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   display: inline-block; padding: 2px 8px; border-radius: 10px;
   color: #fff; font-size: 11px; font-weight: 600;
 }
-.news-card-time { font-size: 12px; color: #94a3b8; }
+.news-card-time { font-size: 12px; color: #64748b; }
 .news-card-title {
   font-size: 15px; font-weight: 600; color: #0f172a; line-height: 1.35;
   margin: 0 0 4px;
@@ -1576,10 +1576,10 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 .maplibregl-popup-content { border-radius: 10px; padding: 10px 12px; }
 .popup-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; color: #fff; font-size: 11px; font-weight: 600; margin-left: 6px; }
-.severity-critical { background: #EF4444; }
-.severity-high { background: #F97316; }
-.severity-medium { background: #F59E0B; }
-.severity-low { background: #3B82F6; }
+.severity-critical { background: #dc2626; }
+.severity-high { background: #ea580c; }
+.severity-medium { background: #b45309; }
+.severity-low { background: #2563eb; }
 
 /* ── Timeline Slider (base positioning) ───────────────────────────────── */
 
@@ -3139,8 +3139,10 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   /* Spinner */
   .spinner { border-color: var(--color-border); border-top-color: var(--color-primary); }
 
-  /* Toast */
-  .toast { background: #334155; color: var(--color-text); }
+  /* Toast — keep color-coded backgrounds for visual distinction */
+  .toast--success { background: #166534; color: #d1fae5; }
+  .toast--error { background: #991b1b; color: #fecaca; }
+  .toast--info { background: #1e40af; color: #dbeafe; }
 
   /* ── Detail panel dark mode ────────────────────────────────────────────── */
 
@@ -3198,12 +3200,12 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     background: rgba(15, 23, 42, 0.6);
     border-color: rgba(51, 65, 85, 0.5);
   }
-  .gauge-chart-title { color: #94a3b8; }
-  .gauge-chart-label { color: #64748b; }
+  .gauge-chart-title { color: #cbd5e1; }
+  .gauge-chart-label { color: #94a3b8; }
   .gauge-chart-loading {
     background: rgba(15, 23, 42, 0.6);
     border-color: rgba(51, 65, 85, 0.5);
-    color: #64748b;
+    color: #94a3b8;
   }
   .gauge-chart-tooltip {
     background: #1e293b;
@@ -3212,7 +3214,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   }
   .gauge-chart-tooltip-date { color: #94a3b8; }
   .gauge-chart-tooltip-value { color: #e2e8f0; }
-  .gauge-chart-legend { color: #64748b; }
+  .gauge-chart-legend { color: #94a3b8; }
 
   /* Earthquake detail */
   .eq-detail-badge--danger { background: rgba(239, 68, 68, 0.15); color: #f87171; }
@@ -3238,22 +3240,22 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .damage-tab--active.damage-tab--severe { background: rgba(239, 68, 68, 0.15); color: #f87171; border-color: rgba(239, 68, 68, 0.4); }
   .damage-tab--active.damage-tab--catastrophic { background: rgba(139, 92, 246, 0.15); color: #a78bfa; border-color: rgba(139, 92, 246, 0.4); }
   .damage-card-period { color: #94a3b8; }
-  .damage-card-discharge { color: #64748b; }
+  .damage-card-discharge { color: #94a3b8; }
   .damage-stat-value { color: #e2e8f0; }
-  .damage-stat-label { color: #64748b; }
+  .damage-stat-label { color: #94a3b8; }
   .damage-card--moderate .damage-cost { background: rgba(245, 158, 11, 0.1); }
   .damage-card--severe .damage-cost { background: rgba(239, 68, 68, 0.1); }
   .damage-card--catastrophic .damage-cost { background: rgba(139, 92, 246, 0.1); }
   .damage-card--moderate .damage-cost-value { color: #fbbf24; }
   .damage-card--severe .damage-cost-value { color: #f87171; }
   .damage-card--catastrophic .damage-cost-value { color: #a78bfa; }
-  .damage-cost-label { color: #64748b; }
-  .damage-settlements { color: #94a3b8; }
-  .damage-analogue { color: #64748b; }
+  .damage-cost-label { color: #94a3b8; }
+  .damage-settlements { color: #cbd5e1; }
+  .damage-analogue { color: #94a3b8; }
   .damage-probability-bar { background: rgba(51, 65, 85, 0.5); }
-  .damage-probability-text { color: #64748b; }
-  .damage-expand { color: #64748b; }
-  .damage-expand:hover { color: #94a3b8; }
+  .damage-probability-text { color: #94a3b8; }
+  .damage-expand { color: #94a3b8; }
+  .damage-expand:hover { color: #cbd5e1; }
   .damage-details { border-top-color: rgba(51, 65, 85, 0.5); }
   .damage-description { color: #cbd5e1; }
   .damage-infra-list { color: #94a3b8; }
@@ -3279,31 +3281,196 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     background: #e2e8f0;
     border-color: rgba(30, 41, 59, 0.8);
   }
-  .proximity-meta { color: #64748b; }
+  .proximity-meta { color: #94a3b8; }
   .proximity-return-period { color: #94a3b8; }
   .proximity-eta { color: #94a3b8; }
   .damage-tab-proximity { background: rgba(255,255,255,0.08); }
   .damage-card-proximity { border-bottom-color: rgba(51, 65, 85, 0.5); }
   .damage-card-proximity-bar { background: rgba(51, 65, 85, 0.5); }
-  .damage-card-proximity-text { color: #64748b; }
+  .damage-card-proximity-text { color: #94a3b8; }
   .damage-card-proximity-exceeded { color: #fca5a5; }
 
   /* Login page */
   .login-page { background: var(--color-bg); }
   .login-card { background: var(--color-surface); border-color: var(--color-border); }
-  .login-subtitle { color: #94a3b8; }
-  .login-divider { color: #64748b; }
+  .login-subtitle { color: #cbd5e1; }
+  .login-divider { color: #94a3b8; }
   .login-divider::before, .login-divider::after { background: var(--color-border); }
-  .login-switch { color: #94a3b8; }
-  .phone-hint { color: #94a3b8; }
-  .phone-code-info { color: #94a3b8; }
-  .resend-timer { color: #64748b; }
+  .login-switch { color: #cbd5e1; }
+  .phone-hint { color: #cbd5e1; }
+  .phone-code-info { color: #cbd5e1; }
+  .resend-timer { color: #94a3b8; }
   .btn-tg-login { background: #2aabee; }
   .btn-tg-login:hover { background: #40b8f5; }
   .btn-vk-login { background: #0077ff; }
   .btn-vk-login:hover { background: #338aff; }
   .vk-callback-error { color: #f87171; }
-  .vk-callback-loading { color: #94a3b8; }
+  .vk-callback-loading { color: #cbd5e1; }
+
+  /* Help page cards */
+  .help-card {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+  }
+  .help-card-desc { color: #cbd5e1; }
+  .help-card-meta { color: #94a3b8; }
+  .help-card-contact { color: #cbd5e1; }
+  .help-card-status { color: #94a3b8; }
+  .help-tab { color: #94a3b8; }
+  .help-tab--active { color: var(--color-primary); }
+
+  /* Alerts page */
+  .alert-card { background: var(--color-surface); }
+  .alert-time { color: #94a3b8; }
+  .alert-body { color: #cbd5e1; }
+  .alert-banner--critical { background: rgba(153, 27, 27, 0.2); border-bottom-color: #991b1b; }
+  .alert-banner-content strong { color: #fca5a5; }
+  .alert-banner-content p { color: #fecaca; }
+  .alert-banner-content small { color: #f87171; }
+
+  /* Info page */
+  .info-section h3 { color: #e2e8f0; }
+  .phone-item { background: var(--color-surface); }
+  .phone-item strong { color: var(--color-primary); }
+  .phone-item span { color: #cbd5e1; }
+  .info-list li { color: #cbd5e1; }
+
+  /* Shelter cards */
+  .shelter-card {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+  }
+  .shelter-address { color: #94a3b8; }
+  .shelter-capacity span { color: #cbd5e1; }
+  .shelter-amenities { color: #94a3b8; }
+  .shelter-distance { color: #cbd5e1; }
+
+  /* News page */
+  .news-card { background: var(--color-surface); }
+  .news-card:active { background: #1e293b; }
+  .news-card-title { color: #e2e8f0; }
+  .news-card-summary { color: #94a3b8; }
+  .news-card-time { color: #94a3b8; }
+  .news-filter-chip {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    color: #cbd5e1;
+  }
+  .news-filter-chip--active {
+    background: #1e40af;
+    color: #fff;
+    border-color: #1e40af;
+  }
+  .news-list { background: var(--color-border); }
+  .news-load-more-btn {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    color: var(--color-primary);
+  }
+
+  /* Form elements */
+  .form-group label { color: #cbd5e1; }
+  .chip { background: var(--color-surface); border-color: var(--color-border); color: #cbd5e1; }
+  .chip--active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+
+  /* Report form */
+  .report-overlay { background: var(--color-bg); }
+  .report-step h3 { color: #e2e8f0; }
+  .report-type-btn {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    color: #cbd5e1;
+  }
+  .report-type-btn:active { border-color: var(--color-primary); background: rgba(37, 99, 235, 0.1); }
+
+  /* Modal */
+  .modal { background: var(--color-surface); }
+  .modal-header h3 { color: var(--color-text); }
+
+  /* Buttons */
+  .btn-secondary { background: #334155; color: #e2e8f0; }
+  .btn-close { color: #94a3b8; }
+  .btn-link { color: var(--color-primary); }
+
+  /* Stat card */
+  .stat-card {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+  }
+  .stat-value { color: #e2e8f0; }
+  .stat-label { color: #94a3b8; }
+
+  /* Verification cards */
+  .verification-card {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+  }
+  .help-mgmt-card {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+  }
+  .help-mgmt-type { color: #94a3b8; }
+
+  /* River cards */
+  .river-card {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+  }
+  .river-form {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+  }
+
+  /* Popup */
+  .popup-content p { color: #cbd5e1; }
+  .popup-status { color: #94a3b8; }
+
+  /* Admin page */
+  .admin-page { background: var(--color-bg); }
+
+  /* Severity buttons dark */
+  .btn-severity, .btn-urgency {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+  }
+  .btn-severity--low { color: #60a5fa; }
+  .btn-severity--medium { color: #fbbf24; }
+  .btn-severity--high { color: #fb923c; }
+  .btn-severity--critical { color: #f87171; }
+  .btn-urgency--info { color: #60a5fa; }
+  .btn-urgency--warning { color: #fbbf24; }
+  .btn-urgency--critical { color: #f87171; }
+
+  /* Status badges dark */
+  .status-badge--open { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+  .status-badge--full { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+  .status-badge--closed { background: rgba(51, 65, 85, 0.5); color: #94a3b8; }
+
+  /* River trend badges */
+  .river-trend--rising { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+  .river-trend--stable { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+  .river-trend--falling { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+
+  /* Gauge card on map */
+  .gauge-card { background: var(--color-surface); border-color: var(--color-border); }
+  .gauge-card-river { color: #e2e8f0; }
+  .gauge-card-pct { color: #94a3b8; }
+  .gauge-card.tier-1 { background: var(--color-surface); }
+  .gauge-card.tier-2 { background: var(--color-surface); }
+  .gauge-card.tier-3 { background: var(--color-surface); }
+  .gauge-card.tier-4 { background: var(--color-surface); }
+  .gauge-card.tier-nodata { background: rgba(15, 23, 42, 0.8); }
+
+  /* Sparkline */
+  .sparkline-label { color: #94a3b8; }
+  .sparkline-svg { background: rgba(15, 23, 42, 0.5); }
+  .sparkline-legend { color: #94a3b8; }
+
+  /* MapLibre popup */
+  .maplibregl-popup-content { background: var(--color-surface); color: var(--color-text); }
+
+  /* Text utilities */
+  .text-muted { color: #94a3b8; }
 
   /* Profile button & menu */
   .profile-btn { background: #334155; color: #94a3b8; }

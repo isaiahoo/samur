@@ -291,7 +291,7 @@ export const GaugeChart = memo(function GaugeChart({
 
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 11, fill: "#94A3B8" }}
+            tick={{ fontSize: 11, fill: "#64748b" }}
             tickLine={false}
             axisLine={{ stroke: "#E2E8F0" }}
             interval="preserveStartEnd"
@@ -299,7 +299,7 @@ export const GaugeChart = memo(function GaugeChart({
           />
           <YAxis
             domain={[yMin, yMax]}
-            tick={{ fontSize: 10, fill: "#94A3B8" }}
+            tick={{ fontSize: 10, fill: "#64748b" }}
             tickLine={false}
             axisLine={false}
             width={40}
@@ -357,14 +357,14 @@ export const GaugeChart = memo(function GaugeChart({
           {meanVal > 0 && (
             <ReferenceLine
               y={meanVal}
-              stroke="#94A3B8"
+              stroke="#94a3b8"
               strokeDasharray="4 4"
               strokeWidth={1}
               label={{
                 value: "Норма",
                 position: "insideBottomRight",
                 fontSize: 10,
-                fill: "#94A3B8",
+                fill: "#64748b",
                 offset: 4,
               }}
             />
@@ -414,7 +414,7 @@ export const GaugeChart = memo(function GaugeChart({
         )}
         {meanVal > 0 && (
           <span className="gauge-chart-legend-item">
-            <span className="gauge-chart-legend-dot" style={{ background: "#94A3B8" }} /> Норма
+            <span className="gauge-chart-legend-dot" style={{ background: "#94a3b8" }} /> Норма
           </span>
         )}
       </div>

@@ -29,7 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div style={{ padding: 24, textAlign: "center", marginTop: 80 }}>
           <h2>{i18n.t("error.title")}</h2>
-          <p style={{ color: "#64748b", marginTop: 8 }}>
+          <p style={{ color: "#475569", marginTop: 8 }}>
             {i18n.t("error.description")}
           </p>
           <button

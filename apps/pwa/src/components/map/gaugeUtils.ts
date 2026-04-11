@@ -25,11 +25,11 @@ export interface GaugeTier {
 }
 
 export const TIER_COLORS = {
-  1: "#22C55E", // green — normal
-  2: "#F59E0B", // amber — elevated
-  3: "#EF4444", // red — dangerous
+  1: "#16a34a", // green-600 — normal (WCAG AA with white text)
+  2: "#b45309", // amber-700 — elevated (WCAG AA with white text)
+  3: "#dc2626", // red-600 — dangerous
   4: "#991B1B", // dark red — critical
-  nodata: "#94A3B8", // slate — no data
+  nodata: "#64748b", // slate-500 — no data
 } as const;
 
 export const TIER_LABELS: Record<number, string> = {
