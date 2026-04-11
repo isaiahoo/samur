@@ -2250,14 +2250,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .fab {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 104px);
   }
-  .sos-fab {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 104px);
-  }
   .map-page--panel-open .fab {
-    display: none;
-  }
-  .map-page--panel-open ~ .sos-fab,
-  .app-layout:has(.map-page--panel-open) .sos-fab {
     display: none;
   }
 }
@@ -2918,6 +2911,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   font-weight: 800;
   letter-spacing: 1px;
   line-height: 1;
+}
+@media (max-width: 768px) {
+  .sos-fab {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 104px);
+  }
+  .app-layout:has(.map-page--panel-open) .sos-fab {
+    display: none;
+  }
 }
 @keyframes sos-glow {
   0%, 100% { box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4), 0 0 0 0 rgba(220, 38, 38, 0); }
