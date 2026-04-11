@@ -113,4 +113,31 @@ router.get("/me", requireAuth, async (req, res, next) => {
   }
 });
 
+router.patch("/me", requireAuth, async (req, res, next) => {
+  try {
+    const { name, role } = req.body as { name?: string; role?: string };
+
+    const data: Record<string, string> = {};
+    if (name && typeof name === "string" && name.trim().length > 0 && name.length <= 200) {
+      data.name = name.trim();
+    }
+    if (role && ["resident", "volunteer"].includes(role)) {
+      data.role = role;
+    }
+
+    if (Object.keys(data).length === 0) {
+      throw new AppError(400, "NO_CHANGES", "Нет данных для обновления");
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.user!.sub },
+      data,
+    });
+
+    res.json({ success: true, data: sanitizeUser(user) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

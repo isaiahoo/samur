@@ -1514,6 +1514,25 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .role-option-label { font-size: 13px; font-weight: 600; color: #27272a; }
 .role-option-desc { font-size: 11px; color: #a1a1aa; }
 
+/* Profile completion step */
+.profile-form {
+  animation: report-slide-up 0.2s ease-out;
+}
+.profile-welcome {
+  font-size: 14px;
+  color: #52525b;
+  text-align: center;
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+.profile-skip {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 12px;
+  font-size: 14px;
+}
+
 .admin-page {
   min-height: 100dvh;
   background: #fafafa;

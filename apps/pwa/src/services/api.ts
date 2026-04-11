@@ -119,6 +119,13 @@ export function getMe() {
   return request<ApiResponse>("/auth/me");
 }
 
+export function updateProfile(data: { name?: string; role?: string }) {
+  return request<ApiResponse>("/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
 export function getIncidents(params?: Record<string, string | number | boolean>) {
   const qs = params ? "?" + new URLSearchParams(toStringRecord(params)).toString() : "";
   return request<PaginatedResponse<unknown>>(`/incidents${qs}`);

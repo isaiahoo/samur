@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { phoneRequest, phoneVerify, telegramInit, telegramCheck, ApiError } from "../services/api.js";
+import { phoneRequest, phoneVerify, telegramInit, telegramCheck, updateProfile, ApiError } from "../services/api.js";
 import { useAuthStore } from "../store/auth.js";
 import { useUIStore } from "../store/ui.js";
 import type { User } from "@samur/shared";
@@ -39,7 +39,7 @@ export function LoginPage() {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState<"resident" | "volunteer">("resident");
-  const [step, setStep] = useState<"phone" | "code">("phone");
+  const [step, setStep] = useState<"phone" | "code" | "profile">("phone");
   const [submitting, setSubmitting] = useState(false);
   const [tgLoading, setTgLoading] = useState(false);
   const [tgPolling, setTgPolling] = useState(false);
@@ -51,6 +51,8 @@ export function LoginPage() {
   const tgPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const codeInputRef = useRef<HTMLInputElement>(null);
+  // Store token+user from verify so profile step can use them
+  const pendingAuthRef = useRef<{ token: string; user: User } | null>(null);
 
   // Clean up on unmount
   useEffect(() => {
@@ -173,7 +175,11 @@ export function LoginPage() {
       showToast("Ожидайте звонок", "success");
       setTimeout(() => codeInputRef.current?.focus(), 100);
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Ошибка отправки", "error");
+      if (err instanceof ApiError) {
+        showToast(err.message, "error");
+      } else {
+        showToast("Ошибка отправки. Попробуйте ещё раз.", "error");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -184,16 +190,59 @@ export function LoginPage() {
     if (code.length < 4) return;
     setSubmitting(true);
     try {
-      const res = await phoneVerify(phone, code, name || undefined, role);
+      const res = await phoneVerify(phone, code);
       const data = res.data as { token: string; user: User; isNew: boolean };
-      setAuth(data.token, data.user);
-      showToast("Вход выполнен", "success");
-      navigate("/");
+
+      if (data.isNew) {
+        // New user — save auth data and show profile completion step
+        pendingAuthRef.current = { token: data.token, user: data.user };
+        setAuth(data.token, data.user);
+        setStep("profile");
+      } else {
+        // Existing user — log in directly
+        setAuth(data.token, data.user);
+        showToast("С возвращением!", "success");
+        navigate("/");
+      }
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Неверный код", "error");
+      if (err instanceof ApiError) {
+        showToast(err.message, "error");
+      } else {
+        showToast("Неверный код", "error");
+      }
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleProfileComplete = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const data: { name?: string; role: string } = { role };
+      if (name.trim()) data.name = name.trim();
+
+      const res = await updateProfile(data);
+      const updatedUser = res.data as User;
+
+      // Update stored auth with fresh user data
+      const token = useAuthStore.getState().token;
+      if (token) setAuth(token, updatedUser);
+
+      showToast("Добро пожаловать!", "success");
+      navigate("/");
+    } catch (err) {
+      // Even if profile update fails, user is already authenticated
+      showToast("Профиль сохранён", "success");
+      navigate("/");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSkipProfile = () => {
+    showToast("Добро пожаловать!", "success");
+    navigate("/");
   };
 
   const handleResend = async () => {
@@ -205,7 +254,11 @@ export function LoginPage() {
       setCode("");
       showToast("Повторный звонок отправлен", "success");
     } catch (err) {
-      showToast(err instanceof ApiError ? err.message : "Ошибка", "error");
+      if (err instanceof ApiError) {
+        showToast(err.message, "error");
+      } else {
+        showToast("Ошибка отправки", "error");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -222,41 +275,109 @@ export function LoginPage() {
       <div className="login-card">
         <div className="login-header">
           <h2>Самур</h2>
-          <p className="login-subtitle">Вход и регистрация</p>
+          <p className="login-subtitle">
+            {step === "profile" ? "Завершение регистрации" : "Вход и регистрация"}
+          </p>
         </div>
 
-        {/* Social Login */}
-        <div className="social-login-section">
-          <button
-            className="btn-vk-login"
-            onClick={handleVkLogin}
-            disabled={submitting || tgLoading}
-            type="button"
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12.785 16.241s.288-.032.436-.194c.136-.148.132-.427.132-.427s-.02-1.304.576-1.496c.588-.19 1.344 1.26 2.144 1.818.605.422 1.066.33 1.066.33l2.137-.03s1.117-.07.588-.964c-.043-.073-.308-.661-1.588-1.87-1.34-1.264-1.16-1.059.453-3.246.983-1.332 1.376-2.145 1.253-2.493-.117-.332-.84-.244-.84-.244l-2.406.015s-.178-.025-.31.056c-.13.079-.212.263-.212.263s-.382 1.03-.89 1.907c-1.07 1.85-1.499 1.948-1.674 1.834-.407-.267-.305-1.075-.305-1.648 0-1.79.267-2.536-.52-2.73-.262-.064-.454-.107-1.123-.114-.858-.009-1.585.003-1.996.208-.274.136-.485.44-.356.457.159.022.519.099.71.363.246.342.237 1.11.237 1.11s.142 2.11-.33 2.371c-.324.18-.768-.187-1.722-1.865-.489-.859-.858-1.81-.858-1.81s-.071-.178-.198-.273c-.154-.115-.369-.152-.369-.152l-2.286.015s-.343.01-.47.163c-.112.136-.009.418-.009.418s1.795 4.258 3.829 6.403c1.865 1.967 3.984 1.837 3.984 1.837h.96z" />
-            </svg>
-            Войти через VK
-          </button>
+        {/* Profile completion step — shown only for new users after code verification */}
+        {step === "profile" && (
+          <form onSubmit={handleProfileComplete} className="profile-form">
+            <p className="profile-welcome">
+              Вы успешно зарегистрировались! Расскажите немного о себе.
+            </p>
 
-          <button
-            className="btn-tg-login"
-            onClick={handleTelegramLogin}
-            disabled={submitting || tgLoading}
-            type="button"
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-            </svg>
-            {tgPolling ? "Ожидание подтверждения..." : "Войти через Telegram"}
-          </button>
-        </div>
+            <div className="form-group">
+              <label htmlFor="login-name">Ваше имя</label>
+              <input
+                id="login-name"
+                className="form-input"
+                type="text"
+                placeholder="Как вас зовут?"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoFocus
+              />
+            </div>
 
-        <div className="login-divider">
-          <span>или</span>
-        </div>
+            <div className="form-group">
+              <label>Я хочу</label>
+              <div className="role-select">
+                <button
+                  type="button"
+                  className={`role-option${role === "resident" ? " role-option--active" : ""}`}
+                  onClick={() => setRole("resident")}
+                >
+                  <span className="role-option-icon">🏠</span>
+                  <span className="role-option-label">Получать помощь</span>
+                  <span className="role-option-desc">Житель</span>
+                </button>
+                <button
+                  type="button"
+                  className={`role-option${role === "volunteer" ? " role-option--active" : ""}`}
+                  onClick={() => setRole("volunteer")}
+                >
+                  <span className="role-option-icon">🤝</span>
+                  <span className="role-option-label">Помогать</span>
+                  <span className="role-option-desc">Волонтёр</span>
+                </button>
+              </div>
+            </div>
 
-        {/* Phone + Call Verification */}
+            <button
+              className="btn btn-primary btn-lg"
+              type="submit"
+              disabled={submitting}
+            >
+              {submitting ? "Сохранение..." : "Продолжить"}
+            </button>
+
+            <button
+              type="button"
+              className="btn-link profile-skip"
+              onClick={handleSkipProfile}
+            >
+              Пропустить
+            </button>
+          </form>
+        )}
+
+        {/* Social Login — hidden during profile step */}
+        {step !== "profile" && (
+          <>
+            <div className="social-login-section">
+              <button
+                className="btn-vk-login"
+                onClick={handleVkLogin}
+                disabled={submitting || tgLoading}
+                type="button"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12.785 16.241s.288-.032.436-.194c.136-.148.132-.427.132-.427s-.02-1.304.576-1.496c.588-.19 1.344 1.26 2.144 1.818.605.422 1.066.33 1.066.33l2.137-.03s1.117-.07.588-.964c-.043-.073-.308-.661-1.588-1.87-1.34-1.264-1.16-1.059.453-3.246.983-1.332 1.376-2.145 1.253-2.493-.117-.332-.84-.244-.84-.244l-2.406.015s-.178-.025-.31.056c-.13.079-.212.263-.212.263s-.382 1.03-.89 1.907c-1.07 1.85-1.499 1.948-1.674 1.834-.407-.267-.305-1.075-.305-1.648 0-1.79.267-2.536-.52-2.73-.262-.064-.454-.107-1.123-.114-.858-.009-1.585.003-1.996.208-.274.136-.485.44-.356.457.159.022.519.099.71.363.246.342.237 1.11.237 1.11s.142 2.11-.33 2.371c-.324.18-.768-.187-1.722-1.865-.489-.859-.858-1.81-.858-1.81s-.071-.178-.198-.273c-.154-.115-.369-.152-.369-.152l-2.286.015s-.343.01-.47.163c-.112.136-.009.418-.009.418s1.795 4.258 3.829 6.403c1.865 1.967 3.984 1.837 3.984 1.837h.96z" />
+                </svg>
+                Войти через VK
+              </button>
+
+              <button
+                className="btn-tg-login"
+                onClick={handleTelegramLogin}
+                disabled={submitting || tgLoading}
+                type="button"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                </svg>
+                {tgPolling ? "Ожидание подтверждения..." : "Войти через Telegram"}
+              </button>
+            </div>
+
+            <div className="login-divider">
+              <span>или</span>
+            </div>
+          </>
+        )}
+
+        {/* Phone Step — enter phone, request code */}
         {step === "phone" && (
           <form onSubmit={handlePhoneRequest}>
             <div className="form-group">
@@ -287,6 +408,7 @@ export function LoginPage() {
           </form>
         )}
 
+        {/* Code Step — enter code only (no name/role here) */}
         {step === "code" && (
           <form onSubmit={handleCodeVerify}>
             <p className="phone-code-info">
@@ -316,42 +438,6 @@ export function LoginPage() {
                 onChange={(e) => handleCodeChange(e.target.value)}
                 autoComplete="one-time-code"
               />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="login-name">Ваше имя</label>
-              <input
-                id="login-name"
-                className="form-input"
-                type="text"
-                placeholder="Как вас зовут?"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Я хочу</label>
-              <div className="role-select">
-                <button
-                  type="button"
-                  className={`role-option${role === "resident" ? " role-option--active" : ""}`}
-                  onClick={() => setRole("resident")}
-                >
-                  <span className="role-option-icon">🏠</span>
-                  <span className="role-option-label">Получать помощь</span>
-                  <span className="role-option-desc">Житель</span>
-                </button>
-                <button
-                  type="button"
-                  className={`role-option${role === "volunteer" ? " role-option--active" : ""}`}
-                  onClick={() => setRole("volunteer")}
-                >
-                  <span className="role-option-icon">🤝</span>
-                  <span className="role-option-label">Помогать</span>
-                  <span className="role-option-desc">Волонтёр</span>
-                </button>
-              </div>
             </div>
 
             <button
