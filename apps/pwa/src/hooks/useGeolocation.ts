@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 
 interface GeoPosition {
   lat: number;
@@ -22,6 +22,7 @@ export function useGeolocation(): UseGeolocationResult {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<GeoStatus>("idle");
+  const hasRequested = useRef(false);
 
   const requestPosition = useCallback(() => {
     if (!("geolocation" in navigator)) {
@@ -29,6 +30,10 @@ export function useGeolocation(): UseGeolocationResult {
       setStatus("unavailable");
       return;
     }
+
+    // First call can use cached position; retries force fresh lookup
+    const maxAge = hasRequested.current ? 0 : 60000;
+    hasRequested.current = true;
 
     setLoading(true);
     setError(null);
@@ -46,7 +51,6 @@ export function useGeolocation(): UseGeolocationResult {
       },
       (err) => {
         if (err.code === 1) {
-          // PERMISSION_DENIED
           setError("Доступ к геолокации запрещён");
           setStatus("denied");
         } else if (err.code === 2) {
@@ -58,7 +62,7 @@ export function useGeolocation(): UseGeolocationResult {
         }
         setLoading(false);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: maxAge },
     );
   }, []);
 
