@@ -2772,6 +2772,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 @media (max-width: 768px) {
   .ep {
+    /* Fixed positioning escapes parent overflow:hidden — required for iOS Safari scroll */
+    position: fixed;
     top: auto;
     bottom: calc(56px + env(safe-area-inset-bottom, 0px));
     left: 0;
@@ -2784,8 +2786,10 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     padding-bottom: 16px;
     transform: none;
     pointer-events: auto;
-    overflow-y: auto;
+    overflow-y: scroll;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
   }
   /* Mobile collapsed: just show header + handle, no scroll */
   .ep--collapsed {
@@ -2798,6 +2802,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .ep .ep-header {
     position: static;
     backdrop-filter: none;
+    cursor: pointer;
   }
   /* Hide desktop toggle on mobile */
   .ep-toggle { display: none; }
