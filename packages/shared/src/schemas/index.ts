@@ -223,6 +223,16 @@ export const RegisterSchema = z.object({
   password: z.string().min(6).max(128),
 });
 
+export const PhoneRequestSchema = z.object({
+  phone: phone,
+});
+
+export const PhoneVerifySchema = z.object({
+  phone: phone,
+  code: z.string().regex(/^\d{4}$/, "Код должен состоять из 4 цифр"),
+  name: z.string().min(1).max(200).optional(),
+});
+
 export const SortOrderSchema = z.enum(["asc", "desc"]).default("desc");
 
 export const PaginationSchema = z.object({
@@ -328,6 +338,8 @@ export type CreateRiverLevelInput = z.infer<typeof CreateRiverLevelSchema>;
 export type TelegramAuthInput = z.infer<typeof TelegramAuthSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;
 export type RegisterInput = z.infer<typeof RegisterSchema>;
+export type PhoneRequestInput = z.infer<typeof PhoneRequestSchema>;
+export type PhoneVerifyInput = z.infer<typeof PhoneVerifySchema>;
 export type IncidentQuery = z.infer<typeof IncidentQuerySchema>;
 export type HelpRequestQuery = z.infer<typeof HelpRequestQuerySchema>;
 export type AlertQuery = z.infer<typeof AlertQuerySchema>;

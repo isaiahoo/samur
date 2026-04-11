@@ -16,6 +16,7 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("debug"),
   MAPTILER_API_KEY: z.string().default(""),
   TILE_PROVIDER: z.enum(["maptiler", "openfreemap"]).default("maptiler"),
+  GREENSMS_TOKEN: z.string().default(""),
 });
 
 /**

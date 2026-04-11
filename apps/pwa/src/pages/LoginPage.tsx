@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { login, register, telegramInit, telegramCheck, ApiError } from "../services/api.js";
+import { phoneRequest, phoneVerify, telegramInit, telegramCheck, ApiError } from "../services/api.js";
 import { useAuthStore } from "../store/auth.js";
 import { useUIStore } from "../store/ui.js";
 import type { User } from "@samur/shared";
@@ -35,25 +35,43 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
 }
 
 export function LoginPage() {
-  const [mode, setMode] = useState<"login" | "register">("login");
-  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [role, setRole] = useState("resident");
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [step, setStep] = useState<"phone" | "code">("phone");
   const [submitting, setSubmitting] = useState(false);
   const [tgLoading, setTgLoading] = useState(false);
   const [tgPolling, setTgPolling] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
   const setAuth = useAuthStore((s) => s.setAuth);
   const showToast = useUIStore((s) => s.showToast);
   const navigate = useNavigate();
   const tgPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const codeInputRef = useRef<HTMLInputElement>(null);
 
-  // Clean up polling on unmount
+  // Clean up on unmount
   useEffect(() => {
     return () => {
       if (tgPollRef.current) clearInterval(tgPollRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
     };
+  }, []);
+
+  const startCountdown = useCallback((seconds: number) => {
+    setCountdown(seconds);
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    countdownRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownRef.current!);
+          countdownRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   }, []);
 
   const handleTelegramLogin = async () => {
@@ -62,23 +80,19 @@ export function LoginPage() {
       const res = await telegramInit();
       const { token } = res.data as { token: string };
 
-      // Open Telegram app via tg:// protocol (bypasses t.me domain block in Russia)
-      // Falls back to t.me link after a short delay (for desktop or if tg:// not handled)
       const tgDeepLink = `tg://resolve?domain=${TG_BOT_NAME}&start=login_${token}`;
       const tgWebLink = `https://t.me/${TG_BOT_NAME}?start=login_${token}`;
 
       window.location.href = tgDeepLink;
-      // If tg:// didn't open the app, try web link after 1.5s
       setTimeout(() => {
         if (document.hasFocus()) {
           window.open(tgWebLink, "_blank");
         }
       }, 1500);
 
-      // Start polling for auth completion
       setTgPolling(true);
       let attempts = 0;
-      const maxAttempts = 60; // ~2 minutes at 2s intervals
+      const maxAttempts = 60;
 
       tgPollRef.current = setInterval(async () => {
         attempts++;
@@ -103,7 +117,6 @@ export function LoginPage() {
             navigate("/");
           }
         } catch (err) {
-          // 404 = token expired (stop); other errors = transient (keep polling)
           if (err instanceof ApiError && err.status === 404) {
             clearInterval(tgPollRef.current!);
             tgPollRef.current = null;
@@ -111,7 +124,6 @@ export function LoginPage() {
             setTgLoading(false);
             showToast("Время ожидания истекло. Попробуйте снова.", "error");
           }
-          // else: transient error, keep polling
         }
       }, 2000);
     } catch (err) {
@@ -125,7 +137,6 @@ export function LoginPage() {
     const codeChallenge = await generateCodeChallenge(codeVerifier);
     const state = crypto.randomUUID();
 
-    // Store PKCE values for the callback page
     sessionStorage.setItem("vk_code_verifier", codeVerifier);
     sessionStorage.setItem("vk_state", state);
     sessionStorage.setItem("vk_redirect_uri", VK_REDIRECT_URI);
@@ -143,25 +154,61 @@ export function LoginPage() {
     window.location.href = `https://id.vk.com/authorize?${params.toString()}`;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePhoneRequest = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!phone.trim()) return;
     setSubmitting(true);
     try {
-      let res;
-      if (mode === "login") {
-        res = await login(phone, password);
-      } else {
-        res = await register(name, phone, password, role);
-      }
-      const data = res.data as { token: string; user: User };
+      const res = await phoneRequest(phone);
+      const data = res.data as { method: string; expiresIn: number };
+      setStep("code");
+      startCountdown(120); // 2 min cooldown for resend
+      showToast("Ожидайте звонок", "success");
+      // Focus code input after render
+      setTimeout(() => codeInputRef.current?.focus(), 100);
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : "Ошибка отправки", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCodeVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (code.length !== 4) return;
+    setSubmitting(true);
+    try {
+      const res = await phoneVerify(phone, code, name || undefined);
+      const data = res.data as { token: string; user: User; isNew: boolean };
       setAuth(data.token, data.user);
       showToast("Вход выполнен", "success");
       navigate("/");
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Ошибка входа", "error");
+      showToast(err instanceof ApiError ? err.message : "Неверный код", "error");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleResend = async () => {
+    if (countdown > 0) return;
+    setSubmitting(true);
+    try {
+      await phoneRequest(phone);
+      startCountdown(120);
+      setCode("");
+      showToast("Повторный звонок отправлен", "success");
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : "Ошибка", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCodeChange = (value: string) => {
+    // Only allow digits, max 4
+    const digits = value.replace(/\D/g, "").slice(0, 4);
+    setCode(digits);
   };
 
   return (
@@ -203,93 +250,106 @@ export function LoginPage() {
           <span>или</span>
         </div>
 
-        {/* Phone + Password */}
-        <form onSubmit={handleSubmit}>
-          {mode === "register" && (
+        {/* Phone + Call Verification */}
+        {step === "phone" && (
+          <form onSubmit={handlePhoneRequest}>
             <div className="form-group">
-              <label htmlFor="login-name">Имя</label>
+              <label htmlFor="login-phone">Телефон</label>
+              <input
+                id="login-phone"
+                className="form-input"
+                type="tel"
+                required
+                placeholder="+79001234567"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                autoComplete="tel"
+              />
+            </div>
+
+            <button
+              className="btn btn-primary btn-lg"
+              type="submit"
+              disabled={submitting || tgLoading || !phone.trim()}
+            >
+              {submitting ? "Отправка..." : "Получить код звонком"}
+            </button>
+
+            <p className="phone-hint">
+              Вам поступит звонок. Введите последние 4 цифры номера.
+            </p>
+          </form>
+        )}
+
+        {step === "code" && (
+          <form onSubmit={handleCodeVerify}>
+            <p className="phone-code-info">
+              Звонок на <strong>{phone}</strong>
+              <button
+                type="button"
+                className="btn-link"
+                onClick={() => { setStep("phone"); setCode(""); }}
+              >
+                Изменить
+              </button>
+            </p>
+
+            <div className="form-group">
+              <label htmlFor="login-code">Последние 4 цифры номера</label>
+              <input
+                id="login-code"
+                ref={codeInputRef}
+                className="form-input code-input"
+                type="text"
+                inputMode="numeric"
+                pattern="\d{4}"
+                maxLength={4}
+                required
+                placeholder="0000"
+                value={code}
+                onChange={(e) => handleCodeChange(e.target.value)}
+                autoComplete="one-time-code"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="login-name">Имя (для новых пользователей)</label>
               <input
                 id="login-name"
                 className="form-input"
                 type="text"
-                required
+                placeholder="Ваше имя"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
-          )}
 
-          <div className="form-group">
-            <label htmlFor="login-phone">Телефон</label>
-            <input
-              id="login-phone"
-              className="form-input"
-              type="tel"
-              required
-              placeholder="+79001234567"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
-          </div>
+            <button
+              className="btn btn-primary btn-lg"
+              type="submit"
+              disabled={submitting || code.length !== 4}
+            >
+              {submitting ? "Проверка..." : "Подтвердить"}
+            </button>
 
-          <div className="form-group">
-            <label htmlFor="login-pass">Пароль</label>
-            <input
-              id="login-pass"
-              className="form-input"
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          {mode === "register" && (
-            <div className="form-group">
-              <label htmlFor="login-role">Роль</label>
-              <select
-                id="login-role"
-                className="form-input"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-              >
-                <option value="resident">Житель</option>
-                <option value="volunteer">Волонтёр</option>
-              </select>
+            <div className="resend-section">
+              {countdown > 0 ? (
+                <p className="resend-timer">
+                  Повторный звонок через {countdown} сек.
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-link"
+                  onClick={handleResend}
+                  disabled={submitting}
+                >
+                  Отправить повторно
+                </button>
+              )}
             </div>
-          )}
-
-          <button
-            className="btn btn-primary btn-lg"
-            type="submit"
-            disabled={submitting || tgLoading}
-          >
-            {submitting
-              ? "Загрузка..."
-              : mode === "login"
-                ? "Войти"
-                : "Зарегистрироваться"}
-          </button>
-        </form>
-
-        <p className="login-switch">
-          {mode === "login" ? (
-            <>
-              Нет аккаунта?{" "}
-              <button className="btn-link" onClick={() => setMode("register")}>
-                Регистрация
-              </button>
-            </>
-          ) : (
-            <>
-              Есть аккаунт?{" "}
-              <button className="btn-link" onClick={() => setMode("login")}>
-                Войти
-              </button>
-            </>
-          )}
-        </p>
+          </form>
+        )}
       </div>
     </div>
   );

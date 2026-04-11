@@ -1,0 +1,220 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+import { Router } from "express";
+import jwt from "jsonwebtoken";
+import { prisma } from "@samur/db";
+import { config } from "../config.js";
+import { validateBody } from "../middleware/validate.js";
+import { PhoneRequestSchema, PhoneVerifySchema } from "@samur/shared";
+import { AppError } from "../middleware/error.js";
+import { logger } from "../lib/logger.js";
+import { getRedis } from "../lib/redis.js";
+
+const router = Router();
+
+const CODE_TTL = 300; // 5 minutes
+const COOLDOWN_TTL = 120; // 2 minutes between requests per phone
+const MAX_ATTEMPTS = 3;
+
+function signToken(userId: string, role: string): string {
+  return jwt.sign(
+    { sub: userId, role },
+    config.JWT_SECRET,
+    { expiresIn: config.JWT_EXPIRES_IN } as jwt.SignOptions,
+  );
+}
+
+function sanitizeUser(user: {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  role: string;
+  vkId: string | null;
+  tgId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: user.id,
+    name: user.name,
+    phone: user.phone,
+    role: user.role,
+    vkId: user.vkId,
+    tgId: user.tgId,
+    createdAt: user.createdAt.toISOString(),
+    updatedAt: user.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * Normalize phone to digits-only format for GreenSMS (no + prefix).
+ * "+79281234567" → "79281234567"
+ */
+function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
+/**
+ * POST /auth/phone/request
+ * Initiates a flash call verification via GreenSMS.
+ * The service calls the user's phone — last 4 digits of the calling number = code.
+ */
+router.post(
+  "/phone/request",
+  validateBody(PhoneRequestSchema),
+  async (req, res, next) => {
+    try {
+      const { phone } = req.body;
+      const digits = normalizePhone(phone);
+
+      if (!config.GREENSMS_TOKEN) {
+        throw new AppError(503, "SERVICE_UNAVAILABLE", "Верификация по звонку временно недоступна");
+      }
+
+      const redis = getRedis();
+      if (!redis) {
+        throw new AppError(503, "SERVICE_UNAVAILABLE", "Сервис временно недоступен");
+      }
+
+      // Rate limit: 1 request per phone per 2 minutes
+      const cooldownKey = `phone_cooldown:${digits}`;
+      const cooldown = await redis.get(cooldownKey);
+      if (cooldown) {
+        const ttl = await redis.ttl(cooldownKey);
+        throw new AppError(429, "RATE_LIMIT", `Подождите ${ttl} сек. перед повторным запросом`);
+      }
+
+      // Call GreenSMS API
+      const response = await fetch("https://api3.greensms.ru/v1/call/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${config.GREENSMS_TOKEN}`,
+        },
+        body: JSON.stringify({ to: digits }),
+      });
+
+      const result = await response.json() as Record<string, unknown>;
+
+      if (!response.ok || result.error) {
+        logger.error({ status: response.status, result }, "GreenSMS call.send failed");
+        throw new AppError(502, "CALL_FAILED", "Не удалось совершить звонок. Попробуйте позже.");
+      }
+
+      const code = result.code as string;
+      if (!code) {
+        logger.error({ result }, "GreenSMS response missing code");
+        throw new AppError(502, "CALL_FAILED", "Ошибка сервиса верификации");
+      }
+
+      // Store code in Redis with TTL
+      const codeKey = `phone_code:${digits}`;
+      await redis.set(codeKey, JSON.stringify({ code, attempts: 0 }), "EX", CODE_TTL);
+
+      // Set cooldown
+      await redis.set(cooldownKey, "1", "EX", COOLDOWN_TTL);
+
+      logger.info({ phone: digits }, "Phone verification call initiated");
+
+      res.json({
+        success: true,
+        data: { method: "call", expiresIn: CODE_TTL },
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+/**
+ * POST /auth/phone/verify
+ * Verifies the 4-digit code from the flash call.
+ * If valid, finds or creates user by phone number, issues JWT.
+ */
+router.post(
+  "/phone/verify",
+  validateBody(PhoneVerifySchema),
+  async (req, res, next) => {
+    try {
+      const { phone, code, name } = req.body;
+      const digits = normalizePhone(phone);
+
+      const redis = getRedis();
+      if (!redis) {
+        throw new AppError(503, "SERVICE_UNAVAILABLE", "Сервис временно недоступен");
+      }
+
+      const codeKey = `phone_code:${digits}`;
+      const raw = await redis.get(codeKey);
+
+      if (!raw) {
+        throw new AppError(410, "CODE_EXPIRED", "Код истёк. Запросите новый звонок.");
+      }
+
+      const stored = JSON.parse(raw) as { code: string; attempts: number };
+
+      // Check max attempts
+      if (stored.attempts >= MAX_ATTEMPTS) {
+        await redis.del(codeKey);
+        throw new AppError(429, "MAX_ATTEMPTS", "Превышено количество попыток. Запросите новый звонок.");
+      }
+
+      // Increment attempts
+      stored.attempts += 1;
+      const ttl = await redis.ttl(codeKey);
+      await redis.set(codeKey, JSON.stringify(stored), "EX", ttl > 0 ? ttl : CODE_TTL);
+
+      if (stored.code !== code) {
+        const remaining = MAX_ATTEMPTS - stored.attempts;
+        throw new AppError(401, "INVALID_CODE", `Неверный код. Осталось попыток: ${remaining}`);
+      }
+
+      // Code is correct — delete it
+      await redis.del(codeKey);
+
+      // Find or create user by phone
+      const normalizedPhone = phone.startsWith("+") ? phone : `+${digits}`;
+
+      let user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { phone: normalizedPhone },
+            { phone: digits },
+            { phone: `+${digits}` },
+          ],
+        },
+      });
+
+      if (!user) {
+        // New user — create account
+        user = await prisma.user.create({
+          data: {
+            name: name || "Пользователь",
+            phone: normalizedPhone,
+            role: "resident",
+          },
+        });
+        logger.info({ userId: user.id, phone: normalizedPhone }, "New user created via phone verification");
+      } else {
+        // Existing user — update name if provided and user has no name
+        if (name && !user.name) {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { name },
+          });
+        }
+        logger.info({ userId: user.id }, "Existing user logged in via phone verification");
+      }
+
+      const token = signToken(user.id, user.role);
+
+      res.json({
+        success: true,
+        data: { token, user: sanitizeUser(user), isNew: !user.updatedAt || user.createdAt.getTime() === user.updatedAt.getTime() },
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+export default router;

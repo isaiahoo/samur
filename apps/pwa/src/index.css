@@ -1391,6 +1391,43 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 .login-switch { text-align: center; margin-top: 16px; font-size: 14px; color: #64748b; }
 
+.phone-hint {
+  text-align: center;
+  font-size: 13px;
+  color: #64748b;
+  margin-top: 12px;
+  line-height: 1.4;
+}
+
+.phone-code-info {
+  font-size: 14px;
+  color: #475569;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.code-input {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  padding: 12px 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+.resend-section {
+  text-align: center;
+  margin-top: 12px;
+}
+.resend-timer {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
+}
+
 .admin-page {
   min-height: 100dvh;
   background: #f8fafc;
@@ -3258,6 +3295,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .login-divider { color: #64748b; }
   .login-divider::before, .login-divider::after { background: var(--color-border); }
   .login-switch { color: #94a3b8; }
+  .phone-hint { color: #94a3b8; }
+  .phone-code-info { color: #94a3b8; }
+  .resend-timer { color: #64748b; }
   .btn-tg-login { background: #2aabee; }
   .btn-tg-login:hover { background: #40b8f5; }
   .btn-vk-login { background: #0077ff; }

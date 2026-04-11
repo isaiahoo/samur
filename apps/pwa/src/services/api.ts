@@ -86,6 +86,20 @@ export function telegramCheck(token: string) {
   );
 }
 
+export function phoneRequest(phone: string) {
+  return request<ApiResponse<{ method: string; expiresIn: number }>>("/auth/phone/request", {
+    method: "POST",
+    body: JSON.stringify({ phone }),
+  });
+}
+
+export function phoneVerify(phone: string, code: string, name?: string) {
+  return request<ApiResponse<{ token: string; user: unknown; isNew: boolean }>>("/auth/phone/verify", {
+    method: "POST",
+    body: JSON.stringify({ phone, code, name }),
+  });
+}
+
 export function telegramAuth(data: {
   id: number;
   first_name: string;
