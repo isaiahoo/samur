@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { NavLink, Outlet } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useUIStore } from "../store/ui.js";
+import { useAuthStore } from "../store/auth.js";
 import { useOnline } from "../hooks/useOnline.js";
 import { BottomSheet } from "./BottomSheet.js";
 import { Toast } from "./Toast.js";
@@ -15,13 +17,90 @@ export function Layout() {
   const online = useOnline();
   const socketConnected = useUIStore((s) => s.socketConnected);
 
+  const user = useAuthStore((s) => s.user);
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
+  const logout = useAuthStore((s) => s.logout);
+  const loggedIn = isLoggedIn();
+
+  const navigate = useNavigate();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  // Close profile menu on outside click
+  useEffect(() => {
+    if (!profileOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [profileOpen]);
+
+  const handleProfileClick = () => {
+    if (loggedIn) {
+      setProfileOpen((v) => !v);
+    } else {
+      navigate("/login");
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    setProfileOpen(false);
+  };
+
+  const initial = user?.name?.charAt(0)?.toUpperCase() || "?";
+
   return (
     <div className={`app-layout${crisisMode ? " crisis-mode" : ""}`}>
       <a href="#app-main" className="skip-link">Перейти к содержимому</a>
       <header className="app-header">
         <h1 className="app-title">Самур</h1>
-        {online && <span className={`conn-dot ${socketConnected ? "conn-dot--ok" : "conn-dot--off"}`} title={socketConnected ? "Подключено" : "Нет связи с сервером"} />}
-        {!online && <span className="offline-badge">Офлайн</span>}
+        <div className="header-right">
+          {online && <span className={`conn-dot ${socketConnected ? "conn-dot--ok" : "conn-dot--off"}`} title={socketConnected ? "Подключено" : "Нет связи с сервером"} />}
+          {!online && <span className="offline-badge">Офлайн</span>}
+
+          <div className="profile-wrapper" ref={profileRef}>
+            <button
+              className={`profile-btn${loggedIn ? " profile-btn--auth" : ""}`}
+              onClick={handleProfileClick}
+              aria-label={loggedIn ? "Профиль" : "Войти"}
+              title={loggedIn ? user?.name ?? "Профиль" : "Войти"}
+            >
+              {loggedIn ? (
+                <span className="profile-initial">{initial}</span>
+              ) : (
+                <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              )}
+            </button>
+
+            {profileOpen && loggedIn && (
+              <div className="profile-menu">
+                <div className="profile-menu-header">
+                  <span className="profile-menu-name">{user?.name || "Пользователь"}</span>
+                  {user?.phone && <span className="profile-menu-phone">{user.phone}</span>}
+                  <span className="profile-menu-role">
+                    {user?.role === "volunteer" ? "Волонтёр" : user?.role === "coordinator" ? "Координатор" : user?.role === "admin" ? "Администратор" : "Житель"}
+                  </span>
+                </div>
+                <div className="profile-menu-divider" />
+                <button className="profile-menu-item profile-menu-logout" onClick={handleLogout}>
+                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                  Выйти
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </header>
 
       {crisisMode && (
