@@ -2786,38 +2786,48 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     left: 0;
     right: 0;
     width: 100%;
-    max-height: 38vh;
+    max-height: 40vh;
     border-left: none;
     border-top: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 10px 10px 0 0;
+    border-radius: 12px 12px 0 0;
     transform: none;
     pointer-events: auto;
     overflow: hidden;
+    /* Solid background — no backdrop-filter, no GPU compositing lag */
+    background: #fff;
+    backdrop-filter: none;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
   }
-  /* The inner body is the scroll target on mobile */
+  /* Inner body scrolls */
   .ep-body {
     overflow-y: scroll;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
     overscroll-behavior: contain;
   }
-  /* Mobile collapsed: just show handle + header */
+  /* ── Collapsed: tiny pill only ── */
   .ep--collapsed {
     max-height: none;
     transform: none;
     pointer-events: auto;
+    border-top: none;
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 -1px 6px rgba(0, 0, 0, 0.06);
   }
+  .ep--collapsed .ep-header { display: none; }
   .ep--collapsed .ep-body { display: none; }
-  /* Make header static on mobile */
+  .ep--collapsed .ep-handle { padding: 6px 0; }
+  /* Header static on mobile */
   .ep .ep-header {
     position: static;
     backdrop-filter: none;
+    background: #fff;
     cursor: pointer;
     flex-shrink: 0;
   }
-  /* Hide desktop toggle on mobile */
+  /* Hide desktop toggle */
   .ep-toggle { display: none; }
-  /* Show mobile handle */
+  /* Mobile handle */
   .ep-handle {
     display: flex;
     align-items: center;
@@ -3216,7 +3226,12 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .ep-row-sub { color: #71717a; }
   .ep-handle-bar { background: rgba(255, 255, 255, 0.2); }
   @media (max-width: 768px) {
-    .ep { border-top-color: rgba(255, 255, 255, 0.08); }
+    .ep {
+      background: #27272a;
+      border-top-color: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.3);
+    }
+    .ep .ep-header { background: #27272a; }
   }
 
   /* Inputs */
