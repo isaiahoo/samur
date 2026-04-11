@@ -3455,10 +3455,15 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .gauge-card { background: var(--color-surface); border-color: var(--color-border); }
   .gauge-card-river { color: #e4e4e7; }
   .gauge-card-pct { color: #a1a1aa; }
-  .gauge-card.tier-1 { background: var(--color-surface); }
-  .gauge-card.tier-2 { background: var(--color-surface); }
-  .gauge-card.tier-3 { background: var(--color-surface); }
-  .gauge-card.tier-4 { background: var(--color-surface); }
+  .gauge-card.tier-1 { background: var(--color-surface); border-left-color: #4ade80; }
+  .gauge-card.tier-2 { background: var(--color-surface); border-left-color: #fbbf24; }
+  .gauge-card.tier-3 { background: var(--color-surface); border-left-color: #f87171; }
+  .gauge-card.tier-4 { background: var(--color-surface); border-left-color: #fca5a5; }
+  .gauge-card.tier-1 .gauge-card-tier { color: #4ade80; }
+  .gauge-card.tier-2 .gauge-card-tier { color: #fbbf24; }
+  .gauge-card.tier-3 .gauge-card-tier { color: #f87171; }
+  .gauge-card.tier-4 .gauge-card-tier { color: #fca5a5; }
+  .gauge-card.tier-nodata .gauge-card-tier { color: #a1a1aa; }
   .gauge-card.tier-nodata { background: rgba(24, 24, 27, 0.8); }
 
   /* Sparkline */
@@ -3487,4 +3492,16 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .profile-menu-item:active { background: rgba(255, 255, 255, 0.05); }
   .profile-menu-logout { color: #f87171; }
   .profile-menu-logout:active { background: rgba(239, 68, 68, 0.1); }
+
+  /* River popup bar */
+  .popup-river-bar { background: #3f3f46; }
+
+  /* Help/Info tabs */
+  .help-tabs, .info-tabs { border-bottom-color: var(--color-border); }
+
+  /* Shelter capacity bar */
+  .capacity-bar { background: #3f3f46; }
+
+  /* Social login loading text */
+  .social-login-loading { color: #a1a1aa; }
 }
