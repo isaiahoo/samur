@@ -121,7 +121,7 @@ export function NewsPage() {
 
 function NewsCard({ article }: { article: NewsArticle }) {
   const feedLabel = FEED_LABELS[article.feedId] ?? article.feedId;
-  const feedColor = FEED_COLORS[article.feedId] ?? "#6b7280";
+  const feedColor = FEED_COLORS[article.feedId] ?? "#71717a";
 
   return (
     <a

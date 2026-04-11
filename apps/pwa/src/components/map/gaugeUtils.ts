@@ -29,7 +29,7 @@ export const TIER_COLORS = {
   2: "#b45309", // amber-700 — elevated (WCAG AA with white text)
   3: "#dc2626", // red-600 — dangerous
   4: "#991B1B", // dark red — critical
-  nodata: "#6b7280", // slate-500 — no data
+  nodata: "#71717a", // zinc-500 — no data
 } as const;
 
 export const TIER_LABELS: Record<number, string> = {

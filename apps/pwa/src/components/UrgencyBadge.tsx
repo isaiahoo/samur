@@ -20,7 +20,7 @@ export function UrgencyBadge({ value, kind = "severity" }: Props) {
   return (
     <span
       className="urgency-badge"
-      style={{ backgroundColor: colors[value] ?? "#6b7280" }}
+      style={{ backgroundColor: colors[value] ?? "#71717a" }}
     >
       {labels[value] ?? value}
     </span>

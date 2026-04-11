@@ -107,7 +107,7 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
         <Section title="Инциденты" count={incidents.length} color="#EF4444">
           {sortedIncidents.map((inc) => (
             <button key={inc.id} className="ep-row" onClick={() => onEventClick("incident", inc, inc.id)}>
-              <span className="ep-row-badge" style={{ background: SEVERITY_COLORS[inc.severity] ?? "#6b7280" }} />
+              <span className="ep-row-badge" style={{ background: SEVERITY_COLORS[inc.severity] ?? "#71717a" }} />
               <span className="ep-row-body">
                 <span className="ep-row-title">{INCIDENT_TYPE_LABELS[inc.type] ?? inc.type}</span>
                 <span className="ep-row-sub">{inc.address || formatRelativeTime(inc.createdAt)}</span>
@@ -122,7 +122,7 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
         <Section title="Запросы помощи" count={helpRequests.length} color="#8B5CF6">
           {sortedHelp.map((hr) => (
             <button key={hr.id} className="ep-row" onClick={() => onEventClick("helpRequest", hr, hr.id)}>
-              <span className="ep-row-badge" style={{ background: SEVERITY_COLORS[hr.urgency] ?? "#6b7280" }} />
+              <span className="ep-row-badge" style={{ background: SEVERITY_COLORS[hr.urgency] ?? "#71717a" }} />
               <span className="ep-row-body">
                 <span className="ep-row-title">
                   {HELP_CATEGORY_LABELS[hr.category] ?? hr.category}
@@ -181,7 +181,7 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
         <Section title="Убежища" count={shelters.length} color="#22C55E">
           {sortedShelters.map((s) => (
             <button key={s.id} className="ep-row" onClick={() => onEventClick("shelter", s, s.id)}>
-              <span className="ep-row-badge" style={{ background: s.status === "open" ? "#22C55E" : s.status === "full" ? "#F59E0B" : "#9ca3af" }} />
+              <span className="ep-row-badge" style={{ background: s.status === "open" ? "#22C55E" : s.status === "full" ? "#F59E0B" : "#a1a1aa" }} />
               <span className="ep-row-body">
                 <span className="ep-row-title">{s.name}</span>
                 <span className="ep-row-sub">
