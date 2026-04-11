@@ -2250,6 +2250,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .fab {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 104px);
   }
+  .sos-fab {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 104px);
+  }
 }
 
 /* ── NERV Controls: Layer Toggle ──────────────────────────────────────────── */
@@ -2885,7 +2888,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 /* FAB — persistent red button, bottom-right above tabbar */
 .sos-fab {
   position: fixed;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 70px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
   left: 16px;
   z-index: 1500;
   width: 52px;
