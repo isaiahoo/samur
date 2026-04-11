@@ -48,9 +48,15 @@ function sanitizeUser(user: {
 /**
  * Normalize phone to digits-only format for GreenSMS (no + prefix).
  * "+79281234567" → "79281234567"
+ * "89281234567"  → "79281234567" (replace leading 8 with 7 for Russia)
  */
 function normalizePhone(phone: string): string {
-  return phone.replace(/\D/g, "");
+  let digits = phone.replace(/\D/g, "");
+  // Russian numbers: replace leading 8 with 7
+  if (digits.length === 11 && digits.startsWith("8")) {
+    digits = "7" + digits.slice(1);
+  }
+  return digits;
 }
 
 /**
@@ -83,14 +89,19 @@ router.post(
         throw new AppError(429, "RATE_LIMIT", `Подождите ${ttl} сек. перед повторным запросом`);
       }
 
-      // Call GreenSMS API
-      const response = await fetch("https://api3.greensms.ru/v1/call/send", {
+      // Validate phone length (GreenSMS requires 11+ digits)
+      if (digits.length < 11) {
+        throw new AppError(400, "INVALID_PHONE", "Введите номер с кодом страны, например +79281234567");
+      }
+
+      // Call GreenSMS API (form-urlencoded, as per their SDK)
+      const response = await fetch("https://api3.greensms.ru/call/send", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
           Authorization: `Bearer ${config.GREENSMS_TOKEN}`,
         },
-        body: JSON.stringify({ to: digits }),
+        body: `to=${digits}`,
       });
 
       const result = await response.json() as Record<string, unknown>;
@@ -100,9 +111,9 @@ router.post(
         throw new AppError(502, "CALL_FAILED", "Не удалось совершить звонок. Попробуйте позже.");
       }
 
-      const code = result.code as string;
-      if (!code) {
-        logger.error({ result }, "GreenSMS response missing code");
+      const code = String(result.code ?? "");
+      if (!code || !/^\d{4,6}$/.test(code)) {
+        logger.error({ result }, "GreenSMS response missing or invalid code");
         throw new AppError(502, "CALL_FAILED", "Ошибка сервиса верификации");
       }
 
@@ -171,8 +182,8 @@ router.post(
       // Code is correct — delete it
       await redis.del(codeKey);
 
-      // Find or create user by phone
-      const normalizedPhone = phone.startsWith("+") ? phone : `+${digits}`;
+      // Find or create user by phone (always store as +7XXXXXXXXXX)
+      const normalizedPhone = `+${digits}`;
 
       let user = await prisma.user.findFirst({
         where: {

@@ -229,7 +229,7 @@ export const PhoneRequestSchema = z.object({
 
 export const PhoneVerifySchema = z.object({
   phone: phone,
-  code: z.string().regex(/^\d{4}$/, "Код должен состоять из 4 цифр"),
+  code: z.string().regex(/^\d{4,6}$/, "Код должен состоять из 4-6 цифр"),
   name: z.string().min(1).max(200).optional(),
 });
 

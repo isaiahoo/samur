@@ -175,7 +175,7 @@ export function LoginPage() {
 
   const handleCodeVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (code.length !== 4) return;
+    if (code.length < 4) return;
     setSubmitting(true);
     try {
       const res = await phoneVerify(phone, code, name || undefined);
@@ -206,8 +206,8 @@ export function LoginPage() {
   };
 
   const handleCodeChange = (value: string) => {
-    // Only allow digits, max 4
-    const digits = value.replace(/\D/g, "").slice(0, 4);
+    // Only allow digits, max 6
+    const digits = value.replace(/\D/g, "").slice(0, 6);
     setCode(digits);
   };
 
@@ -295,15 +295,15 @@ export function LoginPage() {
             </p>
 
             <div className="form-group">
-              <label htmlFor="login-code">Последние 4 цифры номера</label>
+              <label htmlFor="login-code">Код из входящего звонка</label>
               <input
                 id="login-code"
                 ref={codeInputRef}
                 className="form-input code-input"
                 type="text"
                 inputMode="numeric"
-                pattern="\d{4}"
-                maxLength={4}
+                pattern="\d{4,6}"
+                maxLength={6}
                 required
                 placeholder="0000"
                 value={code}
@@ -327,7 +327,7 @@ export function LoginPage() {
             <button
               className="btn btn-primary btn-lg"
               type="submit"
-              disabled={submitting || code.length !== 4}
+              disabled={submitting || code.length < 4}
             >
               {submitting ? "Проверка..." : "Подтвердить"}
             </button>
