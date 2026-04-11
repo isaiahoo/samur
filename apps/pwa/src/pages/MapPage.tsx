@@ -194,9 +194,8 @@ export function MapPage() {
     };
   }, [fetchData, fetchRiverLevels, fetchPrecipData, fetchSoilMoistureData, fetchSnowData, fetchRunoffData, fetchEarthquakeData, fetchForecastData]);
 
-  useEffect(() => {
-    requestPosition();
-  }, [requestPosition]);
+  // Geolocation is requested on user interaction (locate button, report form,
+  // SOS) — not on mount, because iOS Safari silently blocks non-gesture requests.
 
   useSocketEvent("incident:created", (inc) => {
     setIncidents((prev) => [inc, ...prev]);
