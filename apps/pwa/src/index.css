@@ -2253,6 +2253,13 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .sos-fab {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 104px);
   }
+  .map-page--panel-open .fab {
+    display: none;
+  }
+  .map-page--panel-open ~ .sos-fab,
+  .app-layout:has(.map-page--panel-open) .sos-fab {
+    display: none;
+  }
 }
 
 /* ── NERV Controls: Layer Toggle ──────────────────────────────────────────── */
