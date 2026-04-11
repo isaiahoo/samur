@@ -55,6 +55,7 @@ services:
       SMS_GATEWAY_API_KEY: "${SMS_GATEWAY_API_KEY}"
       TILE_PROVIDER: "${TILE_PROVIDER:-maptiler}"
       MAPTILER_API_KEY: "${MAPTILER_API_KEY}"
+      GREENSMS_TOKEN: "${GREENSMS_TOKEN}"
       CORS_ORIGINS: "${CORS_ORIGINS:-https://samurchs.ru,http://72.56.8.247}"
     depends_on:
       postgres:

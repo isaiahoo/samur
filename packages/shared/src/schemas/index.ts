@@ -3,7 +3,9 @@ import { z } from "zod";
 
 const lat = z.number().min(-90).max(90);
 const lng = z.number().min(-180).max(180);
-const phone = z.string().regex(/^\+?[0-9]{10,15}$/, "Неверный формат телефона");
+const phone = z.string().transform((v) => v.replace(/[\s\-\(\)]/g, "")).pipe(
+  z.string().regex(/^\+?[0-9]{10,15}$/, "Неверный формат телефона"),
+);
 const cuid = z.string().min(1);
 
 export const UserRoleSchema = z.enum([
