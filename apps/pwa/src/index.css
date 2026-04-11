@@ -439,7 +439,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .report-overlay {
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  max-height: 92vh;
+  max-height: 75vh;
   background: #fff;
   z-index: 2000;
   overflow-y: auto;
@@ -477,6 +477,13 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .report-form-header h2 { font-size: 18px; font-weight: 600; }
 .report-step { margin-bottom: 20px; }
+.report-cancel-btn {
+  display: block; width: 100%; padding: 14px; margin-top: 8px;
+  background: none; border: 1px solid #d4d4d8; border-radius: 12px;
+  font-size: 15px; font-weight: 500; color: #71717a; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.report-cancel-btn:active { background: rgba(0, 0, 0, 0.04); }
 .report-step h3 { font-size: 16px; margin-bottom: 12px; color: #3f3f46; }
 .report-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
 .report-type-btn {

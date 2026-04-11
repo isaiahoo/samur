@@ -179,6 +179,8 @@ export function ReportForm({ onClose }: { onClose: () => void }) {
               </button>
             ))}
           </div>
+
+          <button className="report-cancel-btn" onClick={onClose}>Закрыть</button>
         </div>
       )}
 
