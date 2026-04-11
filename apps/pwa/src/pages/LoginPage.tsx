@@ -44,6 +44,7 @@ export function LoginPage() {
   const [tgLoading, setTgLoading] = useState(false);
   const [tgPolling, setTgPolling] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [error, setError] = useState("");
 
   const setAuth = useAuthStore((s) => s.setAuth);
   const showToast = useUIStore((s) => s.showToast);
@@ -160,6 +161,7 @@ export function LoginPage() {
   const handlePhoneRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phone.trim()) return;
+    setError("");
     // If cooldown is still active (e.g. user tapped "change" and came back),
     // go straight to code step without re-requesting
     if (countdown > 0) {
@@ -175,11 +177,11 @@ export function LoginPage() {
       showToast("Ожидайте звонок", "success");
       setTimeout(() => codeInputRef.current?.focus(), 100);
     } catch (err) {
-      if (err instanceof ApiError) {
-        showToast(err.message, "error");
-      } else {
-        showToast("Ошибка отправки. Попробуйте ещё раз.", "error");
-      }
+      const msg = err instanceof ApiError
+        ? err.message
+        : "Ошибка отправки. Попробуйте ещё раз.";
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setSubmitting(false);
     }
@@ -188,6 +190,7 @@ export function LoginPage() {
   const handleCodeVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (code.length < 4) return;
+    setError("");
     setSubmitting(true);
     try {
       const res = await phoneVerify(phone, code);
@@ -205,11 +208,11 @@ export function LoginPage() {
         navigate("/");
       }
     } catch (err) {
-      if (err instanceof ApiError) {
-        showToast(err.message, "error");
-      } else {
-        showToast("Неверный код", "error");
-      }
+      const msg = err instanceof ApiError
+        ? err.message
+        : "Неверный код";
+      setError(msg);
+      showToast(msg, "error");
     } finally {
       setSubmitting(false);
     }
@@ -394,6 +397,8 @@ export function LoginPage() {
               />
             </div>
 
+            {error && <p className="login-error">{error}</p>}
+
             <button
               className="btn btn-primary btn-lg"
               type="submit"
@@ -416,7 +421,7 @@ export function LoginPage() {
               <button
                 type="button"
                 className="btn-link"
-                onClick={() => { setStep("phone"); setCode(""); }}
+                onClick={() => { setStep("phone"); setCode(""); setError(""); }}
               >
                 Изменить
               </button>
@@ -439,6 +444,8 @@ export function LoginPage() {
                 autoComplete="one-time-code"
               />
             </div>
+
+            {error && <p className="login-error">{error}</p>}
 
             <button
               className="btn btn-primary btn-lg"

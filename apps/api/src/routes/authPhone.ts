@@ -199,6 +199,8 @@ router.post(
         },
       });
 
+      let isNew = false;
+
       if (!user) {
         // New user — create account
         const validRoles = ["resident", "volunteer"];
@@ -210,6 +212,7 @@ router.post(
             role,
           },
         });
+        isNew = true;
         logger.info({ userId: user.id, phone: normalizedPhone }, "New user created via phone verification");
       } else {
         // Existing user — update name if provided and user has no name
@@ -226,7 +229,7 @@ router.post(
 
       res.json({
         success: true,
-        data: { token, user: sanitizeUser(user), isNew: !user.updatedAt || user.createdAt.getTime() === user.updatedAt.getTime() },
+        data: { token, user: sanitizeUser(user), isNew },
       });
     } catch (err) {
       next(err);
