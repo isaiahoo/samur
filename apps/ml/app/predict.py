@@ -6,6 +6,7 @@ Loads trained models and performs inference using recent weather + water level d
 
 import logging
 import math
+import os
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -32,6 +33,8 @@ STATION_META = {
 
 WEATHER_API = "https://api.open-meteo.com/v1/forecast"
 HISTORICAL_API = "https://archive-api.open-meteo.com/v1/archive"
+# Express API base (inside Docker network)
+EXPRESS_API = os.environ.get("API_BASE_URL", "http://api:3000")
 DAILY_VARS = [
     "precipitation_sum", "temperature_2m_max", "temperature_2m_min",
     "snowfall_sum", "snow_depth_mean", "soil_moisture_0_to_7cm_mean",
@@ -116,18 +119,18 @@ class Predictor:
         if csv_path.exists():
             df = pd.read_csv(csv_path)
             df["date"] = pd.to_datetime(df["date"])
-            # Use last 30 days of available data
-            return df.tail(30).copy()
+            # Use last 45 days of available data (need 14+ for lags)
+            return df.tail(45).copy()
 
         # Fallback: fetch from Open-Meteo (weather only, no water level)
         logger.warning("No local CSV for %s, attempting API fetch", station_id)
         return self._fetch_recent_weather(meta)
 
     def _fetch_recent_weather(self, meta: dict) -> pd.DataFrame | None:
-        """Fetch last 30 days of weather from Open-Meteo."""
+        """Fetch last 30 days of weather from Open-Meteo + water levels from Express API."""
         try:
             end = date.today() - timedelta(days=1)
-            start = end - timedelta(days=30)
+            start = end - timedelta(days=45)
             params = [
                 ("latitude", str(meta["lat"])),
                 ("longitude", str(meta["lng"])),
@@ -148,8 +151,67 @@ class Predictor:
             df = pd.DataFrame({"date": pd.to_datetime(daily["time"])})
             for var in DAILY_VARS:
                 df[var] = daily.get(var, [None] * len(daily["time"]))
-            # No water level available from API — fill with NaN
+
+            # Fetch water levels: try live API first, then historical stats as fallback
             df["water_level_cm"] = np.nan
+            river = meta["river"]
+            station = meta["station"]
+
+            # Strategy 1: live level_cm from river_levels (if any station reports levels)
+            try:
+                url = f"{EXPRESS_API}/api/v1/river-levels/history/{river}/{station}"
+                with httpx.Client(timeout=15) as client:
+                    resp = client.get(url, params={"days": "30", "includeForecast": "false"})
+                    resp.raise_for_status()
+                    levels_data = resp.json().get("data", [])
+
+                if levels_data:
+                    level_by_date: dict[str, float] = {}
+                    for rec in levels_data:
+                        level = rec.get("levelCm")
+                        if level is not None and level > 0:
+                            d = rec["measuredAt"][:10]
+                            level_by_date[d] = level
+                    if level_by_date:
+                        df["water_level_cm"] = df["date"].dt.strftime("%Y-%m-%d").map(level_by_date)
+                        matched = df["water_level_cm"].notna().sum()
+                        logger.info("Matched %d/%d days with live water levels", matched, len(df))
+            except Exception as e:
+                logger.warning("Could not fetch live water levels: %s", e)
+
+            # Strategy 2: use historical daily averages if no live levels
+            if df["water_level_cm"].notna().sum() < 15:
+                try:
+                    url = f"{EXPRESS_API}/api/v1/river-levels/historical/{river}/{station}"
+                    with httpx.Client(timeout=15) as client:
+                        # Fetch most recent year of historical data for same period
+                        resp = client.get(url, params={
+                            "from": f"2024-{start.strftime('%m-%d')}",
+                            "to": f"2024-{end.strftime('%m-%d')}",
+                            "limit": "60",
+                        })
+                        resp.raise_for_status()
+                        hist_data = resp.json().get("data", [])
+
+                    if hist_data:
+                        # Map historical levels by month-day (ignore year)
+                        hist_by_md: dict[str, float] = {}
+                        for rec in hist_data:
+                            d = rec.get("date", "")[:10]
+                            v = rec.get("valueCm")
+                            if d and v is not None:
+                                md = d[5:]  # "2024-04-01" → "04-01"
+                                hist_by_md[md] = v
+                        df["water_level_cm"] = df["date"].dt.strftime("%m-%d").map(hist_by_md)
+                        matched = df["water_level_cm"].notna().sum()
+                        logger.info("Matched %d/%d days with historical averages", matched, len(df))
+
+                        # Forward-fill small gaps
+                        if matched > 0:
+                            df["water_level_cm"] = df["water_level_cm"].ffill().bfill()
+                except Exception as e:
+                    logger.warning("Could not fetch historical water levels: %s", e)
+
             return df
         except Exception as e:
             logger.error("Failed to fetch weather: %s", e)
