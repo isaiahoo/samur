@@ -92,7 +92,7 @@ async def predict(req: PredictRequest):
     )
 
 
-@app.post("/predict/all")
+@app.api_route("/predict/all", methods=["GET", "POST"])
 async def predict_all():
     if not predictor:
         raise HTTPException(503, "Models not loaded")
