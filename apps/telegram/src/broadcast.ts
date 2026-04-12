@@ -31,7 +31,7 @@ const URGENCY_EMOJI: Record<string, string> = {
   critical: "🚨",
 };
 
-export function initBroadcastListener(bot: TelegramBot): Socket {
+export function initBroadcastListener(bot: TelegramBot, token?: string): Socket {
   const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
     config.SOCKET_URL,
     {
@@ -40,6 +40,7 @@ export function initBroadcastListener(bot: TelegramBot): Socket {
       reconnectionAttempts: Infinity,
       reconnectionDelay: 2000,
       reconnectionDelayMax: 30_000,
+      auth: token ? { token } : undefined,
     },
   );
 
@@ -49,6 +50,10 @@ export function initBroadcastListener(bot: TelegramBot): Socket {
 
   socket.on("disconnect", (reason) => {
     console.log(`Broadcast listener disconnected: ${reason}`);
+  });
+
+  socket.on("connect_error", (err) => {
+    console.error(`Broadcast listener connect error: ${err.message}`);
   });
 
   (socket as unknown as { on: (ev: string, fn: (alert: Alert) => void) => void }).on(

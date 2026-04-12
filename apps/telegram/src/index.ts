@@ -124,7 +124,19 @@ bot.on("message", async (msg) => {
 });
 
 // Start broadcast listener (Socket.IO → Telegram)
-const broadcastSocket = initBroadcastListener(bot);
+// Needs JWT to connect to the authenticated Socket.IO server
+let broadcastSocket: ReturnType<typeof initBroadcastListener>;
+(async () => {
+  try {
+    const { getToken } = await import("./auth.js");
+    const botInfo = await bot.getMe();
+    const token = await getToken(botInfo.id, botInfo.id, "SamurBot");
+    broadcastSocket = initBroadcastListener(bot, token);
+  } catch (err) {
+    console.error("Failed to auth broadcast listener, connecting without token:", err);
+    broadcastSocket = initBroadcastListener(bot);
+  }
+})();
 
 // Start offline queue processor
 startQueueProcessor(async (entry) => {
@@ -171,7 +183,7 @@ console.log("Samur Telegram bot is running");
 function shutdown(signal: string): void {
   console.log(`\n${signal} received, shutting down bot...`);
   bot.stopPolling();
-  broadcastSocket.disconnect();
+  broadcastSocket?.disconnect();
   process.exit(0);
 }
 
