@@ -45,7 +45,12 @@ export function registerLevelHandler(bot: TelegramBot): void {
         } else if (hasDischarge) {
           const pctMean = lv.dischargeMean ? Math.round((lv.dischargeCubicM! / lv.dischargeMean) * 100) : null;
           text += `   💧 ${lv.dischargeCubicM} м³/с`;
-          if (pctMean !== null) text += ` (${pctMean}% от нормы)`;
+          if (pctMean !== null) {
+            const diff = pctMean - 100;
+            if (diff === 0) text += ` (норма)`;
+            else if (diff > 0) text += ` (на ${diff}% выше нормы)`;
+            else text += ` (на ${Math.abs(diff)}% ниже нормы)`;
+          }
           text += ` ${trend} ${trendLabel}\n`;
         } else {
           text += `   Нет данных\n`;
