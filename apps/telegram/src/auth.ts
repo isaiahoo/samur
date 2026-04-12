@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { findOrCreateTelegramUser, loginTelegramUser } from "./api.js";
+import { authenticateForPWA } from "./api.js";
 
 // Cache JWT tokens by chatId to avoid re-authenticating every request
 const tokenCache = new Map<number, { token: string; expiresAt: number }>();
@@ -15,13 +15,11 @@ export async function getToken(
     return cached.token;
   }
 
-  const tgIdStr = String(tgId);
-
-  // Try login first, register if not found
-  let result = await loginTelegramUser(tgIdStr);
-  if (!result) {
-    result = await findOrCreateTelegramUser(tgIdStr, name);
-  }
+  // Authenticate via Telegram HMAC (same as PWA login widget)
+  const nameParts = name.split(" ");
+  const firstName = nameParts[0] || "Пользователь";
+  const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : undefined;
+  const result = await authenticateForPWA(tgId, firstName, lastName);
 
   tokenCache.set(chatId, {
     token: result.token,

@@ -128,12 +128,13 @@ bot.on("message", async (msg) => {
 let broadcastSocket: ReturnType<typeof initBroadcastListener>;
 (async () => {
   try {
-    const { getToken } = await import("./auth.js");
+    const { authenticateForPWA } = await import("./api.js");
     const botInfo = await bot.getMe();
-    const token = await getToken(botInfo.id, botInfo.id, "SamurBot");
-    broadcastSocket = initBroadcastListener(bot, token);
+    const result = await authenticateForPWA(botInfo.id, botInfo.first_name, botInfo.last_name);
+    broadcastSocket = initBroadcastListener(bot, result.token);
+    console.log("Broadcast listener authenticated");
   } catch (err) {
-    console.error("Failed to auth broadcast listener, connecting without token:", err);
+    console.error("Failed to auth broadcast listener:", (err as Error).message);
     broadcastSocket = initBroadcastListener(bot);
   }
 })();
