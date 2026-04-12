@@ -40,12 +40,23 @@ export interface HistoryPoint {
   measuredAt: string;
 }
 
+export interface HistoricalStat {
+  dayOfYear: number;
+  avgCm: number;
+  minCm: number;
+  maxCm: number;
+  p10Cm: number;
+  p90Cm: number;
+  sampleCount: number;
+}
+
 interface GaugeChartProps {
   history: HistoryPoint[];
   dangerLevelCm: number | null;
   dischargeMax: number | null;
   dischargeMean: number | null;
   mode: "cm" | "discharge";
+  historicalStats?: HistoricalStat[];
 }
 
 interface ChartPoint {
@@ -55,6 +66,14 @@ interface ChartPoint {
   forecast: number | null;
   p25: number | null;
   p75: number | null;
+  histAvg: number | null;
+  histP10: number | null;
+  histP90: number | null;
+}
+
+function getDayOfYear(d: Date): number {
+  const start = new Date(d.getFullYear(), 0, 0);
+  return Math.floor((d.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function formatDate(iso: string): string {
@@ -116,6 +135,11 @@ function createTooltip(mode: "cm" | "discharge", meanVal: number, dangerVal: num
         <div className="gauge-chart-tooltip-status" style={{ color: status.color }}>
           {status.label}
         </div>
+        {point.histAvg !== null && (
+          <div className="gauge-chart-tooltip-hist">
+            Историческое среднее: {point.histAvg} см
+          </div>
+        )}
       </div>
     );
   };
@@ -129,7 +153,16 @@ export const GaugeChart = memo(function GaugeChart({
   dischargeMax,
   dischargeMean,
   mode,
+  historicalStats,
 }: GaugeChartProps) {
+  // Build a lookup map for historical stats by day-of-year
+  const histByDoy = useMemo(() => {
+    if (!historicalStats || historicalStats.length === 0 || mode !== "cm") return null;
+    const m = new Map<number, HistoricalStat>();
+    for (const s of historicalStats) m.set(s.dayOfYear, s);
+    return m;
+  }, [historicalStats, mode]);
+
   const { chartData, dangerVal, meanVal, todayDate, elevatedVal, highVal } = useMemo(() => {
     const getValue = (p: HistoryPoint) =>
       mode === "cm" ? p.levelCm : p.dischargeCubicM;
@@ -155,6 +188,8 @@ export const GaugeChart = memo(function GaugeChart({
       })
       .map((p) => {
         const v = getValue(p)!;
+        const doy = getDayOfYear(new Date(p.measuredAt));
+        const hist = histByDoy?.get(doy);
         return {
           date: formatDate(p.measuredAt),
           dateISO: p.measuredAt,
@@ -162,6 +197,9 @@ export const GaugeChart = memo(function GaugeChart({
           forecast: p.isForecast ? v : null,
           p25: mode === "discharge" ? (p.dischargeP25 ?? null) : null,
           p75: mode === "discharge" ? (p.dischargeP75 ?? null) : null,
+          histAvg: hist ? hist.avgCm : null,
+          histP10: hist ? hist.p10Cm : null,
+          histP90: hist ? hist.p90Cm : null,
         };
       });
 
@@ -178,20 +216,24 @@ export const GaugeChart = memo(function GaugeChart({
           forecast: lastObserved.value,
           p25: lastObserved.p25,
           p75: lastObserved.p75,
+          histAvg: lastObserved.histAvg,
+          histP10: lastObserved.histP10,
+          histP90: lastObserved.histP90,
         });
       }
     }
 
     return { chartData: points, dangerVal: danger, meanVal: mean, todayDate: today, elevatedVal: elevated, highVal: high };
-  }, [history, mode, dangerLevelCm, dischargeMax, dischargeMean]);
+  }, [history, mode, dangerLevelCm, dischargeMax, dischargeMean, histByDoy]);
 
   if (chartData.length < 2) return null;
 
   const hasPercentiles = chartData.some((p) => p.p25 !== null && p.p75 !== null);
+  const hasHistorical = chartData.some((p) => p.histAvg !== null);
 
   // Y domain
   const allValues = chartData
-    .flatMap((p) => [p.value, p.forecast, p.p25, p.p75])
+    .flatMap((p) => [p.value, p.forecast, p.p25, p.p75, p.histP10, p.histP90])
     .filter((v): v is number => v !== null);
   const dataMin = Math.min(...allValues);
   const dataMax = Math.max(...allValues, dangerVal);
@@ -288,6 +330,45 @@ export const GaugeChart = memo(function GaugeChart({
               ifOverflow="extendDomain"
             />
           ) : null}
+
+          {/* Historical p10-p90 band (cm mode only) */}
+          {hasHistorical && (
+            <>
+              <Area
+                type="monotone"
+                dataKey="histP90"
+                stroke="none"
+                fill="#8b5cf6"
+                fillOpacity={0.08}
+                connectNulls
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+              />
+              <Area
+                type="monotone"
+                dataKey="histP10"
+                stroke="none"
+                fill="#fff"
+                fillOpacity={1}
+                connectNulls
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="histAvg"
+                stroke="#8b5cf6"
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                dot={false}
+                activeDot={false}
+                connectNulls
+                isAnimationActive={false}
+              />
+            </>
+          )}
 
           <XAxis
             dataKey="date"
@@ -415,6 +496,11 @@ export const GaugeChart = memo(function GaugeChart({
         {meanVal > 0 && (
           <span className="gauge-chart-legend-item">
             <span className="gauge-chart-legend-dot" style={{ background: "#a1a1aa" }} /> Норма
+          </span>
+        )}
+        {hasHistorical && (
+          <span className="gauge-chart-legend-item">
+            <span className="gauge-chart-legend-dot" style={{ background: "#8b5cf6" }} /> Историческая норма
           </span>
         )}
       </div>

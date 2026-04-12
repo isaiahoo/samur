@@ -10,6 +10,7 @@
     "migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "seed": "tsx src/seed.ts",
+    "import:historical": "tsx src/importHistorical.ts",
     "studio": "prisma studio",
     "db:push": "prisma db push"
   },

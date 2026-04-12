@@ -7,7 +7,8 @@ import { GaugeChart, type HistoryPoint } from "./GaugeChart.js";
 import { DamageScenario } from "./DamageScenario.js";
 import { computeScenarioAwareness } from "./scenarioAwareness.js";
 import { getScenariosForRiver } from "./floodScenarios.js";
-import { getRiverLevelHistory } from "../../services/api.js";
+import { getRiverLevelHistory, getHistoricalStats, getHistoricalPeaks } from "../../services/api.js";
+import type { HistoricalStat, HistoricalPeak } from "../../services/api.js";
 import type { SoilMoisturePoint } from "./geoJsonHelpers.js";
 
 /** Find nearest soil moisture grid point to a station (within ~50km) */
@@ -87,6 +88,28 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
       .catch(() => {})
       .finally(() => setHistoryLoading(false));
   }, [r.riverName, r.stationName]);
+
+  // Historical data (AllRivers.info)
+  const [histStats, setHistStats] = useState<HistoricalStat[]>([]);
+  const [histPeaks, setHistPeaks] = useState<HistoricalPeak[]>([]);
+  const [histExpanded, setHistExpanded] = useState(false);
+
+  useEffect(() => {
+    getHistoricalStats(r.riverName, r.stationName)
+      .then((res) => setHistStats(res.data ?? []))
+      .catch(() => {});
+    getHistoricalPeaks(r.riverName, r.stationName, 5)
+      .then((res) => setHistPeaks(res.data ?? []))
+      .catch(() => {});
+  }, [r.riverName, r.stationName]);
+
+  const todayStats = useMemo(() => {
+    if (histStats.length === 0) return null;
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const doy = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    return histStats.find((s) => s.dayOfYear === doy) ?? null;
+  }, [histStats]);
 
   const forecastWarning = useMemo(
     () => history.length > 0 ? computeForecastWarning(history, mode) : null,
@@ -189,6 +212,7 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
           dischargeMax={r.dischargeMax}
           dischargeMean={r.dischargeMean}
           mode={mode}
+          historicalStats={histStats.length > 0 ? histStats : undefined}
         />
       )}
 
@@ -196,6 +220,45 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
       {hasData && (
         <div className={`tier-action tier-action--${tier.tier}`}>
           {TIER_ACTIONS[tier.tier]}
+        </div>
+      )}
+
+      {/* Historical context (AllRivers.info) */}
+      {histStats.length > 0 && (
+        <div className="historical-section">
+          <button
+            className="historical-toggle"
+            onClick={() => setHistExpanded(!histExpanded)}
+          >
+            <span>Исторические данные</span>
+            <span className="historical-toggle-icon">{histExpanded ? "▲" : "▼"}</span>
+          </button>
+
+          {histExpanded && (
+            <div className="historical-content">
+              {todayStats && (
+                <p className="historical-today">
+                  На эту дату в среднем: <strong>{todayStats.avgCm} см</strong>{" "}
+                  (мин: {todayStats.minCm}, макс: {todayStats.maxCm})
+                </p>
+              )}
+
+              {histPeaks.length > 0 && (
+                <div className="historical-peaks">
+                  <p className="historical-peaks-title">Максимальные уровни:</p>
+                  <ul className="historical-peaks-list">
+                    {histPeaks.map((p) => (
+                      <li key={p.date}>
+                        <strong>{p.valueCm} см</strong> — {new Date(p.date).toLocaleDateString("ru-RU")}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <p className="historical-attribution">Данные: AllRivers.info</p>
+            </div>
+          )}
         </div>
       )}
 

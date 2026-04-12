@@ -289,6 +289,38 @@ model RiverLevel {
   @@map("river_levels")
 }
 
+model HistoricalRiverLevel {
+  id          String   @id @default(cuid())
+  riverName   String   @map("river_name")
+  stationName String   @map("station_name")
+  date        DateTime @db.Date
+  valueCm     Float    @map("value_cm")
+  source      String   @default("allrivers.info")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([riverName, stationName, date])
+  @@index([riverName, stationName, date])
+  @@index([date])
+  @@map("historical_river_levels")
+}
+
+model HistoricalRiverStats {
+  id          String @id @default(cuid())
+  riverName   String @map("river_name")
+  stationName String @map("station_name")
+  dayOfYear   Int    @map("day_of_year")
+  avgCm       Float  @map("avg_cm")
+  minCm       Float  @map("min_cm")
+  maxCm       Float  @map("max_cm")
+  p10Cm       Float  @map("p10_cm")
+  p90Cm       Float  @map("p90_cm")
+  sampleCount Int    @map("sample_count")
+
+  @@unique([riverName, stationName, dayOfYear])
+  @@index([riverName, stationName])
+  @@map("historical_river_stats")
+}
+
 model SmsBroadcastLog {
   id      String   @id @default(cuid())
   alertId String   @map("alert_id")

@@ -318,6 +318,52 @@ export function getRiverStations() {
   return request<ApiResponse>("/river-levels/stations");
 }
 
+// ── Historical river data (AllRivers.info) ──────────────────────────────
+
+export interface HistoricalStat {
+  dayOfYear: number;
+  avgCm: number;
+  minCm: number;
+  maxCm: number;
+  p10Cm: number;
+  p90Cm: number;
+  sampleCount: number;
+}
+
+export interface HistoricalPeak {
+  date: string;
+  valueCm: number;
+}
+
+const historicalStatsCache = new Map<string, HistoricalStat[]>();
+
+export async function getHistoricalStats(riverName: string, stationName: string): Promise<ApiResponse<HistoricalStat[]>> {
+  const key = `${riverName}::${stationName}`;
+  const cached = historicalStatsCache.get(key);
+  if (cached) return { success: true, data: cached };
+  const res = await request<ApiResponse<HistoricalStat[]>>(
+    `/river-levels/historical/${encodeURIComponent(riverName)}/${encodeURIComponent(stationName)}/stats`,
+  );
+  if (res.data && res.data.length > 0) historicalStatsCache.set(key, res.data);
+  return res;
+}
+
+export function getHistoricalPeaks(riverName: string, stationName: string, top = 5) {
+  return request<ApiResponse<HistoricalPeak[]>>(
+    `/river-levels/historical/${encodeURIComponent(riverName)}/${encodeURIComponent(stationName)}/peaks?top=${top}`,
+  );
+}
+
+export function getHistoricalRaw(riverName: string, stationName: string, from?: string, to?: string) {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const qs = params.toString();
+  return request<ApiResponse<Array<{ date: string; valueCm: number; source: string }>>>(
+    `/river-levels/historical/${encodeURIComponent(riverName)}/${encodeURIComponent(stationName)}${qs ? `?${qs}` : ""}`,
+  );
+}
+
 export function getNews(params?: Record<string, string | number | boolean>) {
   const qs = params ? "?" + new URLSearchParams(toStringRecord(params)).toString() : "";
   return request<PaginatedResponse<unknown>>(`/news${qs}`);

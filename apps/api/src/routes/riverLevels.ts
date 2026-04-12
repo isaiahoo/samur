@@ -210,6 +210,67 @@ router.post(
   },
 );
 
+// ── Historical data (AllRivers.info) ────────────────────────────────────
+
+router.get("/historical/:riverName/:stationName/stats", async (req, res, next) => {
+  try {
+    const { riverName, stationName } = req.params;
+    const stats = await prisma.historicalRiverStats.findMany({
+      where: { riverName, stationName },
+      orderBy: { dayOfYear: "asc" },
+      select: {
+        dayOfYear: true,
+        avgCm: true,
+        minCm: true,
+        maxCm: true,
+        p10Cm: true,
+        p90Cm: true,
+        sampleCount: true,
+      },
+    });
+    res.json({ success: true, data: stats });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/historical/:riverName/:stationName/peaks", async (req, res, next) => {
+  try {
+    const { riverName, stationName } = req.params;
+    const top = Math.min(Math.max(parseInt(String(req.query.top)) || 5, 1), 20);
+    const peaks = await prisma.historicalRiverLevel.findMany({
+      where: { riverName, stationName },
+      orderBy: { valueCm: "desc" },
+      take: top,
+      select: { date: true, valueCm: true },
+    });
+    res.json({ success: true, data: peaks });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/historical/:riverName/:stationName", async (req, res, next) => {
+  try {
+    const { riverName, stationName } = req.params;
+    const limit = Math.min(Math.max(parseInt(String(req.query.limit)) || 10000, 1), 10000);
+
+    const where: Record<string, unknown> = { riverName, stationName };
+    if (req.query.from) where.date = { ...((where.date as object) || {}), gte: new Date(String(req.query.from)) };
+    if (req.query.to) where.date = { ...((where.date as object) || {}), lte: new Date(String(req.query.to)) };
+
+    const data = await prisma.historicalRiverLevel.findMany({
+      where,
+      orderBy: { date: "asc" },
+      take: limit,
+      select: { date: true, valueCm: true, source: true },
+    });
+    res.json({ success: true, data });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get("/:id", async (req, res, next) => {
   try {
     const id = paramId(req);
