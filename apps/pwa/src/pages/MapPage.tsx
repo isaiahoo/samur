@@ -365,6 +365,12 @@ export function MapPage() {
         <div className="geo-banner">
           {geoStatus === "loading" ? (
             <span className="geo-banner-text">Определяем местоположение…</span>
+          ) : !window.isSecureContext ? (
+            <>
+              <span className="geo-banner-text">
+                Геолокация недоступна — сайт открыт по HTTP. Откройте <b>https://samurchs.ru</b> для полного доступа.
+              </span>
+            </>
           ) : (
             <>
               <span className="geo-banner-text">
