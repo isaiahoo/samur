@@ -479,26 +479,38 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
         merged.dischargeCubicM, previous?.dischargeCubicM ?? null,
       );
 
-      const level = await prisma.riverLevel.create({
-        data: {
+      const levelData = {
+        lat: station.lat,
+        lng: station.lng,
+        levelCm: merged.levelCm,
+        dangerLevelCm: merged.levelCm !== null ? station.dangerLevelCm : null,
+        dischargeCubicM: merged.dischargeCubicM,
+        dischargeMean: merged.dischargeMean,
+        dischargeMax: merged.dischargeMax,
+        dischargeMedian: merged.dischargeMedian,
+        dischargeMin: merged.dischargeMin,
+        dischargeP25: merged.dischargeP25,
+        dischargeP75: merged.dischargeP75,
+        dischargeAnnualMean: station.meanDischarge,
+        dataSource: merged.source,
+        isForecast: false,
+        trend,
+      };
+
+      const level = await prisma.riverLevel.upsert({
+        where: {
+          riverName_stationName_measuredAt: {
+            riverName: station.riverName,
+            stationName: station.stationName,
+            measuredAt: merged.measuredAt,
+          },
+        },
+        update: levelData,
+        create: {
           riverName: station.riverName,
           stationName: station.stationName,
-          lat: station.lat,
-          lng: station.lng,
-          levelCm: merged.levelCm,
-          dangerLevelCm: merged.levelCm !== null ? station.dangerLevelCm : null,
-          dischargeCubicM: merged.dischargeCubicM,
-          dischargeMean: merged.dischargeMean,
-          dischargeMax: merged.dischargeMax,
-          dischargeMedian: merged.dischargeMedian,
-          dischargeMin: merged.dischargeMin,
-          dischargeP25: merged.dischargeP25,
-          dischargeP75: merged.dischargeP75,
-          dischargeAnnualMean: station.meanDischarge,
-          dataSource: merged.source,
-          isForecast: false,
-          trend,
           measuredAt: merged.measuredAt,
+          ...levelData,
         },
       });
 
