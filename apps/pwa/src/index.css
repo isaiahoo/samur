@@ -48,7 +48,7 @@ a { color: var(--color-primary); text-decoration: none; }
   z-index: 1000;
 }
 .app-title { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; display: flex; align-items: center; gap: 8px; }
-.app-logo { border-radius: 50%; background: rgba(255, 255, 255, 0.9); padding: 1px; }
+.app-logo { border-radius: 50%; background: #fff; padding: 2px; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.5); }
 
 /* ── Header right group ───────────────────────────────────────────────── */
 .header-right {

@@ -58,7 +58,7 @@ export function Layout() {
       <a href="#app-main" className="skip-link">Перейти к содержимому</a>
       <header className="app-header">
         <h1 className="app-title">
-          <img src="/icons/icon-192.png" alt="" className="app-logo" width="28" height="28" />
+          <img src="/icons/icon-192.png" alt="" className="app-logo" width="32" height="32" />
           Самур
         </h1>
         <div className="header-right">
