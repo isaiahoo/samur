@@ -88,7 +88,7 @@ class Predictor:
         feature_cols = self._feature_columns()
 
         forecasts = []
-        today = date.today()
+        today = datetime.utcnow().date()
 
         for h in HORIZONS:
             if h not in self.models[station_id]:
@@ -278,8 +278,21 @@ class Predictor:
                 result.append(known[day])
             else:
                 # Linear interpolation between nearest known points
-                lower = max(k for k in known if k < day)
-                upper = min(k for k in known if k > day)
+                below = [k for k in known if k < day]
+                above = [k for k in known if k > day]
+                if not below or not above:
+                    # Can't interpolate — use nearest known point
+                    nearest = min(known.keys(), key=lambda x: abs(x - day))
+                    np_ = known[nearest]
+                    result.append(ForecastPoint(
+                        date=(today + timedelta(days=day)).isoformat(),
+                        level_cm=np_.level_cm,
+                        lower_90=np_.lower_90,
+                        upper_90=np_.upper_90,
+                    ))
+                    continue
+                lower = max(below)
+                upper = min(above)
                 t = (day - lower) / (upper - lower)
                 lp = known[lower]
                 up = known[upper]
