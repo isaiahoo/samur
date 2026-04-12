@@ -97,14 +97,15 @@ class Predictor:
             model = self.models[station_id][h]
             X = latest[feature_cols].values
             dmat = xgb.DMatrix(X, feature_names=feature_cols)
-            pred = float(model.predict(dmat)[0])
+            pred = max(float(model.predict(dmat)[0]), 0.0)  # Clamp to non-negative
 
             forecast_date = today + timedelta(days=h)
+            band = max(pred * 0.15, 5.0)  # At least ±5 cm uncertainty
             forecasts.append(ForecastPoint(
                 date=forecast_date.isoformat(),
                 level_cm=round(pred, 1),
-                lower_90=round(pred * 0.85, 1),  # Simple 15% band for XGBoost
-                upper_90=round(pred * 1.15, 1),
+                lower_90=round(max(pred - band, 0.0), 1),
+                upper_90=round(pred + band, 1),
             ))
 
         # Interpolate between horizons for a smooth 7-day forecast
@@ -287,9 +288,9 @@ class Predictor:
                 t = (day - lower) / (upper - lower)
                 lp = known[lower]
                 up = known[upper]
-                level = lp.level_cm + t * (up.level_cm - lp.level_cm)
-                lo90 = (lp.lower_90 or level) + t * ((up.lower_90 or level) - (lp.lower_90 or level))
-                hi90 = (lp.upper_90 or level) + t * ((up.upper_90 or level) - (lp.upper_90 or level))
+                level = max(lp.level_cm + t * (up.level_cm - lp.level_cm), 0.0)
+                lo90 = max((lp.lower_90 or level) + t * ((up.lower_90 or level) - (lp.lower_90 or level)), 0.0)
+                hi90 = max((lp.upper_90 or level) + t * ((up.upper_90 or level) - (lp.upper_90 or level)), 0.0)
                 result.append(ForecastPoint(
                     date=(today + timedelta(days=day)).isoformat(),
                     level_cm=round(level, 1),
