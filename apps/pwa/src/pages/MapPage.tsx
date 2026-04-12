@@ -361,12 +361,18 @@ export function MapPage() {
         onMapMove={handleMapMove}
       />
 
-      {geoStatus === "denied" && !geoBannerDismissed && (
+      {(geoStatus === "denied" || (geoStatus === "loading" && !geoBannerDismissed)) && !geoBannerDismissed && (
         <div className="geo-banner">
-          <span className="geo-banner-text">
-            Геолокация отключена. Откройте <b>Настройки &gt; Конфиденциальность &gt; Службы геолокации &gt; Safari</b> и разрешите доступ.
-          </span>
-          <button className="geo-banner-retry" onClick={requestPosition}>Повторить</button>
+          {geoStatus === "loading" ? (
+            <span className="geo-banner-text">Определяем местоположение…</span>
+          ) : (
+            <>
+              <span className="geo-banner-text">
+                Геолокация отключена. Откройте <b>Настройки &gt; Конфиденциальность &gt; Службы геолокации &gt; Safari</b> и разрешите доступ.
+              </span>
+              <button className="geo-banner-retry" onClick={requestPosition}>Повторить</button>
+            </>
+          )}
           <button className="geo-banner-close" onClick={() => setGeoBannerDismissed(true)} aria-label="Закрыть">&times;</button>
         </div>
       )}
