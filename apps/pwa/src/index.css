@@ -238,8 +238,9 @@ a { color: var(--color-primary); text-decoration: none; }
   background: var(--color-surface);
   border-radius: 16px 16px 0 0;
   width: 100%;
-  max-height: 60dvh;
+  max-height: 50dvh;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   animation: sheetUp 0.25s ease-out;
 }
 @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
@@ -700,7 +701,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .tier-banner--4 { background: #991B1B; }
 
 .tier-hero {
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 800;
   line-height: 1.1;
   margin: 4px 0;
@@ -732,13 +733,37 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   padding: 12px;
   background: #fafafa;
 }
+.damage-scenario-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  margin-bottom: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
 .damage-scenario-title {
   font-size: 13px;
   font-weight: 700;
   color: #52525b;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 8px;
+}
+.damage-scenario-summary {
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: auto;
+}
+.damage-scenario-summary--moderate { color: #B45309; }
+.damage-scenario-summary--severe { color: #B91C1C; }
+.damage-scenario-summary--catastrophic { color: #6D28D9; }
+.damage-scenario-chevron {
+  font-size: 10px;
+  color: #a1a1aa;
+  flex-shrink: 0;
 }
 .damage-tabs {
   display: flex;
@@ -3529,6 +3554,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     border-color: rgba(63, 63, 70, 0.5);
   }
   .damage-scenario-title { color: #a1a1aa; }
+  .damage-scenario-chevron { color: #71717a; }
   .damage-tab {
     background: rgba(39, 39, 42, 0.6);
     border-color: rgba(63, 63, 70, 0.5);

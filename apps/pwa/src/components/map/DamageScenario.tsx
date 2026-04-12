@@ -316,6 +316,9 @@ export function DamageScenario({ riverName, currentTier, awareness }: DamageScen
     availableLevels.length > 0 ? defaultTab(currentTier, availableLevels) : "moderate",
   );
 
+  // Collapsed by default on mobile — auto-expand only in high danger (tier 3+)
+  const [open, setOpen] = useState(() => currentTier.tier >= 3);
+
   if (scenarios.length === 0) return null;
 
   const activeScenario = scenarios.find((s) => s.scenarioId === activeTab);
@@ -323,40 +326,59 @@ export function DamageScenario({ riverName, currentTier, awareness }: DamageScen
   // Find proximity data for active scenario
   const activeProximity = awareness?.proximities.find((p) => p.scenarioId === activeTab);
 
+  // Summary line for collapsed state
+  const nearestProx = awareness?.proximities.find((p) => p.scenarioId === awareness.nearestScenarioId);
+
   return (
     <div className="damage-scenario">
-      <div className="damage-scenario-title">Потенциальный ущерб</div>
+      <button
+        className="damage-scenario-header"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+      >
+        <span className="damage-scenario-title">Потенциальный ущерб</span>
+        {!open && nearestProx && (
+          <span className={`damage-scenario-summary damage-scenario-summary--${nearestProx.scenarioId}`}>
+            {TAB_LABELS[nearestProx.scenarioId as ScenarioLevel]} {nearestProx.proximityPct}%
+          </span>
+        )}
+        <span className="damage-scenario-chevron">{open ? "\u25B2" : "\u25BC"}</span>
+      </button>
 
-      {/* Proximity bar — dynamic scenario awareness */}
-      {awareness && <ProximityBar awareness={awareness} />}
+      {open && (
+        <>
+          {/* Proximity bar — dynamic scenario awareness */}
+          {awareness && <ProximityBar awareness={awareness} />}
 
-      <div className="damage-tabs">
-        {availableLevels.map((level) => {
-          const prox = awareness?.proximities.find((p) => p.scenarioId === level);
-          const isPulse = awareness?.shouldPulse && awareness.nearestScenarioId === level;
+          <div className="damage-tabs">
+            {availableLevels.map((level) => {
+              const prox = awareness?.proximities.find((p) => p.scenarioId === level);
+              const isPulse = awareness?.shouldPulse && awareness.nearestScenarioId === level;
 
-          return (
-            <button
-              key={level}
-              className={[
-                "damage-tab",
-                `damage-tab--${level}`,
-                activeTab === level ? "damage-tab--active" : "",
-                isPulse ? "damage-tab--pulse" : "",
-              ].filter(Boolean).join(" ")}
-              onClick={() => setActiveTab(level)}
-            >
-              {TAB_LABELS[level]}
-              {prox && (
-                <span className="damage-tab-proximity">{prox.proximityPct}%</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+              return (
+                <button
+                  key={level}
+                  className={[
+                    "damage-tab",
+                    `damage-tab--${level}`,
+                    activeTab === level ? "damage-tab--active" : "",
+                    isPulse ? "damage-tab--pulse" : "",
+                  ].filter(Boolean).join(" ")}
+                  onClick={() => setActiveTab(level)}
+                >
+                  {TAB_LABELS[level]}
+                  {prox && (
+                    <span className="damage-tab-proximity">{prox.proximityPct}%</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
 
-      {activeScenario && (
-        <ScenarioCard s={activeScenario} proximity={activeProximity} />
+          {activeScenario && (
+            <ScenarioCard s={activeScenario} proximity={activeProximity} />
+          )}
+        </>
       )}
     </div>
   );
