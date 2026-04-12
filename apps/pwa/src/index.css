@@ -48,7 +48,7 @@ a { color: var(--color-primary); text-decoration: none; }
   z-index: 1000;
 }
 .app-title { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; display: flex; align-items: center; gap: 8px; }
-.app-logo { border-radius: 6px; }
+.app-logo { border-radius: 50%; background: rgba(255, 255, 255, 0.9); padding: 1px; }
 
 /* ── Header right group ───────────────────────────────────────────────── */
 .header-right {
@@ -1466,6 +1466,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   border: 1px solid #e4e4e7;
 }
 .login-header { text-align: center; margin-bottom: 24px; }
+.login-logo { border-radius: 50%; margin-bottom: 12px; }
 .login-header h2 { font-size: 24px; margin-bottom: 4px; }
 .login-subtitle { font-size: 14px; color: #71717a; margin: 0; }
 

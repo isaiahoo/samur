@@ -277,6 +277,7 @@ export function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-header">
+          <img src="/icons/icon-192.png" alt="" className="login-logo" width="72" height="72" />
           <h2>Самур</h2>
           <p className="login-subtitle">
             {step === "profile" ? "Завершение регистрации" : "Вход и регистрация"}
