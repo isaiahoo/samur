@@ -255,12 +255,16 @@ router.get("/historical/:riverName/:stationName", async (req, res, next) => {
     const { riverName, stationName } = req.params;
     const limit = Math.min(Math.max(parseInt(String(req.query.limit)) || 10000, 1), 10000);
 
-    const where: Record<string, unknown> = { riverName, stationName };
-    if (req.query.from) where.date = { ...((where.date as object) || {}), gte: new Date(String(req.query.from)) };
-    if (req.query.to) where.date = { ...((where.date as object) || {}), lte: new Date(String(req.query.to)) };
+    const dateFilter: { gte?: Date; lte?: Date } = {};
+    if (req.query.from) dateFilter.gte = new Date(String(req.query.from));
+    if (req.query.to) dateFilter.lte = new Date(String(req.query.to));
 
     const data = await prisma.historicalRiverLevel.findMany({
-      where,
+      where: {
+        riverName,
+        stationName,
+        ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {}),
+      },
       orderBy: { date: "asc" },
       take: limit,
       select: { date: true, valueCm: true, source: true },
