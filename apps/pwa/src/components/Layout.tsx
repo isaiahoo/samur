@@ -57,7 +57,10 @@ export function Layout() {
     <div className={`app-layout${crisisMode ? " crisis-mode" : ""}`}>
       <a href="#app-main" className="skip-link">Перейти к содержимому</a>
       <header className="app-header">
-        <h1 className="app-title">Самур</h1>
+        <h1 className="app-title">
+          <img src="/icons/icon-192.png" alt="" className="app-logo" width="28" height="28" />
+          Самур
+        </h1>
         <div className="header-right">
           {online && <span className={`conn-dot ${socketConnected ? "conn-dot--ok" : "conn-dot--off"}`} title={socketConnected ? "Подключено" : "Нет связи с сервером"} />}
           {!online && <span className="offline-badge">Офлайн</span>}
