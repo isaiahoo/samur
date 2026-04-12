@@ -180,38 +180,33 @@ class Predictor:
             except Exception as e:
                 logger.warning("Could not fetch live water levels: %s", e)
 
-            # Strategy 2: use historical daily averages if no live levels
+            # Strategy 2: use historical stats (day-of-year averages) if available
             if df["water_level_cm"].notna().sum() < 15:
                 try:
-                    url = f"{EXPRESS_API}/api/v1/river-levels/historical/{river}/{station}"
+                    url = f"{EXPRESS_API}/api/v1/river-levels/historical/{river}/{station}/stats"
                     with httpx.Client(timeout=15) as client:
-                        # Fetch most recent year of historical data for same period
-                        resp = client.get(url, params={
-                            "from": f"2024-{start.strftime('%m-%d')}",
-                            "to": f"2024-{end.strftime('%m-%d')}",
-                            "limit": "60",
-                        })
+                        resp = client.get(url)
                         resp.raise_for_status()
-                        hist_data = resp.json().get("data", [])
+                        stats = resp.json().get("data", [])
 
-                    if hist_data:
-                        # Map historical levels by month-day (ignore year)
-                        hist_by_md: dict[str, float] = {}
-                        for rec in hist_data:
-                            d = rec.get("date", "")[:10]
-                            v = rec.get("valueCm")
-                            if d and v is not None:
-                                md = d[5:]  # "2024-04-01" → "04-01"
-                                hist_by_md[md] = v
-                        df["water_level_cm"] = df["date"].dt.strftime("%m-%d").map(hist_by_md)
+                    if stats:
+                        # Build dayOfYear → avgCm lookup
+                        avg_by_doy: dict[int, float] = {}
+                        for s in stats:
+                            doy = s.get("dayOfYear")
+                            avg = s.get("avgCm")
+                            if doy is not None and avg is not None:
+                                avg_by_doy[doy] = avg
+                        # Map onto weather dataframe
+                        df["water_level_cm"] = df["date"].dt.dayofyear.map(avg_by_doy)
                         matched = df["water_level_cm"].notna().sum()
-                        logger.info("Matched %d/%d days with historical averages", matched, len(df))
-
+                        logger.info("Matched %d/%d days with historical stats for %s/%s",
+                                    matched, len(df), river, station)
                         # Forward-fill small gaps
                         if matched > 0:
                             df["water_level_cm"] = df["water_level_cm"].ffill().bfill()
                 except Exception as e:
-                    logger.warning("Could not fetch historical water levels: %s", e)
+                    logger.warning("Could not fetch historical stats: %s", e)
 
             return df
         except Exception as e:
