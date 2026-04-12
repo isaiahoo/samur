@@ -1279,6 +1279,73 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .help-card-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .help-card-status { font-size: 12px; color: #71717a; font-weight: 500; }
 
+/* ── Help card photos ────────────────────────────────────── */
+.help-card-photos {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 8px;
+  scrollbar-width: none;
+}
+.help-card-photos::-webkit-scrollbar { display: none; }
+.help-card-photo-link {
+  flex-shrink: 0;
+  display: block;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.help-card-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Photo upload form ───────────────────────────────────── */
+.photo-previews {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.photo-preview {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+.photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.photo-preview-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border: none;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.photo-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .alerts-page { padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 24px); }
 .alert-banner {
   padding: 12px 16px;
@@ -3550,6 +3617,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .help-card-status { color: #a1a1aa; }
   .help-tab { color: #a1a1aa; }
   .help-tab--active { color: var(--color-primary); }
+  .help-card-photo-link { border: 1px solid var(--color-border); }
+  .photo-preview { border-color: var(--color-border); }
 
   /* Alerts page */
   .alert-card { background: var(--color-surface); }

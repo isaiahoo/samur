@@ -37,6 +37,7 @@ COPY --from=base /app/apps/api/package.json ./apps/api/
 COPY --from=base /app/package.json ./
 
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+RUN mkdir -p /app/uploads && chown nodejs:nodejs /app/uploads
 USER nodejs
 
 EXPOSE 3000

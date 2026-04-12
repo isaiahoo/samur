@@ -187,6 +187,7 @@ model HelpRequest {
   isSOS        Boolean           @default(false) @map("is_sos")
   situation    String?
   peopleCount  Int?              @map("people_count")
+  photoUrls       String[]          @default([]) @map("photo_urls")
   batteryLevel    Int?              @map("battery_level")
   sourceIp        String?           @map("source_ip")
   confidenceScore Int?              @map("confidence_score")

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type ChangeEvent } from "react";
 import type { HelpRequest, HelpCategory } from "@samur/shared";
 import {
   HELP_CATEGORY_LABELS,
@@ -8,7 +8,7 @@ import {
   HELP_CATEGORIES,
 } from "@samur/shared";
 import { formatRelativeTime } from "@samur/shared";
-import { getHelpRequests, updateHelpRequest, createHelpRequest } from "../services/api.js";
+import { getHelpRequests, updateHelpRequest, createHelpRequest, uploadPhotos } from "../services/api.js";
 import { UrgencyBadge } from "../components/UrgencyBadge.js";
 import { CategoryChip } from "../components/CategoryChip.js";
 import { Spinner } from "../components/Spinner.js";
@@ -202,6 +202,15 @@ function HelpCard({
         <UrgencyBadge value={item.urgency} kind="urgency" />
       </div>
       {item.description && <p className="help-card-desc">{item.description}</p>}
+      {item.photoUrls && item.photoUrls.length > 0 && (
+        <div className="help-card-photos">
+          {item.photoUrls.map((url, i) => (
+            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="help-card-photo-link">
+              <img src={url} alt="" className="help-card-photo" loading="lazy" />
+            </a>
+          ))}
+        </div>
+      )}
       <div className="help-card-meta">
         {item.address && <span>{item.address}</span>}
         <span>{formatRelativeTime(item.createdAt)}</span>
@@ -234,7 +243,10 @@ function HelpFormModal({ tab, onClose }: { tab: Tab; onClose: () => void }) {
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [urgency, setUrgency] = useState("normal");
+  const [photos, setPhotos] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const user = useAuthStore((s) => s.user);
   const showToast = useUIStore((s) => s.showToast);
@@ -246,9 +258,51 @@ function HelpFormModal({ tab, onClose }: { tab: Tab; onClose: () => void }) {
     }
   }, [user]);
 
+  // Clean up preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      photoPreviews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [photoPreviews]);
+
+  const handlePhotoSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files ?? []);
+    // Validate file sizes (5MB max each)
+    const MAX_SIZE = 5 * 1024 * 1024;
+    for (const f of selected) {
+      if (f.size > MAX_SIZE) {
+        showToast(`Файл слишком большой (макс. 5 МБ): ${f.name}`, "error");
+        return;
+      }
+    }
+    if (selected.length + photos.length > 5) {
+      showToast("Максимум 5 фото", "error");
+      return;
+    }
+    const newPhotos = [...photos, ...selected].slice(0, 5);
+    setPhotos(newPhotos);
+    // Revoke old previews
+    photoPreviews.forEach((url) => URL.revokeObjectURL(url));
+    setPhotoPreviews(newPhotos.map((f) => URL.createObjectURL(f)));
+    // Reset input so re-selecting same file works
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removePhoto = (index: number) => {
+    if (photoPreviews[index]) URL.revokeObjectURL(photoPreviews[index]);
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+    setPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
+      // Upload photos first if any
+      let photoUrls: string[] | undefined;
+      if (photos.length > 0) {
+        photoUrls = await uploadPhotos(photos);
+      }
+
       // Use Makhachkala center as default if no geolocation
       await createHelpRequest({
         type: tab === "offer" ? "offer" : "need",
@@ -259,6 +313,7 @@ function HelpFormModal({ tab, onClose }: { tab: Tab; onClose: () => void }) {
         urgency,
         contactName: contactName || undefined,
         contactPhone: contactPhone || undefined,
+        photoUrls,
         source: "pwa",
       });
       showToast("Заявка создана", "success");
@@ -308,6 +363,49 @@ function HelpFormModal({ tab, onClose }: { tab: Tab; onClose: () => void }) {
         </div>
 
         <div className="form-group">
+          <label>Фото (до 5 шт.)</label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/heic"
+            multiple
+            onChange={handlePhotoSelect}
+            style={{ display: "none" }}
+          />
+          {photoPreviews.length > 0 && (
+            <div className="photo-previews">
+              {photoPreviews.map((url, i) => (
+                <div key={i} className="photo-preview">
+                  <img src={url} alt="" />
+                  <button
+                    type="button"
+                    className="photo-preview-remove"
+                    onClick={() => removePhoto(i)}
+                    aria-label="Удалить фото"
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {photos.length < 5 && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm photo-add-btn"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <path d="m21 15-5-5L5 21" />
+              </svg>
+              {photos.length === 0 ? "Добавить фото" : `Ещё (${photos.length}/5)`}
+            </button>
+          )}
+        </div>
+
+        <div className="form-group">
           <label>Имя</label>
           <input className="form-input" value={contactName} onChange={(e) => setContactName(e.target.value)} />
         </div>
@@ -318,7 +416,7 @@ function HelpFormModal({ tab, onClose }: { tab: Tab; onClose: () => void }) {
         </div>
 
         <button className="btn btn-primary btn-lg" onClick={handleSubmit} disabled={submitting}>
-          {submitting ? "Отправка..." : "Отправить"}
+          {submitting ? (photos.length > 0 ? "Загрузка фото..." : "Отправка...") : "Отправить"}
         </button>
       </div>
     </div>

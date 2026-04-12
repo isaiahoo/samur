@@ -118,6 +118,7 @@ export const CreateHelpRequestSchema = z.object({
   urgency: UrgencySchema.optional(),
   contactPhone: phone.optional(),
   contactName: z.string().max(200).optional(),
+  photoUrls: z.array(z.string().min(1).max(500).regex(/^\/api\/v1\/uploads\/[a-f0-9]+\.\w+$/, "Недопустимый URL фото")).max(5).optional(),
   source: SourceSchema.optional(),
 });
 
@@ -127,6 +128,7 @@ export const UpdateHelpRequestSchema = z.object({
   status: HelpRequestStatusSchema.optional(),
   contactPhone: phone.optional(),
   contactName: z.string().max(200).optional(),
+  photoUrls: z.array(z.string().min(1).max(500).regex(/^\/api\/v1\/uploads\/[a-f0-9]+\.\w+$/, "Недопустимый URL фото")).max(5).optional(),
 });
 
 export const CreateSOSSchema = z.object({

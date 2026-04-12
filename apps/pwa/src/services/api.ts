@@ -126,6 +126,28 @@ export function updateProfile(data: { name?: string; role?: string }) {
   });
 }
 
+export async function uploadPhotos(files: File[]): Promise<string[]> {
+  const form = new FormData();
+  for (const file of files) {
+    form.append("photos", file);
+  }
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE}/uploads`, {
+    method: "POST",
+    headers,
+    body: form,
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    const msg = json?.error?.message ?? `Ошибка ${res.status}`;
+    throw new ApiError(res.status, json?.error?.code ?? "UNKNOWN", msg);
+  }
+  return json.data.urls as string[];
+}
+
 export function getIncidents(params?: Record<string, string | number | boolean>) {
   const qs = params ? "?" + new URLSearchParams(toStringRecord(params)).toString() : "";
   return request<PaginatedResponse<unknown>>(`/incidents${qs}`);

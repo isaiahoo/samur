@@ -232,7 +232,7 @@ router.post(
     try {
       const {
         incidentId, type, category, description,
-        lat, lng, address, urgency, contactPhone, contactName, source,
+        lat, lng, address, urgency, contactPhone, contactName, photoUrls, source,
       } = req.body;
 
       if (incidentId) {
@@ -257,6 +257,7 @@ router.post(
           urgency: urgency ?? "normal",
           contactPhone,
           contactName,
+          photoUrls: photoUrls ?? [],
           source: source ?? "pwa",
         },
         include: {
@@ -310,6 +311,7 @@ router.patch(
       if (req.body.urgency !== undefined) data.urgency = req.body.urgency;
       if (req.body.contactPhone !== undefined) data.contactPhone = req.body.contactPhone;
       if (req.body.contactName !== undefined) data.contactName = req.body.contactName;
+      if (req.body.photoUrls !== undefined) data.photoUrls = req.body.photoUrls;
 
       let isClaim = false;
       if (newStatus !== undefined) {

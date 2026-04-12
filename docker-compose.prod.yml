@@ -121,6 +121,7 @@ services:
         condition: service_healthy
     volumes:
       - ./data/tiles:/app/tiles:ro
+      - uploads:/app/uploads
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/v1/health"]
       interval: 15s
@@ -288,6 +289,7 @@ services:
 volumes:
   pgdata:
   redisdata:
+  uploads:
   certbot-webroot:
   certbot-certs:
   prometheusdata:

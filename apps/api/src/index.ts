@@ -42,6 +42,7 @@ import newsRouter from "./routes/news.js";
 import weatherRouter from "./routes/weather.js";
 import seismicRouter from "./routes/seismic.js";
 import tilesRouter from "./routes/tiles.js";
+import uploadsRouter from "./routes/uploads.js";
 import metricsRouter from "./routes/metrics.js";
 
 const app = express();
@@ -71,6 +72,11 @@ try {
 }
 
 const corsOrigins = config.CORS_ORIGINS.split(",").map((s) => s.trim());
+
+// ── Serve uploaded files (no auth needed, cacheable) ──
+import path from "path";
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
+app.use("/api/v1/uploads", cors({ origin: corsOrigins }), express.static(UPLOAD_DIR, { maxAge: "7d" }));
 
 // ── Tile proxy: mounted BEFORE heavy middleware (no auth/rate-limit/logging) ──
 app.use("/api/v1/tiles", cors({ origin: corsOrigins }), tilesRouter);
@@ -106,6 +112,7 @@ app.use("/api/v1/channels", channelsRouter);
 app.use("/api/v1/news", newsRouter);
 app.use("/api/v1/weather", weatherRouter);
 app.use("/api/v1/seismic", seismicRouter);
+app.use("/api/v1/uploads", uploadsRouter);
 app.use(metricsRouter);
 
 app.use(notFoundHandler);
