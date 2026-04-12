@@ -1235,6 +1235,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .gauge-chart-tooltip-forecast { font-weight: 500; color: #71717a; font-size: 12px; }
 .gauge-chart-tooltip-status { font-weight: 600; font-size: 11px; margin-top: 3px; }
 .gauge-chart-tooltip-hist { font-size: 11px; color: #8b5cf6; margin-top: 3px; }
+.gauge-chart-tooltip-ai { font-size: 11px; color: #14b8a6; margin-top: 3px; font-weight: 500; }
 
 .gauge-chart-legend {
   display: flex;
@@ -3595,6 +3596,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .gauge-chart-tooltip-value { color: #e4e4e7; }
   .gauge-chart-legend { color: #a1a1aa; }
   .gauge-chart-tooltip-hist { color: #a78bfa; }
+  .gauge-chart-tooltip-ai { color: #2dd4bf; }
 
   /* Historical section — dark mode */
   .historical-section { border-color: #3f3f46; }

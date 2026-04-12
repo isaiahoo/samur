@@ -114,6 +114,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       TILE_PROVIDER: ${TILE_PROVIDER:-maptiler}
       MAPTILER_API_KEY: ${MAPTILER_API_KEY:-}
+      ML_SERVICE_URL: http://ml:8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -180,6 +181,32 @@ services:
       resources:
         limits:
           memory: 256m
+          cpus: "0.5"
+
+  # ── ML Prediction Service (Самур AI) ──────────────────────────────────────
+  ml:
+    build:
+      context: ./apps/ml
+      dockerfile: Dockerfile
+    container_name: samur-ml
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import httpx; r=httpx.get('http://localhost:8000/health',timeout=5); assert r.status_code==200"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
           cpus: "0.5"
 
   # ── Reverse proxy with SSL ───────────────────────────────────────────────

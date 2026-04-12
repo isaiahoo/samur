@@ -7,8 +7,9 @@ import { GaugeChart, type HistoryPoint } from "./GaugeChart.js";
 import { DamageScenario } from "./DamageScenario.js";
 import { computeScenarioAwareness } from "./scenarioAwareness.js";
 import { getScenariosForRiver } from "./floodScenarios.js";
-import { getRiverLevelHistory, getHistoricalStats, getHistoricalPeaks } from "../../services/api.js";
-import type { HistoricalStat, HistoricalPeak } from "../../services/api.js";
+import { getRiverLevelHistory, getHistoricalStats, getHistoricalPeaks, getAiForecast } from "../../services/api.js";
+import type { HistoricalStat, HistoricalPeak, AiForecastPoint } from "../../services/api.js";
+import type { AiForecastPoint as ChartAiForecast } from "./GaugeChart.js";
 import type { SoilMoisturePoint } from "./geoJsonHelpers.js";
 
 /** Find nearest soil moisture grid point to a station (within ~50km) */
@@ -89,6 +90,9 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
       .finally(() => setHistoryLoading(false));
   }, [r.riverName, r.stationName]);
 
+  // AI forecast data
+  const [aiForecastData, setAiForecastData] = useState<AiForecastPoint[]>([]);
+
   // Historical data (AllRivers.info)
   const [histStats, setHistStats] = useState<HistoricalStat[]>([]);
   const [histPeaks, setHistPeaks] = useState<HistoricalPeak[]>([]);
@@ -101,6 +105,15 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
     getHistoricalPeaks(r.riverName, r.stationName, 5)
       .then((res) => setHistPeaks(res.data ?? []))
       .catch(() => {});
+    // Fetch AI forecast (filtered for this station)
+    getAiForecast()
+      .then((res) => {
+        const stationData = (res.data ?? []).filter(
+          (d) => d.riverName === r.riverName && d.stationName === r.stationName,
+        );
+        setAiForecastData(stationData);
+      })
+      .catch(() => {});
   }, [r.riverName, r.stationName]);
 
   const todayStats = useMemo(() => {
@@ -110,6 +123,16 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
     const doy = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     return histStats.find((s) => s.dayOfYear === doy) ?? null;
   }, [histStats]);
+
+  const chartAiForecast: ChartAiForecast[] = useMemo(() => {
+    if (aiForecastData.length === 0 || !hasLevel) return [];
+    return aiForecastData.map((d) => ({
+      levelCm: d.levelCm,
+      predictionLower: d.predictionLower,
+      predictionUpper: d.predictionUpper,
+      measuredAt: d.measuredAt,
+    }));
+  }, [aiForecastData, hasLevel]);
 
   const forecastWarning = useMemo(
     () => history.length > 0 ? computeForecastWarning(history, mode) : null,
@@ -213,6 +236,7 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
           dischargeMean={r.dischargeMean}
           mode={mode}
           historicalStats={histStats.length > 0 ? histStats : undefined}
+          aiForecast={chartAiForecast.length > 0 ? chartAiForecast : undefined}
         />
       )}
 

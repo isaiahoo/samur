@@ -10,6 +10,7 @@ import { fetchSoilMoistureGrid, isSoilMoistureCacheStale } from "./soilMoistureC
 import { fetchSnowGrid, isSnowCacheStale } from "./snowClient.js";
 import { computeRunoffGrid } from "./runoffClient.js";
 import { fetchEarthquakes, isEarthquakeCacheStale, cleanupOldEarthquakes } from "./earthquakeClient.js";
+import { fetchAndStorePredictions } from "./mlClient.js";
 
 const log = logger.child({ service: "scheduler" });
 
@@ -113,6 +114,13 @@ async function runSnowFetch(): Promise<void> {
   }).catch((err) => log.error({ err }, "Snow fetch failed"));
 }
 
+async function runMlPredict(): Promise<void> {
+  await withLock("ml-predict", 300, async () => {
+    const result = await fetchAndStorePredictions();
+    log.info({ stored: result.stored, errors: result.errors.length }, "ML predictions updated");
+  }).catch((err) => log.error({ err }, "ML prediction failed"));
+}
+
 async function runEarthquakeFetch(): Promise<void> {
   if (!isEarthquakeCacheStale()) return;
   await withLock("earthquake", 120, async () => {
@@ -161,6 +169,7 @@ export async function startScheduler(): Promise<void> {
     setTimeout(() => { runSnowFetch(); }, 30_000),
     setTimeout(() => { computeRunoffGrid(); }, 35_000),
     setTimeout(() => { runEarthquakeFetch(); }, 40_000),
+    setTimeout(() => { runMlPredict(); }, 45_000),
   );
 
   // Schedule hourly scrapes
@@ -186,6 +195,10 @@ export async function startScheduler(): Promise<void> {
   // Schedule earthquake fetches every 5 minutes
   earthquakeTimer = setInterval(runEarthquakeFetch, EARTHQUAKE_INTERVAL_MS);
   log.info({ intervalMs: EARTHQUAKE_INTERVAL_MS }, "Earthquake scheduler started");
+
+  // Schedule ML predictions hourly (alongside scrape)
+  setInterval(runMlPredict, SCRAPE_INTERVAL_MS);
+  log.info({ intervalMs: SCRAPE_INTERVAL_MS }, "ML prediction scheduler started");
 
   // Cleanup old earthquake records daily
   eqCleanupTimer = setInterval(() => { cleanupOldEarthquakes(); }, 24 * 60 * 60 * 1000);

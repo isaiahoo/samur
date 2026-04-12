@@ -277,6 +277,8 @@ model RiverLevel {
   dataSource      String?    @map("data_source")
   isForecast      Boolean    @default(false) @map("is_forecast")
   trend           RiverTrend
+  predictionLower Float?     @map("prediction_lower")
+  predictionUpper Float?     @map("prediction_upper")
   measuredAt      DateTime   @map("measured_at")
   createdAt       DateTime   @default(now()) @map("created_at")
   deletedAt       DateTime?  @map("deleted_at")
@@ -319,6 +321,21 @@ model HistoricalRiverStats {
   @@unique([riverName, stationName, dayOfYear])
   @@index([riverName, stationName])
   @@map("historical_river_stats")
+}
+
+model MlModelMetrics {
+  id          String   @id @default(cuid())
+  modelName   String   @map("model_name")
+  stationKey  String   @map("station_key")
+  horizon     Int      @default(1)
+  nse         Float
+  kge         Float
+  rmse        Float
+  evaluatedAt DateTime @map("evaluated_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([modelName, stationKey])
+  @@map("ml_model_metrics")
 }
 
 model SmsBroadcastLog {

@@ -1,0 +1,25 @@
+# Самур AI — Flood Prediction Model
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Web framework for prediction service
+fastapi>=0.110,<1.0
+uvicorn[standard]>=0.29,<1.0
+
+# ML / Data
+xgboost>=2.0,<3.0
+scikit-learn>=1.4,<2.0
+pandas>=2.2,<3.0
+numpy>=1.26,<3.0
+
+# NeuralHydrology (LSTM training) — install separately for training
+# pip install neuralhydrology
+# torch (CPU): pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# Data fetching
+httpx>=0.27,<1.0
+
+# Database
+psycopg2-binary>=2.9,<3.0
+
+# Plotting (training evaluation only)
+matplotlib>=3.8,<4.0

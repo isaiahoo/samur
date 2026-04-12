@@ -10,6 +10,7 @@ import { emitRiverLevelUpdated } from "../lib/emitter.js";
 import { paramId } from "../lib/params.js";
 import { DAGESTAN_GAUGES } from "../services/gaugeStations.js";
 import { scrapeAllStations } from "../services/riverScraper.js";
+import { fetchAndStorePredictions, checkMlHealth } from "../services/mlClient.js";
 
 const router = Router();
 
@@ -274,6 +275,60 @@ router.get("/historical/:riverName/:stationName", async (req, res, next) => {
     next(err);
   }
 });
+
+// ── Самур AI predictions ──────────────────────────────────────────────
+
+router.get("/ai-forecast", async (_req, res, next) => {
+  try {
+    const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const predictions = await prisma.riverLevel.findMany({
+      where: {
+        dataSource: "samur-ai",
+        isForecast: true,
+        deletedAt: null,
+        measuredAt: { gte: since },
+      },
+      orderBy: { measuredAt: "asc" },
+      select: {
+        riverName: true,
+        stationName: true,
+        levelCm: true,
+        dangerLevelCm: true,
+        predictionLower: true,
+        predictionUpper: true,
+        trend: true,
+        measuredAt: true,
+        createdAt: true,
+      },
+    });
+    res.json({ success: true, data: predictions });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/ai-health", async (_req, res, next) => {
+  try {
+    const health = await checkMlHealth();
+    res.json({ success: true, data: health });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post(
+  "/ai-predict",
+  requireAuth,
+  requireRole("admin"),
+  async (_req, res, next) => {
+    try {
+      const result = await fetchAndStorePredictions();
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 router.get("/:id", async (req, res, next) => {
   try {

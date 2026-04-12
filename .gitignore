@@ -11,3 +11,8 @@ backups/
 *.pmtiles
 pmtiles.tar.gz
 pmtiles.zip
+
+# ML — training data can be regenerated, keep models
+apps/ml/data/time_series/
+__pycache__/
+*.pyc

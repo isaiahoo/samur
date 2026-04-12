@@ -1,0 +1,182 @@
+[
+  {
+    "basin_id": "samur_ahty",
+    "n_samples": 3854,
+    "horizons": {
+      "t1": {
+        "rmse": 4.73,
+        "nse": 0.9901,
+        "kge": 0.9945,
+        "peak_recall": null,
+        "n_trees": 142,
+        "best_val_rmse": 5.740988083121689
+      },
+      "t3": {
+        "rmse": 9.52,
+        "nse": 0.9597,
+        "kge": 0.9777,
+        "peak_recall": null,
+        "n_trees": 86,
+        "best_val_rmse": 10.437232616608867
+      },
+      "t7": {
+        "rmse": 12.31,
+        "nse": 0.9326,
+        "kge": 0.9661,
+        "peak_recall": null,
+        "n_trees": 70,
+        "best_val_rmse": 14.911791186955314
+      }
+    }
+  },
+  {
+    "basin_id": "samur_luchek",
+    "n_samples": 4362,
+    "horizons": {
+      "t1": {
+        "rmse": 10.85,
+        "nse": 0.9081,
+        "kge": 0.9194,
+        "peak_recall": null,
+        "n_trees": 184,
+        "best_val_rmse": 6.9690620544449065
+      },
+      "t3": {
+        "rmse": 14.91,
+        "nse": 0.8262,
+        "kge": 0.8479,
+        "peak_recall": null,
+        "n_trees": 115,
+        "best_val_rmse": 10.160027195405958
+      },
+      "t7": {
+        "rmse": 17.89,
+        "nse": 0.7485,
+        "kge": 0.7881,
+        "peak_recall": null,
+        "n_trees": 87,
+        "best_val_rmse": 11.430758129285191
+      }
+    }
+  },
+  {
+    "basin_id": "samur_usuhchaj",
+    "n_samples": 8040,
+    "horizons": {
+      "t1": {
+        "rmse": 6.68,
+        "nse": 0.9642,
+        "kge": 0.9812,
+        "peak_recall": null,
+        "n_trees": 161,
+        "best_val_rmse": 5.680585985233538
+      },
+      "t3": {
+        "rmse": 9.66,
+        "nse": 0.925,
+        "kge": 0.9625,
+        "peak_recall": null,
+        "n_trees": 84,
+        "best_val_rmse": 9.025642334496649
+      },
+      "t7": {
+        "rmse": 12.26,
+        "nse": 0.8806,
+        "kge": 0.9281,
+        "peak_recall": 0.0,
+        "n_trees": 67,
+        "best_val_rmse": 11.402402681380467
+      }
+    }
+  },
+  {
+    "basin_id": "sulak_miatly",
+    "n_samples": 4362,
+    "horizons": {
+      "t1": {
+        "rmse": 18.1,
+        "nse": 0.3218,
+        "kge": 0.5989,
+        "peak_recall": 0.9969,
+        "n_trees": 103,
+        "best_val_rmse": 15.852825227314101
+      },
+      "t3": {
+        "rmse": 24.06,
+        "nse": -0.1964,
+        "kge": 0.3524,
+        "peak_recall": 0.9985,
+        "n_trees": 93,
+        "best_val_rmse": 20.272710606166108
+      },
+      "t7": {
+        "rmse": 26.99,
+        "nse": -0.4848,
+        "kge": 0.1834,
+        "peak_recall": 1.0,
+        "n_trees": 135,
+        "best_val_rmse": 23.066833401937018
+      }
+    }
+  },
+  {
+    "basin_id": "sulak_sulak",
+    "n_samples": 4362,
+    "horizons": {
+      "t1": {
+        "rmse": 6.53,
+        "nse": 0.888,
+        "kge": 0.8957,
+        "peak_recall": null,
+        "n_trees": 114,
+        "best_val_rmse": 4.370795480856034
+      },
+      "t3": {
+        "rmse": 15.24,
+        "nse": 0.3911,
+        "kge": 0.638,
+        "peak_recall": null,
+        "n_trees": 86,
+        "best_val_rmse": 8.376222119002687
+      },
+      "t7": {
+        "rmse": 17.08,
+        "nse": 0.2326,
+        "kge": 0.579,
+        "peak_recall": null,
+        "n_trees": 91,
+        "best_val_rmse": 11.958337852183062
+      }
+    }
+  },
+  {
+    "basin_id": "sulak_yazykovka",
+    "n_samples": 4362,
+    "horizons": {
+      "t1": {
+        "rmse": 28.76,
+        "nse": 0.721,
+        "kge": 0.7512,
+        "peak_recall": 0.5,
+        "n_trees": 95,
+        "best_val_rmse": 22.217502720987024
+      },
+      "t3": {
+        "rmse": 41.67,
+        "nse": 0.4138,
+        "kge": 0.5832,
+        "peak_recall": 0.0,
+        "n_trees": 71,
+        "best_val_rmse": 31.310449976922964
+      },
+      "t7": {
+        "rmse": 53.77,
+        "nse": 0.0152,
+        "kge": 0.3919,
+        "peak_recall": 0.0,
+        "n_trees": 97,
+        "best_val_rmse": 36.608453486105304
+      }
+    }
+  }
+]

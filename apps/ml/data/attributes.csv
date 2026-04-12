@@ -1,0 +1,7 @@
+basin_id,river_name,station_name,area_km2,elevation_m,mean_discharge_m3s,danger_level_cm,danger_discharge_m3s,lat,lng
+samur_usuhchaj,Самур,Усухчай,1590,1200,40,300,150,41.43,47.91
+samur_ahty,Самур,Ахты,2440,1100,50,350,200,41.46,47.74
+samur_luchek,Самур,Лучек,4990,600,100,300,400,41.51,48.21
+sulak_miatly,Сулак,Миатлы,10400,900,200,350,800,42.88,47.01
+sulak_yazykovka,Сулак,Языковка,12200,400,150,400,500,43.35,46.98
+sulak_sulak,Сулак,Сулак,12800,50,50,350,200,43.46,47.07

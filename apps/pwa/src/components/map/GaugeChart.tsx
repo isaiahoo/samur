@@ -50,6 +50,13 @@ export interface HistoricalStat {
   sampleCount: number;
 }
 
+export interface AiForecastPoint {
+  levelCm: number | null;
+  predictionLower: number | null;
+  predictionUpper: number | null;
+  measuredAt: string;
+}
+
 interface GaugeChartProps {
   history: HistoryPoint[];
   dangerLevelCm: number | null;
@@ -57,6 +64,7 @@ interface GaugeChartProps {
   dischargeMean: number | null;
   mode: "cm" | "discharge";
   historicalStats?: HistoricalStat[];
+  aiForecast?: AiForecastPoint[];
 }
 
 interface ChartPoint {
@@ -69,6 +77,9 @@ interface ChartPoint {
   histAvg: number | null;
   histP10: number | null;
   histP90: number | null;
+  aiForecast: number | null;
+  aiLower: number | null;
+  aiUpper: number | null;
 }
 
 function getDayOfYear(d: Date): number {
@@ -140,6 +151,14 @@ function createTooltip(mode: "cm" | "discharge", meanVal: number, dangerVal: num
             Историческое среднее: {point.histAvg} см
           </div>
         )}
+        {point.aiForecast !== null && (
+          <div className="gauge-chart-tooltip-ai">
+            Самур AI: {point.aiForecast.toFixed(1)} см
+            {point.aiLower !== null && point.aiUpper !== null && (
+              <> ({point.aiLower.toFixed(0)}–{point.aiUpper.toFixed(0)})</>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -154,6 +173,7 @@ export const GaugeChart = memo(function GaugeChart({
   dischargeMean,
   mode,
   historicalStats,
+  aiForecast,
 }: GaugeChartProps) {
   // Build a lookup map for historical stats by day-of-year
   const histByDoy = useMemo(() => {
@@ -162,6 +182,14 @@ export const GaugeChart = memo(function GaugeChart({
     for (const s of historicalStats) m.set(s.dayOfYear, s);
     return m;
   }, [historicalStats, mode]);
+
+  // Build AI forecast lookup by date
+  const aiByDate = useMemo(() => {
+    if (!aiForecast || aiForecast.length === 0 || mode !== "cm") return null;
+    const m = new Map<string, AiForecastPoint>();
+    for (const p of aiForecast) m.set(formatDate(p.measuredAt), p);
+    return m;
+  }, [aiForecast, mode]);
 
   const { chartData, dangerVal, meanVal, todayDate, elevatedVal, highVal } = useMemo(() => {
     const getValue = (p: HistoryPoint) =>
@@ -190,8 +218,10 @@ export const GaugeChart = memo(function GaugeChart({
         const v = getValue(p)!;
         const doy = getDayOfYear(new Date(p.measuredAt));
         const hist = histByDoy?.get(doy);
+        const dateKey = formatDate(p.measuredAt);
+        const ai = aiByDate?.get(dateKey);
         return {
-          date: formatDate(p.measuredAt),
+          date: dateKey,
           dateISO: p.measuredAt,
           value: p.isForecast ? null : v,
           forecast: p.isForecast ? v : null,
@@ -200,6 +230,9 @@ export const GaugeChart = memo(function GaugeChart({
           histAvg: hist ? hist.avgCm : null,
           histP10: hist ? hist.p10Cm : null,
           histP90: hist ? hist.p90Cm : null,
+          aiForecast: ai?.levelCm ?? null,
+          aiLower: ai?.predictionLower ?? null,
+          aiUpper: ai?.predictionUpper ?? null,
         };
       });
 
@@ -219,21 +252,25 @@ export const GaugeChart = memo(function GaugeChart({
           histAvg: lastObserved.histAvg,
           histP10: lastObserved.histP10,
           histP90: lastObserved.histP90,
+          aiForecast: lastObserved.aiForecast,
+          aiLower: lastObserved.aiLower,
+          aiUpper: lastObserved.aiUpper,
         });
       }
     }
 
     return { chartData: points, dangerVal: danger, meanVal: mean, todayDate: today, elevatedVal: elevated, highVal: high };
-  }, [history, mode, dangerLevelCm, dischargeMax, dischargeMean, histByDoy]);
+  }, [history, mode, dangerLevelCm, dischargeMax, dischargeMean, histByDoy, aiByDate]);
 
   if (chartData.length < 2) return null;
 
   const hasPercentiles = chartData.some((p) => p.p25 !== null && p.p75 !== null);
   const hasHistorical = chartData.some((p) => p.histAvg !== null);
+  const hasAiForecast = chartData.some((p) => p.aiForecast !== null);
 
   // Y domain
   const allValues = chartData
-    .flatMap((p) => [p.value, p.forecast, p.p25, p.p75, p.histP10, p.histP90])
+    .flatMap((p) => [p.value, p.forecast, p.p25, p.p75, p.histP10, p.histP90, p.aiForecast, p.aiLower, p.aiUpper])
     .filter((v): v is number => v !== null);
   const dataMin = Math.min(...allValues);
   const dataMax = Math.max(...allValues, dangerVal);
@@ -364,6 +401,45 @@ export const GaugeChart = memo(function GaugeChart({
                 strokeDasharray="4 3"
                 dot={false}
                 activeDot={false}
+                connectNulls
+                isAnimationActive={false}
+              />
+            </>
+          )}
+
+          {/* AI forecast confidence band + line (cm mode only) */}
+          {hasAiForecast && (
+            <>
+              <Area
+                type="monotone"
+                dataKey="aiUpper"
+                stroke="none"
+                fill="#14b8a6"
+                fillOpacity={0.10}
+                connectNulls
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+              />
+              <Area
+                type="monotone"
+                dataKey="aiLower"
+                stroke="none"
+                fill="#fff"
+                fillOpacity={1}
+                connectNulls
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="aiForecast"
+                stroke="#14b8a6"
+                strokeWidth={2}
+                strokeDasharray="6 3"
+                dot={false}
+                activeDot={{ r: 4, stroke: "#14b8a6", fill: "#fff", strokeWidth: 2 }}
                 connectNulls
                 isAnimationActive={false}
               />
@@ -501,6 +577,11 @@ export const GaugeChart = memo(function GaugeChart({
         {hasHistorical && (
           <span className="gauge-chart-legend-item">
             <span className="gauge-chart-legend-dot" style={{ background: "#8b5cf6" }} /> Историческая норма
+          </span>
+        )}
+        {hasAiForecast && (
+          <span className="gauge-chart-legend-item">
+            <span className="gauge-chart-legend-dot" style={{ background: "#14b8a6" }} /> Самур AI
           </span>
         )}
       </div>

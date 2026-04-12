@@ -318,6 +318,22 @@ export function getRiverStations() {
   return request<ApiResponse>("/river-levels/stations");
 }
 
+export interface AiForecastPoint {
+  riverName: string;
+  stationName: string;
+  levelCm: number | null;
+  dangerLevelCm: number | null;
+  predictionLower: number | null;
+  predictionUpper: number | null;
+  trend: string;
+  measuredAt: string;
+  createdAt: string;
+}
+
+export function getAiForecast() {
+  return request<ApiResponse<AiForecastPoint[]>>("/river-levels/ai-forecast");
+}
+
 // ── Historical river data (AllRivers.info) ──────────────────────────────
 
 export interface HistoricalStat {
