@@ -20,34 +20,36 @@ const CATEGORY_EMOJIS: Record<string, string> = {
   pump: "🔧",
 };
 
-export function registerHelpHandler(bot: TelegramBot): void {
-  bot.onText(/\/help$/, async (msg) => {
-    const chatId = msg.chat.id;
-
-    if (!checkRateLimit(chatId)) {
-      await bot.sendMessage(
-        chatId,
-        "⚠️ Вы превысили лимит сообщений (5 в час). Попробуйте позже.",
-      );
-      return;
-    }
-
-    await setState(chatId, { flow: "help", step: "kind" });
-
+export async function startHelpFlow(bot: TelegramBot, chatId: number): Promise<void> {
+  if (!checkRateLimit(chatId)) {
     await bot.sendMessage(
       chatId,
-      "Вам нужна помощь или вы готовы помочь?",
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: "🆘 Нужна помощь", callback_data: "help:kind:need" },
-              { text: "🤝 Готов помочь", callback_data: "help:kind:offer" },
-            ],
-          ],
-        },
-      },
+      "⚠️ Вы превысили лимит сообщений (5 в час). Попробуйте позже.",
     );
+    return;
+  }
+
+  await setState(chatId, { flow: "help", step: "kind" });
+
+  await bot.sendMessage(
+    chatId,
+    "Вам нужна помощь или вы готовы помочь?",
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "🆘 Нужна помощь", callback_data: "help:kind:need" },
+            { text: "🤝 Готов помочь", callback_data: "help:kind:offer" },
+          ],
+        ],
+      },
+    },
+  );
+}
+
+export function registerHelpHandler(bot: TelegramBot): void {
+  bot.onText(/\/help$/, async (msg) => {
+    await startHelpFlow(bot, msg.chat.id);
   });
 }
 
@@ -219,7 +221,7 @@ async function submitHelp(
     );
 
     recordAction(chatId);
-    clearState(chatId);
+    await clearState(chatId);
 
     const label = state.kind === "need" ? "Запрос помощи" : "Предложение помощи";
     await bot.sendMessage(

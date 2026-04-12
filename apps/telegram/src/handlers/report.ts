@@ -19,36 +19,38 @@ const TYPE_EMOJIS: Record<string, string> = {
   water_contaminated: "🚰",
 };
 
+export async function startReportFlow(bot: TelegramBot, chatId: number): Promise<void> {
+  if (!checkRateLimit(chatId)) {
+    await bot.sendMessage(
+      chatId,
+      "⚠️ Вы превысили лимит сообщений (5 в час). Попробуйте позже.",
+    );
+    return;
+  }
+
+  await setState(chatId, { flow: "report", step: "type" });
+
+  const buttons = Object.entries(INCIDENT_TYPE_LABELS).map(
+    ([key, label]) => ({
+      text: `${TYPE_EMOJIS[key] ?? ""} ${label}`,
+      callback_data: `report:type:${key}`,
+    }),
+  );
+
+  // 2 buttons per row
+  const keyboard: TelegramBot.InlineKeyboardButton[][] = [];
+  for (let i = 0; i < buttons.length; i += 2) {
+    keyboard.push(buttons.slice(i, i + 2));
+  }
+
+  await bot.sendMessage(chatId, "Что случилось?", {
+    reply_markup: { inline_keyboard: keyboard },
+  });
+}
+
 export function registerReportHandler(bot: TelegramBot): void {
   bot.onText(/\/report$/, async (msg) => {
-    const chatId = msg.chat.id;
-
-    if (!checkRateLimit(chatId)) {
-      await bot.sendMessage(
-        chatId,
-        "⚠️ Вы превысили лимит сообщений (5 в час). Попробуйте позже.",
-      );
-      return;
-    }
-
-    await setState(chatId, { flow: "report", step: "type" });
-
-    const buttons = Object.entries(INCIDENT_TYPE_LABELS).map(
-      ([key, label]) => ({
-        text: `${TYPE_EMOJIS[key] ?? ""} ${label}`,
-        callback_data: `report:type:${key}`,
-      }),
-    );
-
-    // 2 buttons per row
-    const keyboard: TelegramBot.InlineKeyboardButton[][] = [];
-    for (let i = 0; i < buttons.length; i += 2) {
-      keyboard.push(buttons.slice(i, i + 2));
-    }
-
-    await bot.sendMessage(chatId, "Что случилось?", {
-      reply_markup: { inline_keyboard: keyboard },
-    });
+    await startReportFlow(bot, msg.chat.id);
   });
 }
 

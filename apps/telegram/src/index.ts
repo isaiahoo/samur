@@ -8,11 +8,11 @@ import { redis } from "./redis.js";
 
 // Handlers
 import { registerStartHandler } from "./handlers/start.js";
-import { registerReportHandler, handleReportCallback } from "./handlers/report.js";
-import { registerHelpHandler, handleHelpCallback } from "./handlers/help.js";
-import { registerStatusHandler, handleCancelCallback } from "./handlers/status.js";
+import { registerReportHandler, handleReportCallback, startReportFlow } from "./handlers/report.js";
+import { registerHelpHandler, handleHelpCallback, startHelpFlow } from "./handlers/help.js";
+import { registerStatusHandler, handleCancelCallback, sendStatus } from "./handlers/status.js";
 import { registerSheltersHandler, sendShelters } from "./handlers/shelters.js";
-import { registerAlertsHandler } from "./handlers/alerts.js";
+import { registerAlertsHandler, sendAlerts } from "./handlers/alerts.js";
 import { registerLevelHandler } from "./handlers/level.js";
 import { registerGroupHandler } from "./handlers/group.js";
 import { registerTextHandler } from "./handlers/text.js";
@@ -60,13 +60,12 @@ bot.on("callback_query", async (query) => {
     // Command shortcuts from inline keyboards
     if (data === "cmd:report") {
       await bot.answerCallbackQuery(query.id);
-      // Simulate /report command
-      await bot.sendMessage(chatId, "/report");
+      await startReportFlow(bot, chatId);
       return;
     }
     if (data === "cmd:help") {
       await bot.answerCallbackQuery(query.id);
-      await bot.sendMessage(chatId, "/help");
+      await startHelpFlow(bot, chatId);
       return;
     }
     if (data === "cmd:shelters") {
@@ -76,12 +75,12 @@ bot.on("callback_query", async (query) => {
     }
     if (data === "cmd:alerts") {
       await bot.answerCallbackQuery(query.id);
-      await bot.sendMessage(chatId, "/alerts");
+      await sendAlerts(bot, chatId);
       return;
     }
     if (data === "cmd:status") {
       await bot.answerCallbackQuery(query.id);
-      await bot.sendMessage(chatId, "/status");
+      await sendStatus(bot, chatId, fromId, fromName);
       return;
     }
 

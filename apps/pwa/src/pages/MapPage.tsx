@@ -66,6 +66,7 @@ export function MapPage() {
   const closeSheet = useUIStore((s) => s.closeSheet);
   const setCrisis = useUIStore((s) => s.setCrisis);
   const crisisMode = useUIStore((s) => s.crisisMode);
+  const showToast = useUIStore((s) => s.showToast);
 
   useSocketSubscription(position?.lat ?? null, position?.lng ?? null, 50000);
 
@@ -207,6 +208,14 @@ export function MapPage() {
   });
   useSocketEvent("help_request:created", (hr) => {
     setHelpRequests((prev) => [hr, ...prev]);
+  });
+  useSocketEvent("sos:created", (hr) => {
+    setHelpRequests((prev) => {
+      const exists = prev.some((h) => h.id === hr.id);
+      return exists ? prev : [hr, ...prev];
+    });
+    const name = hr.contactName ?? "Неизвестный";
+    showToast(`SOS: ${name} просит о помощи`, "error");
   });
   useSocketEvent("help_request:updated", (hr) => {
     setHelpRequests((prev) => prev.map((h) => (h.id === hr.id ? hr : h)));
