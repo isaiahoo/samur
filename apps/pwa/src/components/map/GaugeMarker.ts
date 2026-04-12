@@ -18,6 +18,15 @@ function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+/** Format pctOfMean as "выше/ниже нормы" */
+function formatPct(pct: number): string {
+  if (pct <= 0) return "Нет данных";
+  const diff = Math.round(pct - 100);
+  if (diff === 0) return "Норма";
+  if (diff > 0) return `на ${diff}% выше нормы`;
+  return `на ${Math.abs(diff)}% ниже нормы`;
+}
+
 export function variantForZoom(zoom: number): MarkerVariant {
   if (zoom < 7) return "dot";
   if (zoom < 10) return "pill";
@@ -70,7 +79,7 @@ function createCardElement(
   if (tier.tier >= 3 && tier.hasData) el.className += " gauge-pulse";
   if (upstream) el.className += " gauge-upstream-ring";
 
-  const pctText = tier.pctOfMean > 0 ? `${tier.pctOfMean}% от нормы` : "Нет данных";
+  const pctText = formatPct(tier.pctOfMean);
 
   const forecastHTML = forecast?.hasDanger
     ? `<div class="gauge-card-forecast">\u26A0 ${esc(forecast.text)}</div>`
@@ -143,7 +152,7 @@ export function updateMarkerElement(
 
   // Card — update inner HTML
   existing.className = `gauge-card ${tierClass}${pulseClass}${upClass}`;
-  const pctText = data.tier.pctOfMean > 0 ? `${data.tier.pctOfMean}% от нормы` : "Нет данных";
+  const pctText = formatPct(data.tier.pctOfMean);
   const forecastHTML = data.forecast?.hasDanger
     ? `<div class="gauge-card-forecast">\u26A0 ${esc(data.forecast.text)}</div>`
     : "";

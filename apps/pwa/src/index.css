@@ -702,9 +702,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .tier-banner--4 { background: #991B1B; }
 
 .tier-hero {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 1.2;
   margin: 4px 0;
 }
 .tier-hero--1 { color: #16A34A; }

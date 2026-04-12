@@ -130,9 +130,14 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
       {/* Hero percentage */}
       {hasData && tier.pctOfMean > 0 && (
         <div className={`tier-hero tier-hero--${tier.tier}`}>
-          {tier.pctOfMean}%
+          {(() => {
+            const diff = Math.round(tier.pctOfMean - 100);
+            if (diff === 0) return "Норма";
+            if (diff > 0) return `на ${diff}% выше нормы`;
+            return `на ${Math.abs(diff)}% ниже нормы`;
+          })()}
           <span className="tier-hero-sub">
-            от нормы {arrow}
+            {arrow}
           </span>
         </div>
       )}
