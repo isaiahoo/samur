@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { HelpRequest } from "@samur/shared";
 import {
   HELP_CATEGORY_LABELS,
@@ -26,6 +26,12 @@ interface Props {
 export function HelpDetailSheet({ item, isNeed, onClaim, onClose }: Props) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const photos = item.photoUrls ?? [];
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
 
   return (
     <div className="sheet-overlay" onClick={onClose}>

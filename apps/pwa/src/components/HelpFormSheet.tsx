@@ -32,6 +32,13 @@ export function HelpFormSheet({ tab, onClose }: Props) {
   const { position, status: geoStatus, requestPosition } = useGeolocation();
   const reverseGeocodeDone = useRef(false);
 
+  // Lock body scroll
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+
   // Auto-fill from user
   useEffect(() => {
     if (user) {
