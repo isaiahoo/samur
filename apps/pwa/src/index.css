@@ -3312,8 +3312,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .fab {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 74px);
   }
-  .map-page--panel-open .fab {
-    display: none;
+  /* On map page, FAB must sit above the МОНИТОРИНГ toggle bar (36px + 62px tabbar) */
+  .map-page .fab {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 110px);
   }
 }
 
