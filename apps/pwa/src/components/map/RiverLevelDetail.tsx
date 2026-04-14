@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type { RiverLevel } from "@samur/shared";
 import { formatRelativeTime } from "@samur/shared";
 import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning, checkUpstreamDanger } from "./gaugeUtils.js";
@@ -48,6 +48,7 @@ interface RiverLevelDetailProps {
 export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLevelDetailProps) {
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState(false);
   const [aiForecastData, setAiForecastData] = useState<AiForecastPoint[]>([]);
 
   const tier = computeTier(r);
@@ -76,8 +77,9 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
   const isStale = r.dataSource !== null && ageHours > warnThreshold;
 
   // Single fetch for both chart and forecast warning
-  useEffect(() => {
+  const fetchHistory = useCallback(() => {
     setHistoryLoading(true);
+    setHistoryError(false);
     getRiverLevelHistory(r.riverName, r.stationName, 7, true)
       .then((res) => {
         const data = (res.data ?? []).map((d) => ({
@@ -91,9 +93,11 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
         }));
         setHistory(data);
       })
-      .catch(() => {})
+      .catch(() => { setHistoryError(true); })
       .finally(() => setHistoryLoading(false));
   }, [r.riverName, r.stationName]);
+
+  useEffect(() => { fetchHistory(); }, [fetchHistory]);
 
   // Historical data (AllRivers.info)
   const [histStats, setHistStats] = useState<HistoricalStat[]>([]);
@@ -273,9 +277,18 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
 
       {/* Chart */}
       {hasData && historyLoading && (
-        <div className="gauge-chart-loading">Загрузка графика...</div>
+        <div className="gauge-chart-loading">
+          <div className="spinner" style={{ width: 20, height: 20 }} />
+          <span>Загрузка графика…</span>
+        </div>
       )}
-      {hasData && !historyLoading && (aiMode ? aiHistory.length > 0 : history.length > 0) && (
+      {hasData && !historyLoading && historyError && (
+        <div className="gauge-chart-error">
+          <span>Не удалось загрузить график</span>
+          <button className="gauge-chart-retry" onClick={fetchHistory}>Повторить</button>
+        </div>
+      )}
+      {hasData && !historyLoading && !historyError && (aiMode ? aiHistory.length > 0 : history.length > 0) && (
         <GaugeChart
           history={aiMode ? aiHistory : history}
           dangerLevelCm={r.dangerLevelCm}
