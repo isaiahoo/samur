@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useEffect, useCallback, useRef, type ChangeEvent } from "react";
-import type { HelpRequest, HelpCategory } from "@samur/shared";
+import { useState, useEffect, useCallback, useRef, useMemo, type CSSProperties } from "react";
+import type { HelpRequest } from "@samur/shared";
 import {
   HELP_CATEGORY_LABELS,
-  URGENCY_LABELS,
   HELP_REQUEST_STATUS_LABELS,
   HELP_CATEGORIES,
 } from "@samur/shared";
 import { formatRelativeTime } from "@samur/shared";
-import { getHelpRequests, updateHelpRequest, createHelpRequest, uploadPhotos } from "../services/api.js";
+import { getHelpRequests, updateHelpRequest } from "../services/api.js";
 import { UrgencyBadge } from "../components/UrgencyBadge.js";
 import { CategoryChip } from "../components/CategoryChip.js";
 import { Spinner } from "../components/Spinner.js";
+import { HelpFormSheet } from "../components/HelpFormSheet.js";
+import { ImageLightbox } from "../components/ImageLightbox.js";
+import { HelpDetailSheet } from "../components/HelpDetailSheet.js";
 import { useAuthStore } from "../store/auth.js";
 import { useUIStore } from "../store/ui.js";
 import { useSocketEvent } from "../hooks/useSocket.js";
@@ -21,15 +23,26 @@ type Tab = "need" | "offer";
 export function HelpPage() {
   const [tab, setTab] = useState<Tab>("need");
   const [category, setCategory] = useState<string>("");
+  const [search, setSearch] = useState("");
   const [items, setItems] = useState<HelpRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [showForm, setShowForm] = useState(false);
+  const [detailItem, setDetailItem] = useState<HelpRequest | null>(null);
   const loadingMore = useRef(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn());
   const showToast = useUIStore((s) => s.showToast);
+
+  // Debounce search
+  useEffect(() => {
+    searchTimer.current = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(searchTimer.current);
+  }, [search]);
 
   const fetchItems = useCallback(
     async (pageNum: number, append = false) => {
@@ -70,9 +83,12 @@ export function HelpPage() {
   }, [fetchItems]);
 
   useEffect(() => {
+    const el = document.getElementById("app-main");
+    const scrollEl = el?.querySelector(".tab-alive--visible") ?? document.documentElement;
     const handleScroll = () => {
       if (loadingMore.current) return;
-      const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+      const target = scrollEl === document.documentElement ? scrollEl : scrollEl as HTMLElement;
+      const { scrollTop, scrollHeight, clientHeight } = target;
       if (scrollTop + clientHeight >= scrollHeight - 200 && items.length < total) {
         loadingMore.current = true;
         const nextPage = page + 1;
@@ -80,8 +96,9 @@ export function HelpPage() {
         fetchItems(nextPage, true);
       }
     };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    const target = scrollEl === document.documentElement ? window : scrollEl;
+    target.addEventListener("scroll", handleScroll, { passive: true });
+    return () => target.removeEventListener("scroll", handleScroll);
   }, [items.length, total, page, fetchItems]);
 
   useSocketEvent("help_request:created", (hr) => {
@@ -115,6 +132,27 @@ export function HelpPage() {
     fetchItems(1);
   };
 
+  // Client-side search filtering
+  const filtered = useMemo(() => {
+    if (!debouncedSearch) return items;
+    const q = debouncedSearch.toLowerCase();
+    return items.filter(
+      (hr) =>
+        (hr.description ?? "").toLowerCase().includes(q) ||
+        (hr.address ?? "").toLowerCase().includes(q),
+    );
+  }, [items, debouncedSearch]);
+
+  // Split into my items and others
+  const myItems = useMemo(
+    () => (user ? filtered.filter((hr) => hr.userId === user.id) : []),
+    [filtered, user],
+  );
+  const otherItems = useMemo(
+    () => (user ? filtered.filter((hr) => hr.userId !== user.id) : filtered),
+    [filtered, user],
+  );
+
   return (
     <div className="help-page">
       <div className="help-tabs">
@@ -132,6 +170,24 @@ export function HelpPage() {
         </button>
       </div>
 
+      {/* Search bar */}
+      <div className="help-search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+        </svg>
+        <input
+          type="search"
+          placeholder="Поиск по описанию..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        {search && (
+          <button className="help-search-clear" onClick={() => setSearch("")}>
+            ✕
+          </button>
+        )}
+      </div>
+
       <div className="chip-row">
         <CategoryChip label="Все" active={!category} onClick={() => setCategory("")} />
         {HELP_CATEGORIES.map((cat) => (
@@ -145,19 +201,66 @@ export function HelpPage() {
       </div>
 
       {loading ? (
-        <Spinner />
-      ) : items.length === 0 ? (
-        <div className="empty-state">
-          <p>Нет заявок</p>
+        <div className="help-list">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="help-card help-card-skeleton">
+              <div className="skel skel-hero" />
+              <div className="skel skel-line skel-line--w60" />
+              <div className="skel skel-line skel-line--w80" />
+              <div className="skel skel-line skel-line--w40" />
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty-state-enhanced">
+          <svg className="empty-state-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+            <rect x="9" y="3" width="6" height="4" rx="1" />
+            <path d="M9 14l2 2 4-4" />
+          </svg>
+          <p className="empty-state-title">
+            {debouncedSearch
+              ? "Ничего не найдено"
+              : tab === "need"
+                ? "Заявок пока нет"
+                : "Предложений пока нет"}
+          </p>
+          <p className="empty-state-subtitle">
+            {debouncedSearch ? "Попробуйте другой запрос" : "Нажмите + чтобы создать первую"}
+          </p>
         </div>
       ) : (
         <div className="help-list">
-          {items.map((hr) => (
+          {/* My requests section */}
+          {myItems.length > 0 && (
+            <>
+              <div className="help-my-header">Ваши заявки ({myItems.length})</div>
+              {myItems.map((hr, i) => (
+                <HelpCard
+                  key={hr.id}
+                  item={hr}
+                  isNeed={tab === "need"}
+                  isMine
+                  index={i}
+                  onClaim={handleClaim}
+                  onDetail={setDetailItem}
+                />
+              ))}
+              {otherItems.length > 0 && (
+                <div className="help-section-divider" />
+              )}
+            </>
+          )}
+
+          {/* Other requests */}
+          {otherItems.map((hr, i) => (
             <HelpCard
               key={hr.id}
               item={hr}
               isNeed={tab === "need"}
+              index={myItems.length + i}
               onClaim={handleClaim}
+              onDetail={setDetailItem}
             />
           ))}
           {items.length < total && (
@@ -174,50 +277,76 @@ export function HelpPage() {
         </svg>
       </button>
 
-      {showForm && <HelpFormModal tab={tab} onClose={() => { setShowForm(false); handleRefresh(); }} />}
+      {showForm && <HelpFormSheet tab={tab} onClose={() => { setShowForm(false); handleRefresh(); }} />}
+
+      {detailItem && (
+        <HelpDetailSheet
+          item={detailItem}
+          isNeed={tab === "need"}
+          onClaim={handleClaim}
+          onClose={() => setDetailItem(null)}
+        />
+      )}
     </div>
   );
 }
 
+const categoryIcons: Record<string, string> = {
+  rescue: "🆘", shelter: "🏠", food: "🍞", water: "💧",
+  medicine: "💊", equipment: "🔧", transport: "🚗", labor: "💪",
+  generator: "⚡", pump: "🔄",
+};
+
 function HelpCard({
   item,
   isNeed,
+  isMine,
+  index,
   onClaim,
+  onDetail,
 }: {
   item: HelpRequest;
   isNeed: boolean;
+  isMine?: boolean;
+  index: number;
   onClaim: (id: string) => void;
+  onDetail: (item: HelpRequest) => void;
 }) {
-  const categoryIcons: Record<string, string> = {
-    rescue: "🆘", shelter: "🏠", food: "🍞", water: "💧",
-    medicine: "💊", equipment: "🔧", transport: "🚗", labor: "💪",
-    generator: "⚡", pump: "🔄",
-  };
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const photos = item.photoUrls ?? [];
+  const animDelay = index < 10 ? index * 50 : 0;
 
   return (
-    <div className="help-card">
-      <div className="help-card-header">
-        <span className="help-card-icon">{categoryIcons[item.category] ?? "📋"}</span>
-        <span className="help-card-category">{HELP_CATEGORY_LABELS[item.category]}</span>
-        <UrgencyBadge value={item.urgency} kind="urgency" />
-      </div>
-      {item.description && <p className="help-card-desc">{item.description}</p>}
-      {item.photoUrls && item.photoUrls.length > 0 && (
-        <div className="help-card-photos">
-          {item.photoUrls.map((url, i) => (
-            <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="help-card-photo-link">
-              <img src={url} alt="" className="help-card-photo" loading="lazy" />
-            </a>
-          ))}
+    <div
+      className={`help-card ${isMine ? "help-card--mine" : ""}`}
+      data-urgency={item.urgency}
+      style={animDelay ? { "--anim-delay": `${animDelay}ms` } as CSSProperties : undefined}
+    >
+      {photos.length > 0 && (
+        <div className="help-card-hero" onClick={() => setLightboxIndex(0)}>
+          <img src={photos[0]} alt="" loading={index < 3 ? "eager" : "lazy"} />
+          {photos.length > 1 && (
+            <span className="help-card-hero-count">+{photos.length - 1}</span>
+          )}
         </div>
       )}
-      <div className="help-card-meta">
-        {item.address && <span>{item.address}</span>}
-        <span>{formatRelativeTime(item.createdAt)}</span>
+      <div className="help-card-body" onClick={() => onDetail(item)}>
+        <div className="help-card-header">
+          <span className="help-card-icon">{categoryIcons[item.category] ?? "📋"}</span>
+          <span className="help-card-category">{HELP_CATEGORY_LABELS[item.category]}</span>
+          <UrgencyBadge value={item.urgency} kind="urgency" />
+        </div>
+        {item.description && <p className="help-card-desc">{item.description}</p>}
+        <div className="help-card-meta">
+          {item.address && (
+            <span className="help-card-address">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              {item.address}
+            </span>
+          )}
+          <span>{formatRelativeTime(item.createdAt)}</span>
+        </div>
       </div>
-      {item.contactName && (
-        <p className="help-card-contact">{item.contactName}</p>
-      )}
       <div className="help-card-actions">
         {isNeed && item.status === "open" && (
           <button className="btn btn-primary btn-sm" onClick={() => onClaim(item.id)}>
@@ -225,200 +354,21 @@ function HelpCard({
           </button>
         )}
         {item.contactPhone && (
-          <a href={`tel:${item.contactPhone}`} className="btn btn-secondary btn-sm">
-            Позвонить
+          <a href={`tel:${item.contactPhone}`} className="help-card-phone" aria-label="Позвонить">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           </a>
         )}
         {item.status !== "open" && (
           <span className="help-card-status">{HELP_REQUEST_STATUS_LABELS[item.status]}</span>
         )}
       </div>
-    </div>
-  );
-}
-
-function HelpFormModal({ tab, onClose }: { tab: Tab; onClose: () => void }) {
-  const [category, setCategory] = useState<HelpCategory>("rescue");
-  const [description, setDescription] = useState("");
-  const [contactName, setContactName] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
-  const [urgency, setUrgency] = useState("normal");
-  const [photos, setPhotos] = useState<File[]>([]);
-  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const user = useAuthStore((s) => s.user);
-  const showToast = useUIStore((s) => s.showToast);
-
-  useEffect(() => {
-    if (user) {
-      setContactName(user.name ?? "");
-      setContactPhone(user.phone ?? "");
-    }
-  }, [user]);
-
-  // Clean up preview URLs on unmount
-  useEffect(() => {
-    return () => {
-      photoPreviews.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [photoPreviews]);
-
-  const handlePhotoSelect = (e: ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files ?? []);
-    // Validate file sizes (5MB max each)
-    const MAX_SIZE = 5 * 1024 * 1024;
-    for (const f of selected) {
-      if (f.size > MAX_SIZE) {
-        showToast(`Файл слишком большой (макс. 5 МБ): ${f.name}`, "error");
-        return;
-      }
-    }
-    if (selected.length + photos.length > 5) {
-      showToast("Максимум 5 фото", "error");
-      return;
-    }
-    const newPhotos = [...photos, ...selected].slice(0, 5);
-    setPhotos(newPhotos);
-    // Revoke old previews
-    photoPreviews.forEach((url) => URL.revokeObjectURL(url));
-    setPhotoPreviews(newPhotos.map((f) => URL.createObjectURL(f)));
-    // Reset input so re-selecting same file works
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const removePhoto = (index: number) => {
-    if (photoPreviews[index]) URL.revokeObjectURL(photoPreviews[index]);
-    setPhotos((prev) => prev.filter((_, i) => i !== index));
-    setPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    try {
-      // Upload photos first if any
-      let photoUrls: string[] | undefined;
-      if (photos.length > 0) {
-        photoUrls = await uploadPhotos(photos);
-      }
-
-      // Use Makhachkala center as default if no geolocation
-      await createHelpRequest({
-        type: tab === "offer" ? "offer" : "need",
-        category,
-        description: description || undefined,
-        lat: 42.9849,
-        lng: 47.5047,
-        urgency,
-        contactName: contactName || undefined,
-        contactPhone: contactPhone || undefined,
-        photoUrls,
-        source: "pwa",
-      });
-      showToast("Заявка создана", "success");
-      onClose();
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : "Ошибка", "error");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>{tab === "offer" ? "Предложить помощь" : "Запросить помощь"}</h3>
-          <button className="btn-close" onClick={onClose}>✕</button>
-        </div>
-
-        <div className="form-group">
-          <label>Категория</label>
-          <select className="form-input" value={category} onChange={(e) => setCategory(e.target.value as HelpCategory)}>
-            {HELP_CATEGORIES.map((c) => (
-              <option key={c} value={c}>{HELP_CATEGORY_LABELS[c]}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label>Срочность</label>
-          <select className="form-input" value={urgency} onChange={(e) => setUrgency(e.target.value)}>
-            <option value="normal">Обычная</option>
-            <option value="urgent">Срочная</option>
-            <option value="critical">Критическая</option>
-          </select>
-        </div>
-
-        <div className="form-group">
-          <label>Описание</label>
-          <textarea
-            className="form-input"
-            rows={3}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Опишите, что нужно..."
-          />
-        </div>
-
-        <div className="form-group">
-          <label>Фото (до 5 шт.)</label>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/heic"
-            multiple
-            onChange={handlePhotoSelect}
-            style={{ display: "none" }}
-          />
-          {photoPreviews.length > 0 && (
-            <div className="photo-previews">
-              {photoPreviews.map((url, i) => (
-                <div key={i} className="photo-preview">
-                  <img src={url} alt="" />
-                  <button
-                    type="button"
-                    className="photo-preview-remove"
-                    onClick={() => removePhoto(i)}
-                    aria-label="Удалить фото"
-                  >
-                    &times;
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          {photos.length < 5 && (
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm photo-add-btn"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <path d="m21 15-5-5L5 21" />
-              </svg>
-              {photos.length === 0 ? "Добавить фото" : `Ещё (${photos.length}/5)`}
-            </button>
-          )}
-        </div>
-
-        <div className="form-group">
-          <label>Имя</label>
-          <input className="form-input" value={contactName} onChange={(e) => setContactName(e.target.value)} />
-        </div>
-
-        <div className="form-group">
-          <label>Телефон</label>
-          <input className="form-input" type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+79001234567" />
-        </div>
-
-        <button className="btn btn-primary btn-lg" onClick={handleSubmit} disabled={submitting}>
-          {submitting ? (photos.length > 0 ? "Загрузка фото..." : "Отправка...") : "Отправить"}
-        </button>
-      </div>
+      {lightboxIndex !== null && (
+        <ImageLightbox
+          urls={photos}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+        />
+      )}
     </div>
   );
 }
