@@ -33,6 +33,23 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Global crash overlay — shows JS errors instead of a white screen
+      window.addEventListener('error', function(e) {
+        var d = document.getElementById('crash-overlay');
+        if (!d) {
+          d = document.createElement('div');
+          d.id = 'crash-overlay';
+          d.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff;padding:24px;font:14px/1.5 system-ui;color:#18181b;overflow:auto';
+          document.body.appendChild(d);
+        }
+        d.innerHTML = '<h2 style="margin:0 0 8px;font-size:18px">Ошибка загрузки</h2>'
+          + '<p style="color:#71717a;margin:0 0 12px">Попробуйте обновить страницу</p>'
+          + '<pre style="background:#f4f4f5;padding:12px;border-radius:8px;overflow:auto;font-size:12px;white-space:pre-wrap">'
+          + (e.message || 'Unknown error') + '\n' + (e.filename || '') + ':' + (e.lineno || '') + '</pre>'
+          + '<button onclick="location.reload()" style="margin-top:12px;padding:8px 20px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer">Обновить</button>';
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
