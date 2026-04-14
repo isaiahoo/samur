@@ -44,28 +44,10 @@ interface RiverLevelDetailProps {
   soilMoisture: SoilMoisturePoint[];
 }
 
-/** Format date for AI forecast display */
-function formatForecastDate(iso: string): string {
-  const d = new Date(iso);
-  const days = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
-  const months = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
-  return `${days[d.getUTCDay()]}, ${d.getUTCDate()} ${months[d.getUTCMonth()]}`;
-}
-
-/** Determine trend between consecutive forecast points */
-function forecastTrend(prev: number | null, curr: number | null): string {
-  if (prev === null || curr === null) return "";
-  const diff = curr - prev;
-  if (diff > 1) return "\u2191";
-  if (diff < -1) return "\u2193";
-  return "\u2192";
-}
-
 export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLevelDetailProps) {
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [aiForecastData, setAiForecastData] = useState<AiForecastPoint[]>([]);
-  const [aiPanelOpen, setAiPanelOpen] = useState(false);
 
   const tier = computeTier(r);
   const arrow = trendArrow(r.trend);
@@ -80,7 +62,9 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
   const hasLevel = r.levelCm !== null && r.levelCm > 0;
   const hasDischarge = r.dischargeCubicM !== null && r.dischargeCubicM > 0;
   const hasData = hasLevel || hasDischarge;
-  const mode = hasLevel ? "cm" as const : "discharge" as const;
+  // Show cm mode when AI forecast provides water level predictions
+  const hasAiCm = aiForecastData.length > 0;
+  const mode = (hasLevel || hasAiCm) ? "cm" as const : "discharge" as const;
 
   // Stale check — skip for seed records (no dataSource)
   const ageMs = Date.now() - new Date(r.measuredAt).getTime();
@@ -260,71 +244,6 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
       {hasData && (
         <div className={`tier-action tier-action--${tier.tier}`}>
           {TIER_ACTIONS[tier.tier]}
-        </div>
-      )}
-
-      {/* AI Forecast Panel */}
-      {aiForecastData.length > 0 && (
-        <div className="ai-forecast-section">
-          <button
-            className={`ai-forecast-toggle ${aiPanelOpen ? "ai-forecast-toggle--active" : ""}`}
-            onClick={() => setAiPanelOpen(!aiPanelOpen)}
-          >
-            <span className="ai-forecast-toggle-icon">AI</span>
-            <span className="ai-forecast-toggle-label">
-              {aiPanelOpen ? "Скрыть прогноз" : "Прогноз Самур AI"}
-            </span>
-            <span className="ai-forecast-toggle-arrow">{aiPanelOpen ? "\u25B2" : "\u25BC"}</span>
-          </button>
-
-          {aiPanelOpen && (
-            <div className="ai-forecast-panel">
-              <div className="ai-forecast-header">
-                <span className="ai-forecast-model">XGBoost</span>
-                <span className="ai-forecast-range">7 дней</span>
-              </div>
-              <div className="ai-forecast-cards">
-                {aiForecastData.map((fc, i) => {
-                  const level = fc.levelCm ?? 0;
-                  const lower = fc.predictionLower ?? 0;
-                  const upper = fc.predictionUpper ?? 0;
-                  const danger = fc.dangerLevelCm ?? r.dangerLevelCm ?? 0;
-                  const pct = danger > 0 ? Math.round((level / danger) * 100) : 0;
-                  const prevLevel = i > 0 ? (aiForecastData[i - 1].levelCm ?? 0) : null;
-                  const trend = forecastTrend(prevLevel, level);
-                  const isHigh = danger > 0 && level >= danger * 0.75;
-                  const isDanger = danger > 0 && level >= danger;
-                  return (
-                    <div
-                      key={fc.measuredAt}
-                      className={`ai-forecast-card ${isDanger ? "ai-forecast-card--danger" : isHigh ? "ai-forecast-card--high" : ""}`}
-                    >
-                      <div className="ai-forecast-card-date">{formatForecastDate(fc.measuredAt)}</div>
-                      <div className="ai-forecast-card-level">
-                        <span className="ai-forecast-card-value">{level.toFixed(1)}</span>
-                        <span className="ai-forecast-card-unit">см</span>
-                        {trend && <span className="ai-forecast-card-trend">{trend}</span>}
-                      </div>
-                      <div className="ai-forecast-card-range">
-                        {lower.toFixed(0)}&ndash;{upper.toFixed(0)} см
-                      </div>
-                      {danger > 0 && (
-                        <div className="ai-forecast-card-bar">
-                          <div
-                            className="ai-forecast-card-fill"
-                            style={{ width: `${Math.min(pct, 100)}%` }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="ai-forecast-footer">
-                Доверительный интервал 90% &middot; Обновляется ежечасно
-              </div>
-            </div>
-          )}
         </div>
       )}
 
