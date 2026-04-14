@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { HelpRequest } from "@samur/shared";
 import {
   HELP_CATEGORY_LABELS,
@@ -34,7 +35,7 @@ export function HelpDetailSheet({ item, isNeed, onClaim, onClose }: Props) {
     return () => { document.body.style.overflow = prev; };
   }, []);
 
-  return (
+  return createPortal(
     <div className="sheet-overlay" onClick={onClose}>
       <div className="sheet sheet--tall" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
@@ -128,6 +129,7 @@ export function HelpDetailSheet({ item, isNeed, onClaim, onClose }: Props) {
           onClose={() => setLightboxIndex(null)}
         />
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }

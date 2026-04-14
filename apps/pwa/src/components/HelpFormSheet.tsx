@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useEffect, useRef, useCallback, type ChangeEvent } from "react";
+import { createPortal } from "react-dom";
 import type { HelpCategory } from "@samur/shared";
 import { HELP_CATEGORIES, HELP_CATEGORY_LABELS } from "@samur/shared";
 import { createHelpRequest, uploadPhotos } from "../services/api.js";
@@ -165,7 +166,7 @@ export function HelpFormSheet({ tab, onClose }: Props) {
     }
   };
 
-  return (
+  return createPortal(
     <div className="sheet-overlay" onClick={onClose}>
       <div className="sheet sheet--tall" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
@@ -374,6 +375,7 @@ export function HelpFormSheet({ tab, onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
