@@ -2449,8 +2449,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 @media (max-width: 768px) {
   .timeline-slider {
-    bottom: 4px;
-    padding-bottom: 4px;
+    bottom: 8px;
   }
 }
 
