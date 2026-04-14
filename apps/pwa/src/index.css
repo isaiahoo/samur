@@ -203,13 +203,21 @@ a { color: var(--color-primary); text-decoration: none; }
 .app-tabbar {
   display: flex;
   background: #fff;
-  border-top: none;
+  border-top: 1px solid #e4e4e7;
   padding-bottom: env(safe-area-inset-bottom, 0);
   flex-shrink: 0;
   position: relative;
   z-index: 1000;
-  box-shadow: 0 -1px 0 0 #e4e4e7, 0 -3px 10px rgba(0, 0, 0, 0.08);
-  isolation: isolate;
+}
+.app-tabbar::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: #fff;
+  z-index: 1;
 }
 .tab {
   flex: 1;
@@ -251,7 +259,6 @@ a { color: var(--color-primary); text-decoration: none; }
   z-index: 2000;
   display: flex;
   align-items: flex-end;
-  touch-action: none;
   overscroll-behavior: contain;
 }
 .sheet {
@@ -295,6 +302,7 @@ a { color: var(--color-primary); text-decoration: none; }
   flex: 1;
   min-height: 0;
   overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 .sheet-form-footer {
   flex-shrink: 0;
@@ -4110,8 +4118,10 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   /* Tab bar */
   .app-tabbar {
     background: #18181b;
-    border-top: none;
-    box-shadow: 0 -1px 0 0 var(--color-border), 0 -3px 10px rgba(0, 0, 0, 0.4);
+    border-top: 1px solid var(--color-border);
+  }
+  .app-tabbar::before {
+    background: #18181b;
   }
 
   /* Map legends */
