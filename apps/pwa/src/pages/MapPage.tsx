@@ -33,7 +33,6 @@ export function MapPage() {
   const [aiSummaries, setAiSummaries] = useState<Map<string, string>>(new Map());
   const [showReport, setShowReport] = useState(false);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
 
   // Timeline scrubber state
   type ForecastReading = {
@@ -233,10 +232,8 @@ export function MapPage() {
 
   // Initial data fetch — river levels + precipitation + soil moisture + snow + forecast loaded once, rest refetched on map move
   useEffect(() => {
-    // Critical fetches gate the loading indicator; safety timeout prevents indefinite hang
-    const safetyTimer = setTimeout(() => setInitialLoading(false), 6000);
-    Promise.all([fetchData(), fetchRiverLevels()])
-      .finally(() => { clearTimeout(safetyTimer); setInitialLoading(false); });
+    fetchData();
+    fetchRiverLevels();
     fetchPrecipData();
     fetchSoilMoistureData();
     fetchSnowData();
@@ -428,15 +425,6 @@ export function MapPage() {
         onMapMove={handleMapMove}
       />
 
-      {initialLoading && (
-        <div className="map-loading">
-          <div className="map-loading-content">
-            <div className="spinner" style={{ width: 28, height: 28 }} />
-            <span className="map-loading-text">Загрузка данных…</span>
-          </div>
-        </div>
-      )}
-
       {(geoStatus === "denied" || (geoStatus === "loading" && !geoBannerDismissed)) && !geoBannerDismissed && (
         <div className="geo-banner">
           {geoStatus === "loading" ? (
@@ -478,7 +466,7 @@ export function MapPage() {
           riverLevels={effectiveRiverLevels}
           earthquakes={earthquakes}
           layers={layers}
-          isLoading={initialLoading}
+          isLoading={riverLevels.length === 0}
           onEventClick={handleEventPanelClick}
           onClose={() => setEventPanelOpen(false)}
         />
