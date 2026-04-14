@@ -27,23 +27,11 @@ export function HelpDetailSheet({ item, isNeed, onClaim, onClose }: Props) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const photos = item.photoUrls ?? [];
 
-  // Lock body scroll (iOS Safari needs position:fixed to truly prevent scroll)
+  // Lock body scroll
   useEffect(() => {
-    const scrollY = window.scrollY;
-    const body = document.body;
-    body.style.position = "fixed";
-    body.style.top = `-${scrollY}px`;
-    body.style.left = "0";
-    body.style.right = "0";
-    body.style.overflow = "hidden";
-    return () => {
-      body.style.position = "";
-      body.style.top = "";
-      body.style.left = "";
-      body.style.right = "";
-      body.style.overflow = "";
-      window.scrollTo(0, scrollY);
-    };
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
   }, []);
 
   return (
