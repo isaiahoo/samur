@@ -1,13 +1,12 @@
 // Self-destructing service worker — unregisters itself and clears all caches.
-// This replaces the old Workbox SW that was breaking iOS Safari.
-// When existing devices fetch /sw.js, this new version activates,
-// kills itself, and the browser returns to normal fetch behavior.
-self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (event) => {
+// Replaces the old Workbox SW that was breaking iOS Safari.
+self.addEventListener("install", function() { self.skipWaiting(); });
+self.addEventListener("activate", function(event) {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
-      .then(() => self.registration.unregister())
-      .then(() => self.clients.matchAll())
-      .then((clients) => clients.forEach((c) => c.navigate(c.url)))
+    caches.keys()
+      .then(function(keys) { return Promise.all(keys.map(function(k) { return caches.delete(k); })); })
+      .then(function() { return self.registration.unregister(); })
   );
 });
+// Pass all fetch requests straight to network — do NOT intercept anything
+self.addEventListener("fetch", function() { /* no-op: let browser handle it */ });
