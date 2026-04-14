@@ -43,12 +43,50 @@
           d.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff;padding:24px;font:14px/1.5 system-ui;color:#18181b;overflow:auto';
           document.body.appendChild(d);
         }
-        d.innerHTML = '<h2 style="margin:0 0 8px;font-size:18px">Ошибка загрузки</h2>'
-          + '<p style="color:#71717a;margin:0 0 12px">Попробуйте обновить страницу</p>'
-          + '<pre style="background:#f4f4f5;padding:12px;border-radius:8px;overflow:auto;font-size:12px;white-space:pre-wrap">'
-          + (e.message || 'Unknown error') + '\n' + (e.filename || '') + ':' + (e.lineno || '') + '</pre>'
-          + '<button onclick="location.reload()" style="margin-top:12px;padding:8px 20px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer">Обновить</button>';
+        // Build DOM safely — no innerHTML with user-controlled strings
+        d.textContent = '';
+        var h = document.createElement('h2');
+        h.style.cssText = 'margin:0 0 8px;font-size:18px';
+        h.textContent = 'Ошибка загрузки';
+        var p = document.createElement('p');
+        p.style.cssText = 'color:#71717a;margin:0 0 12px';
+        p.textContent = 'Попробуйте обновить страницу';
+        var pre = document.createElement('pre');
+        pre.style.cssText = 'background:#f4f4f5;padding:12px;border-radius:8px;overflow:auto;font-size:12px;white-space:pre-wrap';
+        pre.textContent = (e.message || 'Unknown error') + '\n' + (e.filename || '') + ':' + (e.lineno || '');
+        var btn = document.createElement('button');
+        btn.style.cssText = 'margin-top:12px;padding:8px 20px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer';
+        btn.textContent = 'Обновить';
+        btn.onclick = function() { location.reload(); };
+        d.appendChild(h);
+        d.appendChild(p);
+        d.appendChild(pre);
+        d.appendChild(btn);
       });
+    </script>
+    <script>
+      // SW kill switch — if the main JS bundle hasn't rendered anything after 12s,
+      // the Service Worker is likely hanging fetch requests (iOS Safari bug).
+      // Unregister all SWs, clear caches, and reload. The sessionStorage flag
+      // prevents an infinite reload loop.
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && root.children.length === 0 && 'serviceWorker' in navigator) {
+          if (!sessionStorage.getItem('sw-kill')) {
+            sessionStorage.setItem('sw-kill', '1');
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              var p = regs.map(function(r) { return r.unregister(); });
+              return Promise.all(p);
+            }).then(function() {
+              return caches.keys();
+            }).then(function(keys) {
+              return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+            }).then(function() {
+              location.reload();
+            });
+          }
+        }
+      }, 12000);
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>

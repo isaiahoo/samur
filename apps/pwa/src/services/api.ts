@@ -14,6 +14,8 @@ function getToken(): string | null {
   }
 }
 
+const REQUEST_TIMEOUT_MS = 15_000;
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -27,7 +29,13 @@ async function request<T>(
     headers["Content-Type"] = "application/json";
   }
 
-  const res = await fetch(`${BASE}${path}`, { ...options, headers });
+  // Race fetch against a timeout — avoids AbortController which breaks iOS Safari SW
+  const res = await Promise.race([
+    fetch(`${BASE}${path}`, { ...options, headers }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new ApiError(0, "TIMEOUT", "Превышено время ожидания")), REQUEST_TIMEOUT_MS),
+    ),
+  ]);
   const json = await res.json();
 
   if (!res.ok) {

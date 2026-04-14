@@ -34,12 +34,10 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] },
             },
           },
-          {
-            // API GET requests — pass straight through to network (no SW caching)
-            // NetworkFirst was hanging on iOS Safari, breaking the entire app on repeat visits
-            urlPattern: /\/api\/v1\/(?!tiles\/).*/i,
-            handler: "NetworkOnly",
-          },
+          // API requests (non-tile): NO runtimeCaching rule.
+          // Without a matching route, the SW won't call respondWith(),
+          // so the browser handles API fetches directly — bypassing
+          // the iOS Safari SW fetch bug that hung NetworkOnly/NetworkFirst.
           {
             // Images
             urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
