@@ -221,8 +221,8 @@ export const MAKHACHKALA_CENTER = {
 
 // Center of all river monitoring stations across Dagestan
 export const DAGESTAN_CENTER = {
-  lat: 42.2,
-  lng: 47.5,
+  lat: 42.35,
+  lng: 47.8,
 } as const;
 
 export const DEFAULT_MAP_ZOOM = 8;
