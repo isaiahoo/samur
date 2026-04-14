@@ -1263,6 +1263,13 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   font-weight: 500;
   cursor: pointer;
 }
+.gauge-chart-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: #a1a1aa;
+  margin: 10px 0 6px;
+}
 
 .gauge-chart-tooltip {
   background: #fff;

@@ -17,7 +17,6 @@ function getToken(): string | null {
 async function request<T>(
   path: string,
   options: RequestInit = {},
-  timeoutMs = 15000,
 ): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -28,15 +27,7 @@ async function request<T>(
     headers["Content-Type"] = "application/json";
   }
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  let res: Response;
-  try {
-    res = await fetch(`${BASE}${path}`, { ...options, headers, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
+  const res = await fetch(`${BASE}${path}`, { ...options, headers });
   const json = await res.json();
 
   if (!res.ok) {

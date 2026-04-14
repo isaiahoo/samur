@@ -299,6 +299,9 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
           aiForecast={!aiMode && chartAiForecast.length > 0 ? chartAiForecast : undefined}
         />
       )}
+      {hasData && !historyLoading && !historyError && (aiMode ? aiHistory.length === 0 : history.length === 0) && (
+        <div className="gauge-chart-empty">Данные за 7 дней недоступны</div>
+      )}
 
       {/* Action text */}
       {hasData && (
