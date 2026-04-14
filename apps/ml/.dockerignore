@@ -5,3 +5,6 @@ scripts/
 configs/
 *.md
 .git
+data/nh_dataset/
+models/lstm/
+requirements-train.txt

@@ -5,9 +5,8 @@ Loads trained models and performs inference using recent weather + water level d
 """
 
 import logging
-import math
 import os
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import httpx
@@ -31,7 +30,6 @@ STATION_META = {
     "sulak_sulak": {"river": "Сулак", "station": "Сулак", "lat": 43.525, "lng": 47.075},
 }
 
-WEATHER_API = "https://api.open-meteo.com/v1/forecast"
 HISTORICAL_API = "https://archive-api.open-meteo.com/v1/archive"
 # Express API base (inside Docker network)
 EXPRESS_API = os.environ.get("API_BASE_URL", "http://api:3000")
@@ -41,12 +39,18 @@ DAILY_VARS = [
     "et0_fao_evapotranspiration", "rain_sum",
 ]
 
+# Shared timeout config for Express API calls (same Docker network = fast connect)
+_EXPRESS_TIMEOUT = httpx.Timeout(10, connect=2)
+
 
 class Predictor:
     def __init__(self, model_dir: Path, data_dir: Path):
         self.models: dict[str, dict[int, xgb.Booster]] = {}
+        self.rmse: dict[str, dict[int, float]] = {}  # station → horizon → RMSE
         self.data_dir = data_dir
+        self._express_reachable = True  # reset per predict cycle
         self._load_models(model_dir)
+        self._load_rmse(model_dir)
 
     def _load_models(self, model_dir: Path):
         """Load all XGBoost model files."""
@@ -62,6 +66,26 @@ class Predictor:
                 self.models[station_id] = station_models
                 logger.info("Loaded %d horizon models for %s", len(station_models), station_id)
 
+    def _load_rmse(self, model_dir: Path):
+        """Load evaluation RMSE for confidence band calibration."""
+        import json
+        metrics_path = model_dir / "evaluation_results.json"
+        if not metrics_path.exists():
+            return
+        with open(metrics_path) as f:
+            data = json.load(f)
+        for entry in data:
+            sid = entry.get("basin_id", "")
+            horizons = entry.get("horizons", {})
+            station_rmse = {}
+            for h in HORIZONS:
+                key = f"t{h}"
+                if key in horizons and "rmse" in horizons[key]:
+                    station_rmse[h] = horizons[key]["rmse"]
+            if station_rmse:
+                self.rmse[sid] = station_rmse
+        logger.info("Loaded RMSE metrics for %d stations", len(self.rmse))
+
     def loaded_stations(self) -> list[str]:
         return list(self.models.keys())
 
@@ -72,7 +96,7 @@ class Predictor:
 
         meta = STATION_META[station_id]
 
-        # Get recent data: try local CSV first, then fetch from APIs
+        # Get recent data: live APIs first, CSV fallback
         recent = self._get_recent_data(station_id, meta)
 
         if recent is None or len(recent) < 15:
@@ -88,7 +112,7 @@ class Predictor:
         feature_cols = self._feature_columns()
 
         forecasts = []
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
 
         for h in HORIZONS:
             if h not in self.models[station_id]:
@@ -100,7 +124,9 @@ class Predictor:
             pred = max(float(model.predict(dmat)[0]), 0.0)  # Clamp to non-negative
 
             forecast_date = today + timedelta(days=h)
-            band = max(pred * 0.15, 5.0)  # At least ±5 cm uncertainty
+            # 90% CI ≈ ±1.645 × RMSE (assumes roughly normal errors)
+            rmse = self.rmse.get(station_id, {}).get(h, pred * 0.15)
+            band = max(1.645 * rmse, 5.0)
             forecasts.append(ForecastPoint(
                 date=forecast_date.isoformat(),
                 level_cm=round(pred, 1),
@@ -115,22 +141,39 @@ class Predictor:
         return forecasts
 
     def _get_recent_data(self, station_id: str, meta: dict) -> pd.DataFrame | None:
-        """Get recent weather + water level data. Uses local CSV as primary source."""
+        """Get recent weather + water level data.
+
+        Primary path: fetch live weather from Open-Meteo + water levels from Express API.
+        Fallback: use local CSV (training data) when water levels can't be fetched.
+        """
+        # Always try live data first — CSVs contain old training data
+        live = self._fetch_recent_weather(meta)
+        if live is not None and len(live) >= 15:
+            wl_count = live["water_level_cm"].notna().sum()
+            logger.info("Live data for %s: %d days, %d with water levels", station_id, len(live), wl_count)
+            if wl_count >= 15:
+                return live
+
+        # Fallback: local CSV (stale training data — water level lags from historical period)
         csv_path = self.data_dir / "time_series" / f"{station_id}.csv"
         if csv_path.exists():
+            logger.warning("Using CSV fallback for %s (insufficient live water levels)", station_id)
             df = pd.read_csv(csv_path)
             df["date"] = pd.to_datetime(df["date"])
-            # Use last 45 days of available data (need 14+ for lags)
             return df.tail(45).copy()
 
-        # Fallback: fetch from Open-Meteo (weather only, no water level)
-        logger.warning("No local CSV for %s, attempting API fetch", station_id)
-        return self._fetch_recent_weather(meta)
+        return None
 
     def _fetch_recent_weather(self, meta: dict) -> pd.DataFrame | None:
-        """Fetch last 30 days of weather from Open-Meteo + water levels from Express API."""
+        """Fetch recent weather from Open-Meteo + water levels from Express API.
+
+        Water level strategy (in priority order):
+        1. Live scraped data from river_levels (last 30 days)
+        2. Imported historical data from historical_river_levels (2001-2020+)
+        3. Day-of-year averages from historical_river_stats
+        """
         try:
-            end = date.today() - timedelta(days=1)
+            end = datetime.now(timezone.utc).date() - timedelta(days=1)
             start = end - timedelta(days=45)
             params = [
                 ("latitude", str(meta["lat"])),
@@ -153,65 +196,131 @@ class Predictor:
             for var in DAILY_VARS:
                 df[var] = daily.get(var, [None] * len(daily["time"]))
 
-            # Fetch water levels: try live API first, then historical stats as fallback
             df["water_level_cm"] = np.nan
             river = meta["river"]
             station = meta["station"]
 
-            # Strategy 1: live level_cm from river_levels (if any station reports levels)
-            try:
-                url = f"{EXPRESS_API}/api/v1/river-levels/history/{river}/{station}"
-                with httpx.Client(timeout=15) as client:
-                    resp = client.get(url, params={"days": "30", "includeForecast": "false"})
-                    resp.raise_for_status()
-                    levels_data = resp.json().get("data", [])
-
-                if levels_data:
-                    level_by_date: dict[str, float] = {}
-                    for rec in levels_data:
-                        level = rec.get("levelCm")
-                        if level is not None and level > 0:
-                            d = rec["measuredAt"][:10]
-                            level_by_date[d] = level
-                    if level_by_date:
-                        df["water_level_cm"] = df["date"].dt.strftime("%Y-%m-%d").map(level_by_date)
-                        matched = df["water_level_cm"].notna().sum()
-                        logger.info("Matched %d/%d days with live water levels", matched, len(df))
-            except Exception as e:
-                logger.warning("Could not fetch live water levels: %s", e)
-
-            # Strategy 2: use historical stats (day-of-year averages) if available
-            if df["water_level_cm"].notna().sum() < 15:
-                try:
-                    url = f"{EXPRESS_API}/api/v1/river-levels/historical/{river}/{station}/stats"
-                    with httpx.Client(timeout=15) as client:
-                        resp = client.get(url)
-                        resp.raise_for_status()
-                        stats = resp.json().get("data", [])
-
-                    if stats:
-                        # Build dayOfYear → avgCm lookup
-                        avg_by_doy: dict[int, float] = {}
-                        for s in stats:
-                            doy = s.get("dayOfYear")
-                            avg = s.get("avgCm")
-                            if doy is not None and avg is not None:
-                                avg_by_doy[doy] = avg
-                        # Map onto weather dataframe
-                        df["water_level_cm"] = df["date"].dt.dayofyear.map(avg_by_doy)
-                        matched = df["water_level_cm"].notna().sum()
-                        logger.info("Matched %d/%d days with historical stats for %s/%s",
-                                    matched, len(df), river, station)
-                        # Forward-fill small gaps
-                        if matched > 0:
-                            df["water_level_cm"] = df["water_level_cm"].ffill().bfill()
-                except Exception as e:
-                    logger.warning("Could not fetch historical stats: %s", e)
+            # Skip Express API if previously marked unreachable (reset per predict cycle)
+            if self._express_reachable:
+                self._fill_water_levels(df, river, station, start, end)
 
             return df
         except Exception as e:
             logger.error("Failed to fetch weather: %s", e)
             return None
+
+    def _fill_water_levels(self, df: pd.DataFrame, river: str, station: str,
+                           start: date, end: date) -> None:
+        """Try all water level strategies using a single HTTP client."""
+        try:
+            with httpx.Client(timeout=_EXPRESS_TIMEOUT) as client:
+                # Strategy 1: live scraped water levels (most recent, from hourly scraper)
+                self._fetch_live_levels(df, river, station, client)
+
+                # Strategy 2: imported historical data (covers 2001-2020+)
+                if df["water_level_cm"].notna().sum() < 15:
+                    self._fetch_historical_levels(df, river, station, start, end, client)
+
+                # Strategy 3: day-of-year averages (always available, lowest quality)
+                if df["water_level_cm"].notna().sum() < 15:
+                    self._fetch_stats_levels(df, river, station, client)
+        except (httpx.ConnectError, httpx.ConnectTimeout):
+            # Express API is unreachable — skip it for all remaining stations
+            logger.warning("Express API unreachable, skipping water level fetch for remaining stations")
+            self._express_reachable = False
+
+    def _fetch_live_levels(self, df: pd.DataFrame, river: str, station: str,
+                           client: httpx.Client) -> None:
+        """Fill water_level_cm from live scraped data (river_levels table)."""
+        try:
+            url = f"{EXPRESS_API}/api/v1/river-levels/history/{river}/{station}"
+            resp = client.get(url, params={"days": "30", "includeForecast": "false"})
+            resp.raise_for_status()
+            levels_data = resp.json().get("data", [])
+
+            if not levels_data:
+                return
+
+            level_by_date: dict[str, float] = {}
+            for rec in levels_data:
+                level = rec.get("levelCm")
+                if level is not None:
+                    d = rec["measuredAt"][:10]
+                    level_by_date[d] = level
+            if level_by_date:
+                df["water_level_cm"] = df["date"].dt.strftime("%Y-%m-%d").map(level_by_date)
+                matched = df["water_level_cm"].notna().sum()
+                logger.info("Live water levels: %d/%d days matched for %s/%s",
+                            matched, len(df), river, station)
+        except (httpx.ConnectError, httpx.ConnectTimeout):
+            raise  # Propagate to _fill_water_levels for circuit-breaker
+        except Exception as e:
+            logger.warning("Could not fetch live water levels for %s/%s: %s", river, station, e)
+
+    def _fetch_historical_levels(self, df: pd.DataFrame, river: str, station: str,
+                                  start: date, end: date, client: httpx.Client) -> None:
+        """Fill water_level_cm from imported historical data (historical_river_levels table)."""
+        try:
+            url = f"{EXPRESS_API}/api/v1/river-levels/historical/{river}/{station}"
+            resp = client.get(url, params={
+                "from": start.isoformat(),
+                "to": end.isoformat(),
+                "limit": "100",
+            })
+            resp.raise_for_status()
+            hist_data = resp.json().get("data", [])
+
+            if not hist_data:
+                return
+
+            level_by_date: dict[str, float] = {}
+            for rec in hist_data:
+                d = rec["date"][:10]
+                level_by_date[d] = rec["valueCm"]
+            if level_by_date:
+                # Only fill NaN slots (don't overwrite live data)
+                mapped = df["date"].dt.strftime("%Y-%m-%d").map(level_by_date)
+                df["water_level_cm"] = df["water_level_cm"].fillna(mapped)
+                matched = df["water_level_cm"].notna().sum()
+                logger.info("Historical levels: %d/%d days after merge for %s/%s",
+                            matched, len(df), river, station)
+        except (httpx.ConnectError, httpx.ConnectTimeout):
+            raise  # Propagate to _fill_water_levels for circuit-breaker
+        except Exception as e:
+            logger.warning("Could not fetch historical levels for %s/%s: %s", river, station, e)
+
+    def _fetch_stats_levels(self, df: pd.DataFrame, river: str, station: str,
+                            client: httpx.Client) -> None:
+        """Fill water_level_cm from day-of-year averages (historical_river_stats table)."""
+        try:
+            url = f"{EXPRESS_API}/api/v1/river-levels/historical/{river}/{station}/stats"
+            resp = client.get(url)
+            resp.raise_for_status()
+            stats = resp.json().get("data", [])
+
+            if not stats:
+                return
+
+            avg_by_doy: dict[int, float] = {}
+            for s in stats:
+                doy = s.get("dayOfYear")
+                avg = s.get("avgCm")
+                if doy is not None and avg is not None:
+                    avg_by_doy[doy] = avg
+
+            # Only fill remaining NaN slots
+            mapped = df["date"].dt.dayofyear.map(avg_by_doy)
+            df["water_level_cm"] = df["water_level_cm"].fillna(mapped)
+            matched = df["water_level_cm"].notna().sum()
+            logger.info("Stats-based levels: %d/%d days after merge for %s/%s",
+                        matched, len(df), river, station)
+            # Forward-fill small gaps
+            if matched > 0:
+                df["water_level_cm"] = df["water_level_cm"].ffill().bfill()
+        except (httpx.ConnectError, httpx.ConnectTimeout):
+            raise  # Propagate to _fill_water_levels for circuit-breaker
+        except Exception as e:
+            logger.warning("Could not fetch historical stats for %s/%s: %s", river, station, e)
 
     def _build_features(self, df: pd.DataFrame) -> pd.DataFrame | None:
         """Build ML features from recent data (same as training)."""

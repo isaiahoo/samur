@@ -14,5 +14,9 @@ pmtiles.zip
 
 # ML — training data can be regenerated, keep models
 apps/ml/data/time_series/
+apps/ml/data/nh_dataset/
+apps/ml/data/camels_us/
+apps/ml/runs/
+apps/ml/.venv/
 __pycache__/
 *.pyc

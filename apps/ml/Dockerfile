@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app/ ./app/
 COPY models/ ./models/
-COPY data/ ./data/
+COPY data/time_series/ ./data/time_series/
 
 EXPOSE 8000
 

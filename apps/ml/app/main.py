@@ -7,7 +7,7 @@ FastAPI microservice serving XGBoost water level forecasts.
 import json
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -86,7 +86,7 @@ async def predict(req: PredictRequest):
     return PredictResponse(
         station_id=req.station_id,
         model=req.model,
-        generated_at=datetime.utcnow().isoformat() + "Z",
+        generated_at=datetime.now(timezone.utc).isoformat(),
         forecasts=forecasts,
         metrics=station_metrics,
     )
@@ -96,6 +96,9 @@ async def predict(req: PredictRequest):
 async def predict_all():
     if not predictor:
         raise HTTPException(503, "Models not loaded")
+
+    # Reset Express API reachability flag for this cycle
+    predictor._express_reachable = True
 
     results = []
     for station_id in predictor.loaded_stations():
@@ -109,4 +112,4 @@ async def predict_all():
             logger.warning("Prediction failed for %s: %s", station_id, e)
             results.append({"station_id": station_id, "error": str(e)})
 
-    return {"generated_at": datetime.utcnow().isoformat() + "Z", "data": results}
+    return {"generated_at": datetime.now(timezone.utc).isoformat(), "data": results}
