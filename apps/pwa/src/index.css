@@ -214,13 +214,13 @@ a { color: var(--color-primary); text-decoration: none; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 10px 4px 8px;
+  gap: 2px;
+  padding: 8px 4px;
   font-size: 11px;
   color: #71717a;
   text-decoration: none;
   position: relative;
-  min-height: 56px;
+  min-height: 48px;
   justify-content: center;
 }
 .tab--active { color: #2563eb; }
@@ -261,8 +261,6 @@ a { color: var(--color-primary); text-decoration: none; }
   animation: sheetUp 0.25s ease-out;
 }
 .sheet--tall {
-  height: 92vh;
-  height: 92dvh;
   max-height: 92vh;
   max-height: 92dvh;
   overflow: hidden;
@@ -277,7 +275,14 @@ a { color: var(--color-primary); text-decoration: none; }
   border-radius: 2px;
   margin: 8px auto;
 }
-.sheet-content { padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px)); }
+.sheet-content {
+  padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
 .sheet-form-header {
   flex-shrink: 0;
   background: var(--color-surface);
@@ -3078,7 +3083,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 /* ── NERV Controls: FAB ───────────────────────────────────────────────────── */
 .fab {
   position: fixed;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 56px);
   right: 16px;
   height: 48px;
   padding: 0 20px;
@@ -3104,7 +3109,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 @media (max-width: 768px) {
   .fab {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 76px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 68px);
   }
   .map-page--panel-open .fab {
     display: none;
@@ -3695,7 +3700,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .ep {
     position: fixed;
     top: auto;
-    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
     left: 0;
     right: 0;
     width: 100%;
@@ -3741,7 +3746,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .ep-toggle {
     position: fixed;
     top: auto;
-    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(56px + env(safe-area-inset-bottom, 0px));
     left: 0;
     right: 0;
     width: 100%;
@@ -3781,7 +3786,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 /* FAB — persistent red button, bottom-right above tabbar */
 .sos-fab {
   position: fixed;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);
   left: 16px;
   z-index: 1500;
   width: 52px;
@@ -3807,7 +3812,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 @media (max-width: 768px) {
   .sos-fab {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 112px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 104px);
   }
   .app-layout:has(.map-page--panel-open) .sos-fab {
     display: none;
