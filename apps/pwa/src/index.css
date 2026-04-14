@@ -4016,9 +4016,6 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .sos-fab {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 110px);
   }
-  .app-layout:has(.map-page--panel-open) .sos-fab {
-    display: none;
-  }
 }
 @keyframes sos-glow {
   0%, 100% { box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4), 0 0 0 0 rgba(220, 38, 38, 0); }
