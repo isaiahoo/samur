@@ -3312,9 +3312,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .fab {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 74px);
   }
-  /* On map page, FAB must sit above the МОНИТОРИНГ toggle bar (36px + 62px tabbar) */
+  /* On map page, FAB must sit above the МОНИТОРИНГ toggle bar */
   .map-page .fab {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 110px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 100px);
   }
 }
 
@@ -4018,7 +4018,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   }
   /* On map page, both SOS and FAB sit above the МОНИТОРИНГ bar */
   .app-layout:has(.tab-alive--visible > .map-page) .sos-fab {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 110px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 100px);
   }
 }
 @keyframes sos-glow {
