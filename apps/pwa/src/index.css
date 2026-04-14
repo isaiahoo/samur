@@ -2095,6 +2095,21 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .gauge-dot.gauge-upstream-ring { border-radius: 50%; }
 .gauge-pill.gauge-upstream-ring { outline-offset: 2px; }
 
+/* Самур AI indicator ring — solid teal */
+.gauge-ai-ring {
+  outline: 2px solid #14b8a6;
+  outline-offset: 3px;
+}
+.gauge-dot.gauge-ai-ring { border-radius: 50%; }
+.gauge-pill.gauge-ai-ring { outline-offset: 2px; }
+
+/* Both upstream + AI: AI takes outline (outer), upstream becomes box-shadow (inner) */
+.gauge-upstream-ring.gauge-ai-ring {
+  outline-color: #14b8a6;
+  outline-style: solid;
+  box-shadow: 0 0 0 2px #F59E0B;
+}
+
 /* Card upstream warning line */
 .gauge-card-upstream {
   font-size: 11px;
@@ -2103,6 +2118,19 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   margin-top: 4px;
   padding-top: 4px;
   border-top: 1px solid #FDE68A;
+}
+
+/* Card AI forecast summary line */
+.gauge-card-ai {
+  font-size: 11px;
+  font-weight: 600;
+  color: #14b8a6;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid #99f6e4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Detail panel upstream warning */
@@ -2945,6 +2973,46 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .eq-legend-dot--md { width: 12px; height: 12px; background: #f97316; }
 .eq-legend-dot--lg { width: 16px; height: 16px; background: #ef4444; }
 
+/* ── Самур AI legend ───────────────────────────────────────────────── */
+
+.ai-legend {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border-radius: 8px;
+  padding: 8px 12px 6px;
+  font-size: 12px;
+}
+
+.ai-legend-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.ai-legend-ring {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #71717a;
+  outline: 2px solid #14b8a6;
+  outline-offset: 1px;
+  flex-shrink: 0;
+}
+
+.ai-legend-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #14b8a6;
+  letter-spacing: 0.2px;
+}
+
+.ai-legend-desc {
+  font-size: 10px;
+  color: var(--color-muted);
+  padding-left: 18px;
+}
+
 /* ── Earthquake detail panel ─────────────────────────────────────────── */
 
 .eq-detail-mag {
@@ -3664,11 +3732,15 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
   /* Map legends */
   .eq-legend,
+  .ai-legend,
   .layer-panel,
   .nerv-layers {
     background: rgba(39, 39, 42, 0.92);
     color: var(--color-text);
   }
+
+  .ai-legend-ring { background: #52525b; }
+  .gauge-card-ai { color: #5eead4; border-top-color: #115e59; }
 
   /* Event panel — dark mode */
   .ep-toggle {

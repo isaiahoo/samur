@@ -22,6 +22,7 @@ interface MapLegendsProps {
   hasSnowData: boolean;
   hasRunoffData: boolean;
   hasEarthquakes: boolean;
+  hasAiForecasts: boolean;
 }
 
 export function MapLegends({
@@ -32,6 +33,7 @@ export function MapLegends({
   hasSnowData,
   hasRunoffData,
   hasEarthquakes,
+  hasAiForecasts,
 }: MapLegendsProps) {
   const showAny =
     (layers.floodHeatmap && hasRiverLevels) ||
@@ -39,7 +41,8 @@ export function MapLegends({
     (layers.soilMoisture && hasSoilMoisture) ||
     (layers.snow && hasSnowData) ||
     (layers.runoff && hasRunoffData) ||
-    (layers.earthquakes && hasEarthquakes);
+    (layers.earthquakes && hasEarthquakes) ||
+    hasAiForecasts;
 
   if (!showAny) return null;
 
@@ -125,6 +128,16 @@ export function MapLegends({
             <span className="eq-legend-dot eq-legend-dot--md" /> M4.5
             <span className="eq-legend-dot eq-legend-dot--lg" /> M5.5+
           </div>
+        </div>
+      )}
+
+      {hasAiForecasts && (
+        <div className="ai-legend">
+          <div className="ai-legend-header">
+            <span className="ai-legend-ring" />
+            <span className="ai-legend-title">Самур AI</span>
+          </div>
+          <div className="ai-legend-desc">прогноз уровня</div>
         </div>
       )}
     </div>

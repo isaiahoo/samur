@@ -9,7 +9,8 @@ import { DetailPanel } from "../components/map/DetailPanel.js";
 import { MapLegends } from "../components/map/MapLegends.js";
 import { EventPanel } from "../components/map/EventPanel.js";
 import { computeTier } from "../components/map/gaugeUtils.js";
-import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelForecast, getPrecipitation, getSoilMoisture, getSnowData, getRunoffData, getEarthquakes } from "../services/api.js";
+import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelForecast, getPrecipitation, getSoilMoisture, getSnowData, getRunoffData, getEarthquakes, getAiForecast } from "../services/api.js";
+import type { AiForecastPoint } from "../services/api.js";
 import type { PrecipitationPoint, SoilMoisturePoint, SnowPoint, RunoffPoint } from "../components/map/geoJsonHelpers.js";
 import { cacheItems, getCachedItems } from "../services/db.js";
 import { useSocketEvent, useSocketSubscription } from "../hooks/useSocket.js";
@@ -28,6 +29,8 @@ export function MapPage() {
   const [snowData, setSnowData] = useState<SnowPoint[]>([]);
   const [runoffData, setRunoffData] = useState<RunoffPoint[]>([]);
   const [earthquakes, setEarthquakes] = useState<EarthquakeEvent[]>([]);
+  const [aiStationKeys, setAiStationKeys] = useState<Set<string>>(new Set());
+  const [aiSummaries, setAiSummaries] = useState<Map<string, string>>(new Map());
   const [showReport, setShowReport] = useState(false);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
 
@@ -118,6 +121,55 @@ export function MapPage() {
     } catch { /* ignore — optional overlay */ }
   }, []);
 
+  // AI forecast data — determines which stations get the AI ring on the map
+  const fetchAiForecast = useCallback(async () => {
+    try {
+      const res = await getAiForecast();
+      if (!res?.data) return;
+
+      // Group by station
+      const byStation = new Map<string, AiForecastPoint[]>();
+      for (const d of res.data) {
+        const key = `${d.riverName}::${d.stationName}`;
+        const arr = byStation.get(key) ?? [];
+        arr.push(d);
+        byStation.set(key, arr);
+      }
+
+      const keys = new Set<string>();
+      const summaries = new Map<string, string>();
+
+      for (const [key, points] of byStation) {
+        // Filter out all-zero stations (weak models)
+        const hasReal = points.some((p) => (p.predictionUpper ?? 0) > 0);
+        if (!hasReal) continue;
+
+        keys.add(key);
+
+        // Compute summary: trend from first to last prediction
+        const sorted = [...points].sort((a, b) => a.measuredAt.localeCompare(b.measuredAt));
+        const first = sorted[0];
+        const last = sorted[sorted.length - 1];
+        const firstLevel = first.levelCm ?? 0;
+        const lastLevel = last.levelCm ?? 0;
+        const days = Math.max(1, Math.round(
+          (new Date(last.measuredAt).getTime() - new Date(first.measuredAt).getTime()) / 86400000,
+        ));
+
+        if (firstLevel > 0) {
+          const pctChange = Math.round(((lastLevel - firstLevel) / firstLevel) * 100);
+          const sign = pctChange >= 0 ? "+" : "";
+          summaries.set(key, `AI: ${sign}${pctChange}% за ${days} дн.`);
+        } else {
+          summaries.set(key, `AI: ${Math.round(lastLevel)} см`);
+        }
+      }
+
+      setAiStationKeys(keys);
+      setAiSummaries(summaries);
+    } catch { /* ignore — AI overlay is enhancement */ }
+  }, []);
+
   // Bulk forecast data for timeline scrubber
   const fetchForecastData = useCallback(async () => {
     try {
@@ -188,13 +240,14 @@ export function MapPage() {
     fetchRunoffData();
     fetchEarthquakeData();
     fetchForecastData();
+    fetchAiForecast();
     // Refresh earthquake data every 5 minutes
     const eqInterval = setInterval(fetchEarthquakeData, 5 * 60 * 1000);
     return () => {
       if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
       clearInterval(eqInterval);
     };
-  }, [fetchData, fetchRiverLevels, fetchPrecipData, fetchSoilMoistureData, fetchSnowData, fetchRunoffData, fetchEarthquakeData, fetchForecastData]);
+  }, [fetchData, fetchRiverLevels, fetchPrecipData, fetchSoilMoistureData, fetchSnowData, fetchRunoffData, fetchEarthquakeData, fetchForecastData, fetchAiForecast]);
 
   useEffect(() => {
     requestPosition();
@@ -366,6 +419,8 @@ export function MapPage() {
         earthquakes={earthquakes}
         layers={layers}
         crisisMode={crisisMode}
+        aiStationKeys={aiStationKeys}
+        aiSummaries={aiSummaries}
         onMarkerClick={handleMarkerClick}
         onMapMove={handleMapMove}
       />
@@ -433,6 +488,7 @@ export function MapPage() {
         hasSnowData={snowData.length > 0}
         hasRunoffData={runoffData.length > 0}
         hasEarthquakes={earthquakes.length > 0}
+        hasAiForecasts={aiStationKeys.size > 0}
       />
 
       {timelineDates.length >= 2 && (

@@ -35,11 +35,12 @@ export function variantForZoom(zoom: number): MarkerVariant {
 
 // ── Dot marker (zoom < 7) ──────────────────────────────────────────────────
 
-function createDotElement(tier: GaugeTier, upstream?: UpstreamWarning | null): HTMLDivElement {
+function createDotElement(tier: GaugeTier, upstream?: UpstreamWarning | null, hasAi?: boolean): HTMLDivElement {
   const el = document.createElement("div");
   el.className = tier.hasData ? `gauge-dot tier-${tier.tier}` : "gauge-dot tier-nodata";
   if (tier.tier >= 3 && tier.hasData) el.className += " gauge-pulse";
   if (upstream) el.className += " gauge-upstream-ring";
+  if (hasAi) el.className += " gauge-ai-ring";
   return el;
 }
 
@@ -51,11 +52,13 @@ function createPillElement(
   tier: GaugeTier,
   forecast?: ForecastWarning | null,
   upstream?: UpstreamWarning | null,
+  hasAi?: boolean,
 ): HTMLDivElement {
   const el = document.createElement("div");
   el.className = tier.hasData ? `gauge-pill tier-${tier.tier}` : "gauge-pill tier-nodata";
   if (tier.tier >= 3 && tier.hasData) el.className += " gauge-pulse";
   if (upstream) el.className += " gauge-upstream-ring";
+  if (hasAi) el.className += " gauge-ai-ring";
 
   const text = tier.hasData ? `${riverName} ${arrow}` : riverName;
   const warn = forecast?.hasDanger ? " \u26A0" : "";
@@ -73,11 +76,14 @@ function createCardElement(
   tier: GaugeTier,
   forecast?: ForecastWarning | null,
   upstream?: UpstreamWarning | null,
+  hasAi?: boolean,
+  aiSummary?: string | null,
 ): HTMLDivElement {
   const el = document.createElement("div");
   el.className = tier.hasData ? `gauge-card tier-${tier.tier}` : "gauge-card tier-nodata";
   if (tier.tier >= 3 && tier.hasData) el.className += " gauge-pulse";
   if (upstream) el.className += " gauge-upstream-ring";
+  if (hasAi) el.className += " gauge-ai-ring";
 
   const pctText = formatPct(tier.pctOfMean);
 
@@ -89,7 +95,11 @@ function createCardElement(
     ? `<div class="gauge-card-upstream">\u25B2 ${esc(upstream.text)}</div>`
     : "";
 
-  el.innerHTML = `<div class="gauge-card-header"><span class="gauge-card-river">${esc(riverName)} — ${esc(stationName)}</span></div><div class="gauge-card-body"><span class="gauge-card-tier">${tier.hasData ? esc(tier.label) : "—"} ${esc(arrow)}</span><span class="gauge-card-pct">${esc(pctText)}</span></div>${forecastHTML}${upstreamHTML}`;
+  const aiHTML = hasAi && aiSummary
+    ? `<div class="gauge-card-ai">${esc(aiSummary)}</div>`
+    : "";
+
+  el.innerHTML = `<div class="gauge-card-header"><span class="gauge-card-river">${esc(riverName)} — ${esc(stationName)}</span></div><div class="gauge-card-body"><span class="gauge-card-tier">${tier.hasData ? esc(tier.label) : "—"} ${esc(arrow)}</span><span class="gauge-card-pct">${esc(pctText)}</span></div>${forecastHTML}${upstreamHTML}${aiHTML}`;
   return el;
 }
 
@@ -102,6 +112,8 @@ export interface GaugeMarkerData {
   tier: GaugeTier;
   forecast?: ForecastWarning | null;
   upstream?: UpstreamWarning | null;
+  hasAiForecast?: boolean;
+  aiSummary?: string | null;
 }
 
 export function createMarkerElement(
@@ -110,11 +122,11 @@ export function createMarkerElement(
 ): HTMLDivElement {
   switch (variant) {
     case "dot":
-      return createDotElement(data.tier, data.upstream);
+      return createDotElement(data.tier, data.upstream, data.hasAiForecast);
     case "pill":
-      return createPillElement(data.riverName, data.arrow, data.tier, data.forecast, data.upstream);
+      return createPillElement(data.riverName, data.arrow, data.tier, data.forecast, data.upstream, data.hasAiForecast);
     case "card":
-      return createCardElement(data.riverName, data.stationName, data.arrow, data.tier, data.forecast, data.upstream);
+      return createCardElement(data.riverName, data.stationName, data.arrow, data.tier, data.forecast, data.upstream, data.hasAiForecast, data.aiSummary);
   }
 }
 
@@ -134,16 +146,16 @@ export function updateMarkerElement(
   // Same variant — update in-place
   const tierClass = data.tier.hasData ? `tier-${data.tier.tier}` : "tier-nodata";
   const pulseClass = data.tier.tier >= 3 && data.tier.hasData ? " gauge-pulse" : "";
-
   const upClass = data.upstream ? " gauge-upstream-ring" : "";
+  const aiClass = data.hasAiForecast ? " gauge-ai-ring" : "";
 
   if (newVariant === "dot") {
-    existing.className = `gauge-dot ${tierClass}${pulseClass}${upClass}`;
+    existing.className = `gauge-dot ${tierClass}${pulseClass}${upClass}${aiClass}`;
     return false;
   }
 
   if (newVariant === "pill") {
-    existing.className = `gauge-pill ${tierClass}${pulseClass}${upClass}`;
+    existing.className = `gauge-pill ${tierClass}${pulseClass}${upClass}${aiClass}`;
     const warn = data.forecast?.hasDanger ? " \u26A0" : "";
     const upWarn = data.upstream ? " \u25B2" : "";
     existing.textContent = (data.tier.hasData ? `${data.riverName} ${data.arrow}` : data.riverName) + warn + upWarn;
@@ -151,7 +163,7 @@ export function updateMarkerElement(
   }
 
   // Card — update inner HTML
-  existing.className = `gauge-card ${tierClass}${pulseClass}${upClass}`;
+  existing.className = `gauge-card ${tierClass}${pulseClass}${upClass}${aiClass}`;
   const pctText = formatPct(data.tier.pctOfMean);
   const forecastHTML = data.forecast?.hasDanger
     ? `<div class="gauge-card-forecast">\u26A0 ${esc(data.forecast.text)}</div>`
@@ -159,6 +171,9 @@ export function updateMarkerElement(
   const upstreamHTML = data.upstream
     ? `<div class="gauge-card-upstream">\u25B2 ${esc(data.upstream.text)}</div>`
     : "";
-  existing.innerHTML = `<div class="gauge-card-header"><span class="gauge-card-river">${esc(data.riverName)} — ${esc(data.stationName)}</span></div><div class="gauge-card-body"><span class="gauge-card-tier">${data.tier.hasData ? esc(data.tier.label) : "—"} ${esc(data.arrow)}</span><span class="gauge-card-pct">${esc(pctText)}</span></div>${forecastHTML}${upstreamHTML}`;
+  const aiHTML = data.hasAiForecast && data.aiSummary
+    ? `<div class="gauge-card-ai">${esc(data.aiSummary)}</div>`
+    : "";
+  existing.innerHTML = `<div class="gauge-card-header"><span class="gauge-card-river">${esc(data.riverName)} — ${esc(data.stationName)}</span></div><div class="gauge-card-body"><span class="gauge-card-tier">${data.tier.hasData ? esc(data.tier.label) : "—"} ${esc(data.arrow)}</span><span class="gauge-card-pct">${esc(pctText)}</span></div>${forecastHTML}${upstreamHTML}${aiHTML}`;
   return false;
 }

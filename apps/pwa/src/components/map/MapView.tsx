@@ -58,6 +58,8 @@ interface Props {
   earthquakes: EarthquakeEvent[];
   layers: Record<LayerKey, boolean>;
   crisisMode?: boolean;
+  aiStationKeys?: Set<string>;
+  aiSummaries?: Map<string, string>;
   onMarkerClick: (type: MarkerType, item: Incident | HelpRequest | Shelter | RiverLevel | EarthquakeEvent | Record<string, unknown>) => void;
   onMapMove?: (bounds: { north: number; south: number; east: number; west: number }, zoom: number) => void;
 }
@@ -128,6 +130,8 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
   earthquakes,
   layers,
   crisisMode,
+  aiStationKeys,
+  aiSummaries,
   onMarkerClick,
   onMapMove,
 }: Props, ref) {
@@ -841,12 +845,15 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
       const tier = computeTier(r);
       const arrow = trendArrow(r.trend);
       const upstream = checkUpstreamDanger(r.riverName, r.stationName, tier, riverLevels);
+      const hasAi = aiStationKeys?.has(key) ?? false;
       const markerData: GaugeMarkerData = {
         riverName: r.riverName,
         stationName: r.stationName,
         arrow,
         tier,
         upstream,
+        hasAiForecast: hasAi,
+        aiSummary: hasAi ? (aiSummaries?.get(key) ?? null) : null,
       };
 
       const entry = existing.get(key);
@@ -896,7 +903,7 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
         existing.delete(key);
       }
     }
-  }, [riverLevels, mapReady]);
+  }, [riverLevels, mapReady, aiStationKeys, aiSummaries]);
 
   // Zoom change: swap marker variants (dot/pill/card)
   useEffect(() => {
