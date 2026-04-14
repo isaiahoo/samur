@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useRef, useEffect } from "react";
-import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useUIStore } from "../store/ui.js";
 import { useAuthStore } from "../store/auth.js";
 import { useOnline } from "../hooks/useOnline.js";
@@ -8,6 +8,10 @@ import { BottomSheet } from "./BottomSheet.js";
 import { Toast } from "./Toast.js";
 import { SOSButton } from "./SOSButton.js";
 import { MapPage } from "../pages/MapPage.js";
+import { HelpPage } from "../pages/HelpPage.js";
+import { AlertsPage } from "../pages/AlertsPage.js";
+import { NewsPage } from "../pages/NewsPage.js";
+import { InfoPage } from "../pages/InfoPage.js";
 
 export function Layout() {
   const unread = useUIStore((s) => s.unreadAlerts);
@@ -18,7 +22,17 @@ export function Layout() {
   const online = useOnline();
   const socketConnected = useUIStore((s) => s.socketConnected);
   const location = useLocation();
-  const isMapRoute = location.pathname === "/";
+  const path = location.pathname;
+  const [visited, setVisited] = useState<Set<string>>(() => new Set(["/"]));
+
+  useEffect(() => {
+    setVisited((prev) => {
+      if (prev.has(path)) return prev;
+      const next = new Set(prev);
+      next.add(path);
+      return next;
+    });
+  }, [path]);
 
   const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
@@ -120,11 +134,30 @@ export function Layout() {
       )}
 
       <main className="app-main" id="app-main">
-        {/* MapPage is always mounted to preserve map state + WebSocket listeners across tab switches */}
-        <div className={isMapRoute ? "map-keep-alive map-keep-alive--visible" : "map-keep-alive"}>
+        {/* All tab pages stay mounted once visited — no re-fetch on tab switch */}
+        <div className={path === "/" ? "tab-alive tab-alive--visible" : "tab-alive"}>
           <MapPage />
         </div>
-        {!isMapRoute && <Outlet />}
+        {visited.has("/help") && (
+          <div className={path === "/help" ? "tab-alive tab-alive--visible" : "tab-alive"}>
+            <HelpPage />
+          </div>
+        )}
+        {visited.has("/alerts") && (
+          <div className={path === "/alerts" ? "tab-alive tab-alive--visible" : "tab-alive"}>
+            <AlertsPage />
+          </div>
+        )}
+        {visited.has("/news") && (
+          <div className={path === "/news" ? "tab-alive tab-alive--visible" : "tab-alive"}>
+            <NewsPage />
+          </div>
+        )}
+        {visited.has("/info") && (
+          <div className={path === "/info" ? "tab-alive tab-alive--visible" : "tab-alive"}>
+            <InfoPage />
+          </div>
+        )}
       </main>
 
       <nav className="app-tabbar">
