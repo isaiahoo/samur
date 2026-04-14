@@ -1261,6 +1261,53 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   height: 8px;
 }
 
+/* ── Chart mode toggle (AI button) ─────────────────────────────────────── */
+
+.chart-mode-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 6px;
+}
+
+.chart-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #0d9488, #0891b2);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.chart-mode-btn:active {
+  transform: scale(0.96);
+}
+.chart-mode-btn--active {
+  background: linear-gradient(135deg, #64748b, #475569);
+}
+
+.chart-mode-btn-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+  animation: ai-dot-pulse 2s ease-in-out infinite;
+}
+.chart-mode-btn--active .chart-mode-btn-dot {
+  animation: none;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+@keyframes ai-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 /* ── Historical data section ────────────────────────────────────────────── */
 .historical-section {
   margin-top: 12px;
@@ -3597,6 +3644,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .gauge-chart-legend { color: #a1a1aa; }
   .gauge-chart-tooltip-hist { color: #a78bfa; }
   .gauge-chart-tooltip-ai { color: #2dd4bf; }
+
+  /* Chart mode toggle — dark mode (gradient stays, no override needed) */
 
   /* Historical section — dark mode */
   .historical-section { border-color: #3f3f46; }

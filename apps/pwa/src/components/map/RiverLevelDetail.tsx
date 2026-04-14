@@ -59,12 +59,13 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
     () => findNearestMoisture(r.lat, r.lng, soilMoisture),
     [r.lat, r.lng, soilMoisture],
   );
+  const [aiMode, setAiMode] = useState(false);
+
   const hasLevel = r.levelCm !== null && r.levelCm > 0;
   const hasDischarge = r.dischargeCubicM !== null && r.dischargeCubicM > 0;
   const hasData = hasLevel || hasDischarge;
-  // Show cm mode when AI forecast provides water level predictions
-  const hasAiCm = aiForecastData.length > 0;
-  const mode = (hasLevel || hasAiCm) ? "cm" as const : "discharge" as const;
+  const baseMode = hasLevel ? "cm" as const : "discharge" as const;
+  const mode = aiMode ? "cm" as const : baseMode;
 
   // Stale check — skip for seed records (no dataSource)
   const ageMs = Date.now() - new Date(r.measuredAt).getTime();
@@ -133,6 +134,20 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
       measuredAt: d.measuredAt,
     }));
   }, [aiForecastData]);
+
+  // In AI mode, build history from AI predictions so chart has cm data to render
+  const aiHistory: HistoryPoint[] = useMemo(() => {
+    if (!aiMode || aiForecastData.length === 0) return [];
+    return aiForecastData.map((d) => ({
+      levelCm: d.levelCm,
+      dangerLevelCm: d.dangerLevelCm ?? r.dangerLevelCm,
+      dischargeCubicM: null,
+      dischargeMean: null,
+      dischargeMax: null,
+      isForecast: true,
+      measuredAt: d.measuredAt,
+    }));
+  }, [aiMode, aiForecastData, r.dangerLevelCm]);
 
   const forecastWarning = useMemo(
     () => history.length > 0 ? computeForecastWarning(history, mode) : null,
@@ -224,18 +239,29 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
       {/* Technical details */}
       {hasData && <p className="detail-tech">{techText}</p>}
 
-      {/* Recharts chart — observed + forecast + threshold lines */}
+      {/* Chart mode toggle + chart */}
+      {hasData && aiForecastData.length > 0 && (
+        <div className="chart-mode-row">
+          <button
+            className={`chart-mode-btn ${aiMode ? "chart-mode-btn--active" : ""}`}
+            onClick={() => setAiMode(!aiMode)}
+          >
+            <span className="chart-mode-btn-dot" />
+            {aiMode ? "Обычный режим" : "Самур AI"}
+          </button>
+        </div>
+      )}
       {hasData && historyLoading && (
         <div className="gauge-chart-loading">Загрузка графика...</div>
       )}
-      {hasData && !historyLoading && history.length > 0 && (
+      {hasData && !historyLoading && (aiMode ? aiHistory.length > 0 : history.length > 0) && (
         <GaugeChart
-          history={history}
+          history={aiMode ? aiHistory : history}
           dangerLevelCm={r.dangerLevelCm}
           dischargeMax={r.dischargeMax}
           dischargeMean={r.dischargeMean}
           mode={mode}
-          historicalStats={histStats.length > 0 ? histStats : undefined}
+          historicalStats={!aiMode && histStats.length > 0 ? histStats : undefined}
           aiForecast={chartAiForecast.length > 0 ? chartAiForecast : undefined}
         />
       )}
