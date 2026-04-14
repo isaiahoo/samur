@@ -34,6 +34,33 @@
   <body>
     <div id="root"></div>
     <script>
+      // Kill stale Service Workers BEFORE modules load — prevents old Workbox SW
+      // from hanging fetches and causing white screen in iOS standalone PWA mode.
+      if ('serviceWorker' in navigator) {
+        // Register self-destructing SW to replace any old cached Workbox SW
+        navigator.serviceWorker.register('/sw.js').catch(function(){});
+        // Also force-unregister all SWs immediately
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          regs.forEach(function(r) { r.unregister(); });
+        });
+        // Nuke all caches
+        if (window.caches) {
+          caches.keys().then(function(keys) {
+            keys.forEach(function(k) { caches.delete(k); });
+          });
+        }
+        // If a SW is currently controlling this page, force a clean reload
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+          // Reload once without SW control — only do this once to avoid loops
+          if (!sessionStorage.getItem('sw_cleaned')) {
+            sessionStorage.setItem('sw_cleaned', '1');
+            location.reload();
+          }
+        }
+      }
+    </script>
+    <script>
       // Catch JS errors — show overlay instead of white screen
       window.addEventListener('error', function(e) {
         var d = document.getElementById('crash-overlay');
