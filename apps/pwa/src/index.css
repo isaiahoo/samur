@@ -182,10 +182,9 @@ a { color: var(--color-primary); text-decoration: none; }
 .skip-link:focus { top: 0; }
 .app-main {
   flex: 1;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
   min-height: 0;
   position: relative;
+  overflow: hidden;
 }
 /* Keep tab pages mounted but hidden when on other tabs */
 .tab-alive {
@@ -198,10 +197,8 @@ a { color: var(--color-primary); text-decoration: none; }
   -webkit-overflow-scrolling: touch;
 }
 .tab-alive--visible {
-  position: relative;
   visibility: visible;
   pointer-events: auto;
-  height: 100%;
 }
 .app-tabbar {
   display: flex;
