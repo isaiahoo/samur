@@ -9,17 +9,25 @@ import { useUIStore } from "../store/ui.js";
 import { useGeolocation } from "../hooks/useGeolocation.js";
 import { compressImage } from "../utils/compressImage.js";
 
+const categoryIcons: Record<string, string> = {
+  rescue: "🆘", shelter: "🏠", food: "🍞", water: "💧",
+  medicine: "💊", equipment: "🔧", transport: "🚗", labor: "💪",
+  generator: "⚡", pump: "🔄",
+};
+
 interface Props {
   tab: "need" | "offer";
   onClose: () => void;
 }
 
 export function HelpFormSheet({ tab, onClose }: Props) {
-  const [category, setCategory] = useState<HelpCategory>("rescue");
+  const [category, setCategory] = useState<HelpCategory | null>(null);
   const [description, setDescription] = useState("");
   const [address, setAddress] = useState("");
+  const [editingAddress, setEditingAddress] = useState(false);
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [editingContact, setEditingContact] = useState(false);
   const [urgency, setUrgency] = useState("normal");
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
@@ -69,7 +77,6 @@ export function HelpFormSheet({ tab, onClose }: Props) {
       .then((data) => {
         const addr = data?.display_name;
         if (addr && typeof addr === "string") {
-          // Take first 2-3 parts (street, house, district)
           const short = addr.split(", ").slice(0, 3).join(", ");
           setAddress(short);
         }
@@ -137,6 +144,7 @@ export function HelpFormSheet({ tab, onClose }: Props) {
   };
 
   const handleSubmit = async () => {
+    if (!category) return;
     setSubmitting(true);
     try {
       let photoUrls: string[] | undefined;
@@ -166,6 +174,9 @@ export function HelpFormSheet({ tab, onClose }: Props) {
     }
   };
 
+  const hasContactInfo = !!(contactName || contactPhone);
+  const contactSummary = [contactName, contactPhone].filter(Boolean).join(" \u00B7 ");
+
   return createPortal(
     <div className="sheet-overlay" onClick={onClose}>
       <div className="sheet sheet--tall" onClick={(e) => e.stopPropagation()}>
@@ -176,7 +187,7 @@ export function HelpFormSheet({ tab, onClose }: Props) {
         </div>
 
         <div className="sheet-form-body">
-          {/* Geo indicator */}
+          {/* Geo indicator — subtle */}
           <div className="geo-indicator">
             <span
               className={`geo-dot ${
@@ -207,57 +218,49 @@ export function HelpFormSheet({ tab, onClose }: Props) {
             )}
           </div>
 
-          <div className="form-group">
-            <label>Категория</label>
-            <select
-              className="form-input"
-              value={category}
-              onChange={(e) => setCategory(e.target.value as HelpCategory)}
-            >
-              {HELP_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {HELP_CATEGORY_LABELS[c]}
-                </option>
-              ))}
-            </select>
+          {/* Category grid */}
+          <div className="qf-section-label">Выберите категорию</div>
+          <div className="category-grid">
+            {HELP_CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                className={`category-card ${category === cat ? "category-card--selected" : ""}`}
+                onClick={() => setCategory(cat)}
+              >
+                <span className="category-card-icon">{categoryIcons[cat] ?? "📋"}</span>
+                <span className="category-card-label">{HELP_CATEGORY_LABELS[cat]}</span>
+              </button>
+            ))}
           </div>
 
-          <div className="form-group">
-            <label>Срочность</label>
-            <select
-              className="form-input"
-              value={urgency}
-              onChange={(e) => setUrgency(e.target.value)}
-            >
-              <option value="normal">Обычная</option>
-              <option value="urgent">Срочная</option>
-              <option value="critical">Критическая</option>
-            </select>
+          {/* Description — friendly, no label */}
+          <textarea
+            className="qf-description"
+            rows={2}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={tab === "need" ? "Что случилось? Опишите кратко..." : "Чем можете помочь?"}
+          />
+
+          {/* Urgency pills */}
+          <div className="urgency-pills">
+            {(["normal", "urgent", "critical"] as const).map((u) => (
+              <button
+                key={u}
+                type="button"
+                className={`urgency-pill ${urgency === u ? `urgency-pill--${u}` : ""}`}
+                onClick={() => setUrgency(u)}
+              >
+                {u === "urgent" && "⚡ "}
+                {u === "critical" && "🔴 "}
+                {u === "normal" ? "Обычная" : u === "urgent" ? "Срочная" : "Критическая"}
+              </button>
+            ))}
           </div>
 
-          <div className="form-group">
-            <label>Описание</label>
-            <textarea
-              className="form-input"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Опишите, что нужно..."
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Адрес</label>
-            <input
-              className="form-input"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Улица, дом, район..."
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Фото (до 5 шт.)</label>
+          {/* Photo slots */}
+          <div className="photo-slots">
             <input
               ref={fileInputRef}
               type="file"
@@ -274,104 +277,121 @@ export function HelpFormSheet({ tab, onClose }: Props) {
               onChange={handleCameraCapture}
               style={{ display: "none" }}
             />
-            {photoPreviews.length > 0 && (
-              <div className="photo-previews">
-                {photoPreviews.map((url, i) => (
-                  <div key={i} className="photo-preview">
-                    <img src={url} alt="" />
-                    <button
-                      type="button"
-                      className="photo-preview-remove"
-                      onClick={() => removePhoto(i)}
-                      aria-label="Удалить фото"
-                    >
-                      &times;
-                    </button>
-                  </div>
-                ))}
+
+            {photoPreviews.map((url, i) => (
+              <div key={i} className="photo-slot photo-slot--filled">
+                <img src={url} alt="" />
+                <button
+                  type="button"
+                  className="photo-slot-remove"
+                  onClick={() => removePhoto(i)}
+                >
+                  &times;
+                </button>
               </div>
+            ))}
+
+            {photos.length < 5 && (
+              <button
+                type="button"
+                className="photo-slot photo-slot--add"
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={compressing}
+              >
+                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+              </button>
             )}
             {photos.length < 5 && (
-              <div className="photo-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm photo-add-btn"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={compressing}
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                    <circle cx="8.5" cy="8.5" r="1.5" />
-                    <path d="m21 15-5-5L5 21" />
-                  </svg>
-                  {compressing
-                    ? "Сжатие..."
-                    : photos.length === 0
-                      ? "Выбрать фото"
-                      : `Ещё (${photos.length}/5)`}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm photo-add-btn"
-                  onClick={() => cameraInputRef.current?.click()}
-                  disabled={compressing}
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                    <circle cx="12" cy="13" r="4" />
-                  </svg>
-                  Камера
-                </button>
-              </div>
+              <button
+                type="button"
+                className="photo-slot photo-slot--add"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={compressing}
+              >
+                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <path d="m21 15-5-5L5 21" />
+                </svg>
+              </button>
             )}
-          </div>
 
-          <div className="form-group">
-            <label>Имя</label>
-            <input
-              className="form-input"
-              value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
-            />
+            {/* Empty placeholder slots */}
+            {Array.from({ length: Math.max(0, 5 - photos.length - 2) }).map((_, i) => (
+              <div key={`empty-${i}`} className="photo-slot photo-slot--empty" />
+            ))}
           </div>
+          {compressing && <div className="qf-hint">Сжатие фото...</div>}
 
-          <div className="form-group">
-            <label>Телефон</label>
+          {/* Address chip */}
+          {address && !editingAddress ? (
+            <button
+              type="button"
+              className="qf-chip"
+              onClick={() => setEditingAddress(true)}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <span className="qf-chip-text">{address}</span>
+              <span className="qf-chip-edit">✏️</span>
+            </button>
+          ) : (
             <input
-              className="form-input"
-              type="tel"
-              value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
-              placeholder="+79001234567"
+              className="qf-inline-input"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Адрес (улица, дом, район)"
+              onBlur={() => { if (address) setEditingAddress(false); }}
+              autoFocus={editingAddress}
             />
-          </div>
+          )}
+
+          {/* Contact summary */}
+          {hasContactInfo && !editingContact ? (
+            <button
+              type="button"
+              className="qf-chip"
+              onClick={() => setEditingContact(true)}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <span className="qf-chip-text">{contactSummary}</span>
+              <span className="qf-chip-edit">✏️</span>
+            </button>
+          ) : (
+            <div className="qf-contact-row">
+              <input
+                className="qf-inline-input"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                placeholder="Имя"
+              />
+              <input
+                className="qf-inline-input"
+                type="tel"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                placeholder="Телефон"
+                onBlur={() => { if (contactName || contactPhone) setEditingContact(false); }}
+              />
+            </div>
+          )}
         </div>
 
         <div className="sheet-form-footer">
           <button
-            className="btn btn-primary btn-lg"
+            className={`btn btn-lg qf-submit ${category ? "btn-primary" : ""}`}
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={!category || submitting}
           >
             {submitting
               ? photos.length > 0
                 ? "Загрузка фото..."
-                : "Отправка..."
-              : "Отправить"}
+                : "Отправляем..."
+              : category
+                ? "Отправить заявку →"
+                : "Выберите категорию"}
           </button>
         </div>
       </div>
