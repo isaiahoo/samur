@@ -47,6 +47,7 @@ interface RiverLevelDetailProps {
 export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLevelDetailProps) {
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [aiForecastData, setAiForecastData] = useState<AiForecastPoint[]>([]);
 
   const tier = computeTier(r);
   const arrow = trendArrow(r.trend);
@@ -61,7 +62,9 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
   const hasLevel = r.levelCm !== null && r.levelCm > 0;
   const hasDischarge = r.dischargeCubicM !== null && r.dischargeCubicM > 0;
   const hasData = hasLevel || hasDischarge;
-  const mode = hasLevel ? "cm" as const : "discharge" as const;
+  // Show cm mode when AI forecast provides water level predictions
+  const hasAiCm = aiForecastData.length > 0;
+  const mode = (hasLevel || hasAiCm) ? "cm" as const : "discharge" as const;
 
   // Stale check — skip for seed records (no dataSource)
   const ageMs = Date.now() - new Date(r.measuredAt).getTime();
@@ -89,9 +92,6 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
       .catch(() => {})
       .finally(() => setHistoryLoading(false));
   }, [r.riverName, r.stationName]);
-
-  // AI forecast data
-  const [aiForecastData, setAiForecastData] = useState<AiForecastPoint[]>([]);
 
   // Historical data (AllRivers.info)
   const [histStats, setHistStats] = useState<HistoricalStat[]>([]);
@@ -125,14 +125,14 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
   }, [histStats]);
 
   const chartAiForecast: ChartAiForecast[] = useMemo(() => {
-    if (aiForecastData.length === 0 || !hasLevel) return [];
+    if (aiForecastData.length === 0) return [];
     return aiForecastData.map((d) => ({
       levelCm: d.levelCm,
       predictionLower: d.predictionLower,
       predictionUpper: d.predictionUpper,
       measuredAt: d.measuredAt,
     }));
-  }, [aiForecastData, hasLevel]);
+  }, [aiForecastData]);
 
   const forecastWarning = useMemo(
     () => history.length > 0 ? computeForecastWarning(history, mode) : null,
