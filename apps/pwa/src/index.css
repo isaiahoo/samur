@@ -1263,44 +1263,62 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 /* ── Chart mode toggle (AI button) ─────────────────────────────────────── */
 
+.chart-mode-toggle {
+  margin-bottom: 8px;
+}
+
 .chart-mode-row {
   display: flex;
-  justify-content: flex-end;
-  margin-bottom: 6px;
+  gap: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e4e4e7;
 }
 
 .chart-mode-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
+  justify-content: center;
+  gap: 5px;
+  flex: 1;
+  padding: 7px 10px;
   border: none;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #0d9488, #0891b2);
-  color: #fff;
+  background: #f4f4f5;
+  color: #71717a;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.2s, transform 0.15s;
+  transition: background 0.2s, color 0.2s;
   -webkit-tap-highlight-color: transparent;
 }
 .chart-mode-btn:active {
-  transform: scale(0.96);
+  transform: scale(0.98);
 }
 .chart-mode-btn--active {
-  background: linear-gradient(135deg, #64748b, #475569);
+  background: #2563eb;
+  color: #fff;
+  font-weight: 600;
+}
+.chart-mode-btn--ai {
+  background: linear-gradient(135deg, #0d9488, #0891b2);
+  color: #fff;
+  font-weight: 600;
 }
 
 .chart-mode-btn-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.8);
   animation: ai-dot-pulse 2s ease-in-out infinite;
 }
-.chart-mode-btn--active .chart-mode-btn-dot {
-  animation: none;
-  background: rgba(255, 255, 255, 0.4);
+
+.chart-mode-hint {
+  margin: 5px 0 0;
+  font-size: 11px;
+  color: #a1a1aa;
+  text-align: center;
+  line-height: 1.3;
 }
 
 @keyframes ai-dot-pulse {
@@ -3645,7 +3663,11 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .gauge-chart-tooltip-hist { color: #a78bfa; }
   .gauge-chart-tooltip-ai { color: #2dd4bf; }
 
-  /* Chart mode toggle — dark mode (gradient stays, no override needed) */
+  /* Chart mode toggle — dark mode */
+  .chart-mode-row { border-color: #3f3f46; }
+  .chart-mode-btn { background: #27272a; color: #a1a1aa; }
+  .chart-mode-btn--active { background: #2563eb; color: #fff; }
+  .chart-mode-hint { color: #71717a; }
 
   /* Historical section — dark mode */
   .historical-section { border-color: #3f3f46; }

@@ -241,14 +241,27 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
 
       {/* Chart mode toggle + chart — hide if all predictions are zero (model can't predict) */}
       {hasData && aiForecastData.length > 0 && aiForecastData.some((d) => (d.levelCm ?? 0) > 0) && (
-        <div className="chart-mode-row">
-          <button
-            className={`chart-mode-btn ${aiMode ? "chart-mode-btn--active" : ""}`}
-            onClick={() => setAiMode(!aiMode)}
-          >
-            <span className="chart-mode-btn-dot" />
-            {aiMode ? "Обычный режим" : "Самур AI"}
-          </button>
+        <div className="chart-mode-toggle">
+          <div className="chart-mode-row">
+            <button
+              className={`chart-mode-btn ${!aiMode ? "chart-mode-btn--active" : ""}`}
+              onClick={() => setAiMode(false)}
+            >
+              Расход (м³/с)
+            </button>
+            <button
+              className={`chart-mode-btn ${aiMode ? "chart-mode-btn--ai" : ""}`}
+              onClick={() => setAiMode(true)}
+            >
+              <span className="chart-mode-btn-dot" />
+              Уровень (см)
+            </button>
+          </div>
+          <p className="chart-mode-hint">
+            {aiMode
+              ? "Прогноз уровня воды от Самур AI (на основе исторических данных и погоды)"
+              : "Текущий расход воды по данным GloFAS (спутниковая модель)"}
+          </p>
         </div>
       )}
       {hasData && historyLoading && (

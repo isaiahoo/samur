@@ -282,7 +282,9 @@ export const GaugeChart = memo(function GaugeChart({
   return (
     <div className="gauge-chart-container">
       <div className="gauge-chart-header">
-        <span className="gauge-chart-title">7 дней — наблюдение + прогноз</span>
+        <span className="gauge-chart-title">
+          {mode === "cm" ? "Уровень воды (см)" : "Расход воды (м³/с)"} — 7 дней
+        </span>
       </div>
       <ResponsiveContainer width="100%" height={210}>
         <ComposedChart data={chartData} margin={{ top: 10, right: 8, bottom: 0, left: -12 }}>
