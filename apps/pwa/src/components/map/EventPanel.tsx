@@ -24,6 +24,7 @@ interface EventPanelProps {
   riverLevels: RiverLevel[];
   earthquakes: EarthquakeEvent[];
   layers: Record<string, boolean>;
+  isLoading?: boolean;
   onEventClick: (type: MarkerType, item: unknown, key: string) => void;
   onClose?: () => void;
 }
@@ -50,7 +51,7 @@ function Section({ title, count, color, children }: { title: string; count: numb
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export function EventPanel({ incidents, helpRequests, shelters, riverLevels, earthquakes, layers, onEventClick, onClose }: EventPanelProps) {
+export function EventPanel({ incidents, helpRequests, shelters, riverLevels, earthquakes, layers, isLoading, onEventClick, onClose }: EventPanelProps) {
   const sortedIncidents = useMemo(
     () => [...incidents].sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9)).slice(0, 20),
     [incidents],
@@ -105,7 +106,13 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
       </div>
 
       <div className="ep-body">
-          {!hasAny && <p className="ep-empty">Нет активных событий</p>}
+          {isLoading && !hasAny && (
+            <div className="ep-loading">
+              <div className="spinner" style={{ width: 18, height: 18 }} />
+              <span>Загрузка…</span>
+            </div>
+          )}
+          {!isLoading && !hasAny && <p className="ep-empty">Нет активных событий</p>}
 
           {/* ── Incidents ──────────────────────────────────────────── */}
           {layers.incidents && sortedIncidents.length > 0 && (

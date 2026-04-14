@@ -443,10 +443,27 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   align-items: center;
   justify-content: center;
   z-index: 10;
-  background: rgba(255,255,255,0.8);
+  background: rgba(255,255,255,0.65);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: fadeIn 0.15s ease-out;
 }
+.map-loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.map-loading-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #52525b;
+  letter-spacing: 0.3px;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-color-scheme: dark) {
-  .map-loading { background: rgba(24, 24, 27, 0.8); }
+  .map-loading { background: rgba(24, 24, 27, 0.7); }
+  .map-loading-text { color: #a1a1aa; }
 }
 .map-controls {
   position: absolute;
@@ -3135,6 +3152,16 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   color: #a1a1aa;
   font-size: 11px;
   letter-spacing: 0.5px;
+}
+.ep-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  color: #a1a1aa;
+  font-size: 11px;
+  letter-spacing: 0.3px;
 }
 
 /* Section */
