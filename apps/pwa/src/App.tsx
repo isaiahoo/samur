@@ -5,7 +5,6 @@ import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import { Layout } from "./components/Layout.js";
 import { Spinner } from "./components/Spinner.js";
 
-const MapPage = lazy(() => import("./pages/MapPage.js").then((m) => ({ default: m.MapPage })));
 const HelpPage = lazy(() => import("./pages/HelpPage.js").then((m) => ({ default: m.HelpPage })));
 const AlertsPage = lazy(() => import("./pages/AlertsPage.js").then((m) => ({ default: m.AlertsPage })));
 const NewsPage = lazy(() => import("./pages/NewsPage.js").then((m) => ({ default: m.NewsPage })));
@@ -21,7 +20,7 @@ export function App() {
       <Suspense fallback={<Spinner />}>
         <Routes>
           <Route element={<Layout />}>
-            <Route path="/" element={<MapPage />} />
+            <Route path="/" element={null} />
             <Route path="/help" element={<HelpPage />} />
             <Route path="/alerts" element={<AlertsPage />} />
             <Route path="/news" element={<NewsPage />} />

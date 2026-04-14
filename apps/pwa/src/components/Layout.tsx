@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useRef, useEffect } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useUIStore } from "../store/ui.js";
 import { useAuthStore } from "../store/auth.js";
 import { useOnline } from "../hooks/useOnline.js";
 import { BottomSheet } from "./BottomSheet.js";
 import { Toast } from "./Toast.js";
 import { SOSButton } from "./SOSButton.js";
+import { MapPage } from "../pages/MapPage.js";
 
 export function Layout() {
   const unread = useUIStore((s) => s.unreadAlerts);
@@ -16,6 +17,8 @@ export function Layout() {
   const crisisRivers = useUIStore((s) => s.crisisRivers);
   const online = useOnline();
   const socketConnected = useUIStore((s) => s.socketConnected);
+  const location = useLocation();
+  const isMapRoute = location.pathname === "/";
 
   const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
@@ -117,7 +120,11 @@ export function Layout() {
       )}
 
       <main className="app-main" id="app-main">
-        <Outlet />
+        {/* MapPage is always mounted to preserve map state + WebSocket listeners across tab switches */}
+        <div className={isMapRoute ? "map-keep-alive map-keep-alive--visible" : "map-keep-alive"}>
+          <MapPage />
+        </div>
+        {!isMapRoute && <Outlet />}
       </main>
 
       <nav className="app-tabbar">

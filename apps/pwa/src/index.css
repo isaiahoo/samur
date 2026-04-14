@@ -185,6 +185,21 @@ a { color: var(--color-primary); text-decoration: none; }
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   min-height: 0;
+  position: relative;
+}
+/* Keep MapPage mounted but hidden when on other tabs */
+.map-keep-alive {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.map-keep-alive--visible {
+  position: relative;
+  visibility: visible;
+  pointer-events: auto;
+  height: 100%;
 }
 .app-tabbar {
   display: flex;

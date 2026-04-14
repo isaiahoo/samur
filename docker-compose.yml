@@ -73,9 +73,12 @@ services:
       TG_BOT_TOKEN: "${TG_BOT_TOKEN}"
       API_BASE_URL: "http://api:3000"
       SOCKET_URL: "http://api:3000"
+      REDIS_URL: "redis://redis:6379"
     depends_on:
       api:
         condition: service_started
+      redis:
+        condition: service_healthy
 
   pwa:
     build:
