@@ -6,7 +6,7 @@ import { Protocol } from "pmtiles";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Incident, HelpRequest, Shelter, RiverLevel, EarthquakeEvent } from "@samur/shared";
 import {
-  MAKHACHKALA_CENTER,
+  DAGESTAN_CENTER,
   INCIDENT_TYPE_LABELS,
   SEVERITY_LABELS,
   HELP_CATEGORY_LABELS,
@@ -206,8 +206,8 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: "/api/v1/tiles/style.json",
-      center: [MAKHACHKALA_CENTER.lng, MAKHACHKALA_CENTER.lat],
-      zoom: 11,
+      center: [DAGESTAN_CENTER.lng, DAGESTAN_CENTER.lat],
+      zoom: 8,
       attributionControl: false,
     });
 

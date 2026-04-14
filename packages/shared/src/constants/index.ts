@@ -219,6 +219,12 @@ export const MAKHACHKALA_CENTER = {
   lng: 47.5047,
 } as const;
 
-export const DEFAULT_MAP_ZOOM = 12;
+// Center of all river monitoring stations across Dagestan
+export const DAGESTAN_CENTER = {
+  lat: 42.50,
+  lng: 47.13,
+} as const;
+
+export const DEFAULT_MAP_ZOOM = 8;
 
 export const TILE_CACHE_ZOOM_RANGE = { min: 8, max: 16 } as const;
