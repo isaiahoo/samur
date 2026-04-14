@@ -264,6 +264,7 @@ export const GaugeChart = memo(function GaugeChart({
 
   if (chartData.length < 2) return null;
 
+  const hasObserved = chartData.some((p) => p.value !== null);
   const hasPercentiles = chartData.some((p) => p.p25 !== null && p.p75 !== null);
   const hasHistorical = chartData.some((p) => p.histAvg !== null);
   const hasAiForecast = chartData.some((p) => p.aiForecast !== null);
@@ -560,9 +561,11 @@ export const GaugeChart = memo(function GaugeChart({
 
       {/* Compact legend — inline with color dots */}
       <div className="gauge-chart-legend">
-        <span className="gauge-chart-legend-item">
-          <span className="gauge-chart-legend-dot" style={{ background: "#2563EB" }} /> Факт
-        </span>
+        {hasObserved && (
+          <span className="gauge-chart-legend-item">
+            <span className="gauge-chart-legend-dot" style={{ background: "#2563EB" }} /> Факт
+          </span>
+        )}
         <span className="gauge-chart-legend-item">
           <span className="gauge-chart-legend-dot gauge-chart-legend-dot--dashed" /> Прогноз
         </span>

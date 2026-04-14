@@ -5,6 +5,7 @@ import { formatRelativeTime } from "@samur/shared";
 import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning, checkUpstreamDanger } from "./gaugeUtils.js";
 import { GaugeChart, type HistoryPoint } from "./GaugeChart.js";
 import { DamageScenario } from "./DamageScenario.js";
+import { AiForecastPanel } from "./AiForecastPanel.js";
 import { computeScenarioAwareness } from "./scenarioAwareness.js";
 import { getScenariosForRiver } from "./floodScenarios.js";
 import { getRiverLevelHistory, getHistoricalStats, getHistoricalPeaks, getAiForecast } from "../../services/api.js";
@@ -239,7 +240,7 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
       {/* Technical details */}
       {hasData && <p className="detail-tech">{techText}</p>}
 
-      {/* Chart mode toggle + chart — hide if all predictions are zero (model can't predict) */}
+      {/* Chart mode toggle */}
       {hasData && aiForecastData.length > 0 && aiForecastData.some((d) => (d.levelCm ?? 0) > 0) && (
         <div className="chart-mode-toggle">
           <div className="chart-mode-row">
@@ -259,11 +260,18 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
           </div>
           <p className="chart-mode-hint">
             {aiMode
-              ? "Прогноз уровня воды от Самур AI (на основе исторических данных и погоды)"
+              ? "Прогноз уровня воды от Самур AI"
               : "Текущий расход воды по данным GloFAS (спутниковая модель)"}
           </p>
         </div>
       )}
+
+      {/* AI forecast panel — shown in AI mode */}
+      {aiMode && aiForecastData.length > 0 && (
+        <AiForecastPanel data={aiForecastData} dangerLevelCm={r.dangerLevelCm} />
+      )}
+
+      {/* Chart */}
       {hasData && historyLoading && (
         <div className="gauge-chart-loading">Загрузка графика...</div>
       )}
@@ -275,7 +283,7 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
           dischargeMean={r.dischargeMean}
           mode={mode}
           historicalStats={!aiMode && histStats.length > 0 ? histStats : undefined}
-          aiForecast={chartAiForecast.length > 0 ? chartAiForecast : undefined}
+          aiForecast={!aiMode && chartAiForecast.length > 0 ? chartAiForecast : undefined}
         />
       )}
 
