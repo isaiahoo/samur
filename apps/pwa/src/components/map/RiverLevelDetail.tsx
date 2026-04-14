@@ -239,8 +239,8 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
       {/* Technical details */}
       {hasData && <p className="detail-tech">{techText}</p>}
 
-      {/* Chart mode toggle + chart */}
-      {hasData && aiForecastData.length > 0 && (
+      {/* Chart mode toggle + chart — hide if all predictions are zero (model can't predict) */}
+      {hasData && aiForecastData.length > 0 && aiForecastData.some((d) => (d.levelCm ?? 0) > 0) && (
         <div className="chart-mode-row">
           <button
             className={`chart-mode-btn ${aiMode ? "chart-mode-btn--active" : ""}`}
