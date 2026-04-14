@@ -233,8 +233,10 @@ export function MapPage() {
 
   // Initial data fetch — river levels + precipitation + soil moisture + snow + forecast loaded once, rest refetched on map move
   useEffect(() => {
-    // Critical fetches gate the loading indicator; optional overlays run in parallel
-    Promise.all([fetchData(), fetchRiverLevels()]).then(() => setInitialLoading(false), () => setInitialLoading(false));
+    // Critical fetches gate the loading indicator; safety timeout prevents indefinite hang
+    const safetyTimer = setTimeout(() => setInitialLoading(false), 6000);
+    Promise.all([fetchData(), fetchRiverLevels()])
+      .finally(() => { clearTimeout(safetyTimer); setInitialLoading(false); });
     fetchPrecipData();
     fetchSoilMoistureData();
     fetchSnowData();
