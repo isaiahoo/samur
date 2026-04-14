@@ -191,7 +191,6 @@ a { color: var(--color-primary); text-decoration: none; }
   inset: 0;
   visibility: hidden;
   pointer-events: none;
-  z-index: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
