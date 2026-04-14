@@ -35,15 +35,10 @@ export default defineConfig({
             },
           },
           {
-            // API GET requests — network first with 3s timeout
-            urlPattern: /\/api\/v1\/.*/i,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "api-cache",
-              networkTimeoutSeconds: 3,
-              expiration: { maxEntries: 500, maxAgeSeconds: 24 * 60 * 60 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
+            // API GET requests — pass straight through to network (no SW caching)
+            // NetworkFirst was hanging on iOS Safari, breaking the entire app on repeat visits
+            urlPattern: /\/api\/v1\/(?!tiles\/).*/i,
+            handler: "NetworkOnly",
           },
           {
             // Images
