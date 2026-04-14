@@ -34,35 +34,42 @@
   <body>
     <div id="root"></div>
     <script>
-      // Global crash overlay — shows JS errors instead of a white screen
-      window.addEventListener('error', function(e) {
-        var d = document.getElementById('crash-overlay');
-        if (!d) {
-          d = document.createElement('div');
-          d.id = 'crash-overlay';
-          d.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff;padding:24px;font:14px/1.5 system-ui;color:#18181b;overflow:auto';
-          document.body.appendChild(d);
+      // Debug log — visible in the corner. Remove after debugging.
+      var _dbg = [];
+      function dbgLog(msg) {
+        _dbg.push(new Date().toLocaleTimeString() + ' ' + msg);
+        var el = document.getElementById('dbg-log');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'dbg-log';
+          el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:99999;background:rgba(0,0,0,0.85);color:#0f0;font:11px/1.4 monospace;padding:8px;max-height:40vh;overflow:auto;pointer-events:none';
+          document.body.appendChild(el);
         }
-        // Build DOM safely — no innerHTML with user-controlled strings
-        d.textContent = '';
-        var h = document.createElement('h2');
-        h.style.cssText = 'margin:0 0 8px;font-size:18px';
-        h.textContent = 'Ошибка загрузки';
-        var p = document.createElement('p');
-        p.style.cssText = 'color:#71717a;margin:0 0 12px';
-        p.textContent = 'Попробуйте обновить страницу';
-        var pre = document.createElement('pre');
-        pre.style.cssText = 'background:#f4f4f5;padding:12px;border-radius:8px;overflow:auto;font-size:12px;white-space:pre-wrap';
-        pre.textContent = (e.message || 'Unknown error') + '\n' + (e.filename || '') + ':' + (e.lineno || '');
-        var btn = document.createElement('button');
-        btn.style.cssText = 'margin-top:12px;padding:8px 20px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer';
-        btn.textContent = 'Обновить';
-        btn.onclick = function() { location.reload(); };
-        d.appendChild(h);
-        d.appendChild(p);
-        d.appendChild(pre);
-        d.appendChild(btn);
+        el.textContent = _dbg.slice(-15).join('\n');
+      }
+      window.dbgLog = dbgLog;
+      dbgLog('html parsed');
+
+      // Catch all JS errors
+      window.addEventListener('error', function(e) {
+        dbgLog('ERROR: ' + (e.message || 'unknown') + ' @ ' + (e.filename || '').split('/').pop() + ':' + e.lineno);
       });
+      // Catch unhandled promise rejections
+      window.addEventListener('unhandledrejection', function(e) {
+        dbgLog('REJECT: ' + (e.reason && e.reason.message || e.reason || 'unknown'));
+      });
+      // Catch resource load failures (scripts, CSS)
+      window.addEventListener('error', function(e) {
+        if (e.target && e.target.tagName) {
+          dbgLog('LOAD FAIL: ' + e.target.tagName + ' ' + (e.target.src || e.target.href || '').split('/').pop());
+        }
+      }, true);
+      // Track SW state
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          dbgLog('SW regs: ' + regs.length);
+        });
+      }
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>

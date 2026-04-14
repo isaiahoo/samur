@@ -232,8 +232,9 @@ export function MapPage() {
 
   // Initial data fetch — river levels + precipitation + soil moisture + snow + forecast loaded once, rest refetched on map move
   useEffect(() => {
-    fetchData();
-    fetchRiverLevels();
+    window.dbgLog?.("MapPage mounted, fetching...");
+    fetchData().then(() => window.dbgLog?.("fetchData done"));
+    fetchRiverLevels().then(() => window.dbgLog?.("rivers: " + riverLevels.length));
     fetchPrecipData();
     fetchSoilMoistureData();
     fetchSnowData();

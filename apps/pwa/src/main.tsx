@@ -7,6 +7,12 @@ import { getSocket } from "./services/socket.js";
 import "./i18n/index.js";
 import "./index.css";
 
+// Debug logger — writes to the visible overlay in index.html
+declare global { interface Window { dbgLog?: (msg: string) => void; } }
+const dbg = (msg: string) => window.dbgLog?.(msg);
+
+dbg("main.tsx loaded");
+
 if (import.meta.env.VITE_SENTRY_DSN) {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -15,18 +21,17 @@ if (import.meta.env.VITE_SENTRY_DSN) {
   });
 }
 
-startOutboxPolling();
+try { startOutboxPolling(); dbg("outbox ok"); } catch (e) { dbg("outbox err: " + e); }
+try { getSocket(); dbg("socket ok"); } catch (e) { dbg("socket err: " + e); }
 
-getSocket();
-
-// Kill any existing Service Workers — the SW's fetch interception causes
-// iOS Safari to hang on repeat visits. The app works fully without a SW.
-// PWA "Add to Home Screen" still works via manifest.json + apple-touch-icon.
+// Kill any existing Service Workers
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.getRegistrations().then((regs) => {
+    if (regs.length > 0) dbg("killing " + regs.length + " SWs");
     regs.forEach((r) => r.unregister());
   });
   caches.keys().then((keys) => {
+    if (keys.length > 0) dbg("clearing " + keys.length + " caches");
     keys.forEach((k) => caches.delete(k));
   });
 }
@@ -41,4 +46,6 @@ document.addEventListener(
   { once: true },
 );
 
+dbg("rendering React");
 createRoot(document.getElementById("root")!).render(<App />);
+dbg("React render called");
