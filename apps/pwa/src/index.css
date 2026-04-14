@@ -247,9 +247,13 @@ a { color: var(--color-primary); text-decoration: none; }
   inset: 0;
   background: rgba(0,0,0,0.4);
   z-index: 2000;
-  display: flex;
-  align-items: flex-end;
-  overscroll-behavior: contain;
+  overflow: hidden;
+}
+.sheet-overlay > .sheet {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
 }
 .sheet {
   background: var(--color-surface);
@@ -261,8 +265,8 @@ a { color: var(--color-primary); text-decoration: none; }
   animation: sheetUp 0.25s ease-out;
 }
 .sheet--tall {
-  max-height: 92vh;
-  max-height: 92dvh;
+  height: 92vh;
+  height: 92dvh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
