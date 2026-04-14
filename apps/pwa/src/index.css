@@ -2973,44 +2973,31 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .eq-legend-dot--md { width: 12px; height: 12px; background: #f97316; }
 .eq-legend-dot--lg { width: 16px; height: 16px; background: #ef4444; }
 
-/* ── Самур AI legend ───────────────────────────────────────────────── */
+/* ── Самур AI legend (inline inside flood legend) ────────────────── */
 
-.ai-legend {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(8px);
-  border-radius: 8px;
-  padding: 8px 12px 6px;
-  font-size: 12px;
-}
-
-.ai-legend-header {
+.ai-legend-inline {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 2px;
+  gap: 5px;
+  margin-top: 5px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(160, 160, 170, 0.15);
 }
 
 .ai-legend-ring {
-  width: 12px;
-  height: 12px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: #71717a;
-  outline: 2px solid #14b8a6;
+  outline: 1.5px solid #14b8a6;
   outline-offset: 1px;
   flex-shrink: 0;
 }
 
-.ai-legend-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: #14b8a6;
-  letter-spacing: 0.2px;
-}
-
-.ai-legend-desc {
+.ai-legend-text {
   font-size: 10px;
-  color: var(--color-muted);
-  padding-left: 18px;
+  color: #14b8a6;
+  opacity: 0.85;
 }
 
 /* ── Earthquake detail panel ─────────────────────────────────────────── */
@@ -3732,7 +3719,6 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
   /* Map legends */
   .eq-legend,
-  .ai-legend,
   .layer-panel,
   .nerv-layers {
     background: rgba(39, 39, 42, 0.92);
@@ -3740,6 +3726,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   }
 
   .ai-legend-ring { background: #52525b; }
+  .ai-legend-inline { border-top-color: rgba(160, 160, 170, 0.1); }
   .gauge-card-ai { color: #5eead4; border-top-color: #115e59; }
 
   /* Event panel — dark mode */
