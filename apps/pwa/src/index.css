@@ -579,7 +579,6 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   border: 2.5px solid rgba(255,255,255,0.9);
   box-shadow: 0 1px 4px rgba(0,0,0,0.3);
   cursor: pointer;
-  transition: transform 0.15s;
 }
 .gauge-dot:hover { transform: scale(1.3); }
 
@@ -595,7 +594,6 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   white-space: nowrap;
   box-shadow: 0 1px 4px rgba(0,0,0,0.3);
   cursor: pointer;
-  transition: transform 0.15s;
   letter-spacing: 0.3px;
   pointer-events: auto;
   line-height: 1;
@@ -612,7 +610,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   padding: 8px 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
   cursor: pointer;
-  transition: transform 0.15s, opacity 0.2s;
+  transition: opacity 0.2s;
   border-left: 4px solid #a1a1aa;
   min-width: 120px;
   max-width: 180px;
@@ -2413,7 +2411,6 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   border: 1.5px solid rgba(255, 255, 255, 0.5);
   pointer-events: auto;
-  transition: transform 0.15s;
 }
 .settlement-risk:hover {
   transform: scale(1.08);
@@ -2458,7 +2455,6 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   border: 1.5px solid rgba(255, 255, 255, 0.5);
   pointer-events: auto;
-  transition: transform 0.15s;
 }
 .melt-risk:hover {
   transform: scale(1.08);
@@ -2961,7 +2957,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 /* ── Earthquake markers ──────────────────────────────────────────────── */
 
-.eq-marker { transition: transform 0.15s ease; z-index: 5; }
+.eq-marker { z-index: 5; }
 .eq-marker:hover { transform: scale(1.3); z-index: 10; }
 
 .eq-marker--pulse {
