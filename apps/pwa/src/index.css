@@ -4014,7 +4014,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 @media (max-width: 768px) {
   .sos-fab {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 110px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 74px);
   }
 }
 @keyframes sos-glow {
