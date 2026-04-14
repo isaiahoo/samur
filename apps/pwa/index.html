@@ -64,30 +64,6 @@
         d.appendChild(btn);
       });
     </script>
-    <script>
-      // SW kill switch — if the main JS bundle hasn't rendered anything after 12s,
-      // the Service Worker is likely hanging fetch requests (iOS Safari bug).
-      // Unregister all SWs, clear caches, and reload. The sessionStorage flag
-      // prevents an infinite reload loop.
-      setTimeout(function() {
-        var root = document.getElementById('root');
-        if (root && root.children.length === 0 && 'serviceWorker' in navigator) {
-          if (!sessionStorage.getItem('sw-kill')) {
-            sessionStorage.setItem('sw-kill', '1');
-            navigator.serviceWorker.getRegistrations().then(function(regs) {
-              var p = regs.map(function(r) { return r.unregister(); });
-              return Promise.all(p);
-            }).then(function() {
-              return caches.keys();
-            }).then(function(keys) {
-              return Promise.all(keys.map(function(k) { return caches.delete(k); }));
-            }).then(function() {
-              location.reload();
-            });
-          }
-        }
-      }, 12000);
-    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

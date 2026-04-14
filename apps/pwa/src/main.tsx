@@ -19,29 +19,16 @@ startOutboxPolling();
 
 getSocket();
 
+// Kill any existing Service Workers — the SW's fetch interception causes
+// iOS Safari to hang on repeat visits. The app works fully without a SW.
+// PWA "Add to Home Screen" still works via manifest.json + apple-touch-icon.
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {
-      // Service worker registration failed — app still works
-    });
+  navigator.serviceWorker.getRegistrations().then((regs) => {
+    regs.forEach((r) => r.unregister());
   });
-
-  // SW recovery: if the app is stuck (empty root after 8s), the SW is likely
-  // broken (iOS Safari SW fetch bug). Unregister it and reload once.
-  if (!sessionStorage.getItem("sw-recovery")) {
-    setTimeout(async () => {
-      const root = document.getElementById("root");
-      if (root && root.children.length === 0) {
-        sessionStorage.setItem("sw-recovery", "1");
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((r) => r.unregister()));
-        // Clear all SW caches
-        const keys = await caches.keys();
-        await Promise.all(keys.map((k) => caches.delete(k)));
-        location.reload();
-      }
-    }, 8000);
-  }
+  caches.keys().then((keys) => {
+    keys.forEach((k) => caches.delete(k));
+  });
 }
 
 document.addEventListener(
