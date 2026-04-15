@@ -2858,7 +2858,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   display: flex;
   flex-direction: row;
   gap: 6px;
-  justify-content: center;
+  /* no justify-content — first/last pseudo-elements auto-center when space allows */
   pointer-events: none;
   overflow-x: auto;
   overflow-y: hidden;
@@ -2868,6 +2868,12 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .map-legends::-webkit-scrollbar {
   display: none;
+}
+.map-legends::before,
+.map-legends::after {
+  content: "";
+  flex: 1;
+  min-width: 0;
 }
 .map-legends > * {
   flex-shrink: 0;
