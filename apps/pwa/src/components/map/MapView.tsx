@@ -79,12 +79,25 @@ function esc(s: unknown): string {
     .replace(/'/g, "&#39;");
 }
 
+function photoThumbsHTML(raw: unknown): string {
+  try {
+    const urls: string[] = JSON.parse((raw as string) || "[]");
+    if (urls.length === 0) return "";
+    const thumbs = urls.slice(0, 3).map((u) =>
+      `<img class="popup-thumb" src="${esc(u)}" alt="" loading="lazy" />`
+    ).join("");
+    const extra = urls.length > 3 ? `<span class="popup-thumb-more">+${urls.length - 3}</span>` : "";
+    return `<div class="popup-thumbs">${thumbs}${extra}</div>`;
+  } catch { return ""; }
+}
+
 function incidentPopupHTML(p: Record<string, unknown>): string {
   const type = INCIDENT_TYPE_LABELS[p.type as string] ?? p.type;
   const severity = SEVERITY_LABELS[p.severity as string] ?? p.severity;
   const desc = p.description || "Нет описания";
   const time = formatRelativeTime(p.createdAt as string);
-  return `<div class="popup-content"><strong>${esc(type)}</strong><span class="popup-badge severity-${esc(p.severity)}">${esc(severity)}</span><p>${esc(desc)}</p><small>${esc(time)}</small></div>`;
+  const photos = photoThumbsHTML(p.photoUrls);
+  return `<div class="popup-content">${photos}<strong>${esc(type)}</strong><span class="popup-badge severity-${esc(p.severity)}">${esc(severity)}</span><p>${esc(desc)}</p><small>${esc(time)}</small></div>`;
 }
 
 function helpPopupHTML(p: Record<string, unknown>): string {
@@ -92,7 +105,8 @@ function helpPopupHTML(p: Record<string, unknown>): string {
   const typeLabel = p.type === "offer" ? "Предлагает помощь" : "Нужна помощь";
   const desc = p.description || "Нет описания";
   const time = formatRelativeTime(p.createdAt as string);
-  return `<div class="popup-content"><strong>${esc(cat)}</strong><p>${esc(typeLabel)}</p><p>${esc(desc)}</p><small>${esc(time)}</small></div>`;
+  const photos = photoThumbsHTML(p.photoUrls);
+  return `<div class="popup-content">${photos}<strong>${esc(cat)}</strong><p>${esc(typeLabel)}</p><p>${esc(desc)}</p><small>${esc(time)}</small></div>`;
 }
 
 function shelterPopupHTML(p: Record<string, unknown>): string {

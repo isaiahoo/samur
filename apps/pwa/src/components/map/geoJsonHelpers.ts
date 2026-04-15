@@ -26,6 +26,7 @@ export function toIncidentsGeoJSON(items: Incident[]): FeatureCollection {
         description: inc.description ?? "",
         address: inc.address ?? "",
         createdAt: inc.createdAt,
+        photoUrls: JSON.stringify(inc.photoUrls ?? []),
       }, inc.id),
     ),
   };
@@ -45,6 +46,7 @@ export function toHelpRequestsGeoJSON(items: HelpRequest[]): FeatureCollection {
         contactPhone: hr.contactPhone ?? "",
         contactName: hr.contactName ?? "",
         createdAt: hr.createdAt,
+        photoUrls: JSON.stringify(hr.photoUrls ?? []),
       }, hr.id),
     ),
   };

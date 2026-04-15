@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { useState } from "react";
 import type { Incident, HelpRequest, Shelter, RiverLevel, EarthquakeEvent } from "@samur/shared";
 import {
   INCIDENT_TYPE_LABELS,
@@ -9,6 +10,7 @@ import {
   formatRelativeTime,
 } from "@samur/shared";
 import { UrgencyBadge } from "../UrgencyBadge.js";
+import { ImageLightbox } from "../ImageLightbox.js";
 import { RiverLevelDetail } from "./RiverLevelDetail.js";
 import type { SoilMoisturePoint } from "./geoJsonHelpers.js";
 
@@ -20,11 +22,41 @@ interface DetailPanelProps {
   onClose: () => void;
 }
 
+/** Parse photoUrls which may be a JSON string (from GeoJSON) or an array */
+function parsePhotos(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter((u) => typeof u === "string" && u.length > 0);
+  if (typeof raw === "string" && raw.length > 0) {
+    try { return JSON.parse(raw); } catch { return []; }
+  }
+  return [];
+}
+
+function PhotoGallery({ photos }: { photos: string[] }) {
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  if (photos.length === 0) return null;
+  return (
+    <>
+      <div className="detail-photos">
+        {photos.map((url, i) => (
+          <div key={i} className="detail-photo" onClick={() => setLightboxIndex(i)}>
+            <img src={url} alt="" loading="lazy" />
+          </div>
+        ))}
+      </div>
+      {lightboxIndex !== null && (
+        <ImageLightbox urls={photos} initialIndex={lightboxIndex} onClose={() => setLightboxIndex(null)} />
+      )}
+    </>
+  );
+}
+
 export function DetailPanel({ type, data, allRiverLevels, soilMoisture }: DetailPanelProps) {
   if (type === "incident") {
-    const inc = data as Incident;
+    const inc = data as Incident & { photoUrls?: unknown };
+    const photos = parsePhotos(inc.photoUrls);
     return (
       <div className="detail-panel">
+        <PhotoGallery photos={photos} />
         <div className="detail-header">
           <h3>{INCIDENT_TYPE_LABELS[inc.type] ?? inc.type}</h3>
           <UrgencyBadge value={inc.severity} kind="severity" />
@@ -38,9 +70,11 @@ export function DetailPanel({ type, data, allRiverLevels, soilMoisture }: Detail
   }
 
   if (type === "helpRequest") {
-    const hr = data as HelpRequest;
+    const hr = data as HelpRequest & { photoUrls?: unknown };
+    const photos = parsePhotos(hr.photoUrls);
     return (
       <div className="detail-panel">
+        <PhotoGallery photos={photos} />
         <div className="detail-header">
           <h3>{HELP_CATEGORY_LABELS[hr.category] ?? hr.category}</h3>
           <UrgencyBadge value={hr.urgency} kind="urgency" />
