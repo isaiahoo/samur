@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { IncidentType, HelpCategory } from "@samur/shared";
 import { INCIDENT_TYPE_LABELS, HELP_CATEGORY_LABELS } from "@samur/shared";
 import { useGeolocation } from "../../hooks/useGeolocation.js";
 import { useAuthStore } from "../../store/auth.js";
 import { useUIStore } from "../../store/ui.js";
 import { useOnline } from "../../hooks/useOnline.js";
-import { createIncident, createHelpRequest } from "../../services/api.js";
+import { createIncident, createHelpRequest, uploadPhotos } from "../../services/api.js";
 import { addToOutbox } from "../../services/db.js";
+
+const MAX_PHOTOS = 5;
 
 type ReportType = "incident" | "help_need" | "help_offer";
 
@@ -71,6 +73,8 @@ export function ReportForm({ onClose }: { onClose: () => void }) {
   const [submitting, setSubmitting] = useState(false);
   const [locationName, setLocationName] = useState<string>("");
   const [locationLoading, setLocationLoading] = useState(false);
+  const [photos, setPhotos] = useState<{ file: File; preview: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { position, loading: geoLoading, requestPosition } = useGeolocation();
   const user = useAuthStore((s) => s.user);
@@ -114,6 +118,27 @@ export function ReportForm({ onClose }: { onClose: () => void }) {
     requestPosition();
   }, [requestPosition]);
 
+  const handleAddPhotos = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const remaining = MAX_PHOTOS - photos.length;
+    const newFiles = Array.from(files).slice(0, remaining);
+    const newPhotos = newFiles.map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setPhotos((prev) => [...prev, ...newPhotos]);
+    // Reset input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, [photos.length]);
+
+  const handleRemovePhoto = useCallback((index: number) => {
+    setPhotos((prev) => {
+      URL.revokeObjectURL(prev[index].preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
+
   const handleSubmit = async () => {
     if (!position) {
       showToast("Не удалось определить местоположение", "error");
@@ -123,6 +148,18 @@ export function ReportForm({ onClose }: { onClose: () => void }) {
     setSubmitting(true);
 
     try {
+      // Upload photos first (if any and online)
+      let photoUrls: string[] | undefined;
+      if (photos.length > 0 && online) {
+        try {
+          photoUrls = await uploadPhotos(photos.map((p) => p.file));
+        } catch {
+          showToast("Не удалось загрузить фото", "error");
+          setSubmitting(false);
+          return;
+        }
+      }
+
       if (reportType === "incident" && incidentType) {
         const data = {
           type: incidentType,
@@ -130,6 +167,7 @@ export function ReportForm({ onClose }: { onClose: () => void }) {
           lat: position.lat,
           lng: position.lng,
           description: description || undefined,
+          photoUrls: photoUrls ?? undefined,
           source: "pwa" as const,
         };
 
@@ -150,6 +188,7 @@ export function ReportForm({ onClose }: { onClose: () => void }) {
           urgency: severity === "critical" ? "critical" as const : severity === "high" ? "urgent" as const : "normal" as const,
           contactName: contactName || undefined,
           contactPhone: contactPhone || undefined,
+          photoUrls: photoUrls ?? undefined,
           source: "pwa" as const,
         };
 
@@ -278,6 +317,40 @@ export function ReportForm({ onClose }: { onClose: () => void }) {
               placeholder="Опишите ситуацию..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Фото</label>
+            <div className="photo-slots">
+              {photos.map((p, i) => (
+                <div key={i} className="photo-slot photo-slot--filled">
+                  <img src={p.preview} alt="" />
+                  <button
+                    className="photo-slot-remove"
+                    onClick={() => handleRemovePhoto(i)}
+                    aria-label="Удалить фото"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              {photos.length < MAX_PHOTOS && (
+                <button
+                  className="photo-slot photo-slot--add"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  +
+                </button>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+              multiple
+              style={{ display: "none" }}
+              onChange={handleAddPhotos}
             />
           </div>
 
