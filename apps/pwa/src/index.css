@@ -700,6 +700,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .modal-header h3 { font-size: 18px; }
 
 .map-page { position: relative; height: 100%; overflow: hidden; }
+.map-page--report-open { pointer-events: none; }
 .map-container { width: 100%; height: 100%; z-index: 1; }
 
 /* Geolocation denied banner */

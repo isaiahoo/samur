@@ -416,7 +416,7 @@ export function MapPage() {
   ];
 
   return (
-    <div className={`map-page${eventPanelOpen ? " map-page--panel-open" : ""}`}>
+    <div className={`map-page${eventPanelOpen ? " map-page--panel-open" : ""}${showReport ? " map-page--report-open" : ""}`}>
       <MapView
         ref={mapViewRef}
         incidents={incidents}
