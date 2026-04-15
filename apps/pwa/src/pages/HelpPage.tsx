@@ -345,7 +345,11 @@ function HelpCard({
               {item.address}
             </span>
           )}
-          <span>{formatRelativeTime(item.createdAt)}</span>
+          <span>
+            {formatRelativeTime(item.createdAt)}
+            {" · "}
+            {new Date(item.createdAt).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+          </span>
         </div>
       </div>
       <div className="help-card-actions">
