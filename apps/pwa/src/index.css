@@ -744,8 +744,10 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 .report-overlay {
   position: fixed;
-  bottom: 0; left: 0; right: 0;
-  max-height: 75vh;
+  /* Sit above tab bar (54px min-height + safe-area) */
+  bottom: calc(54px + env(safe-area-inset-bottom, 0px));
+  left: 0; right: 0;
+  max-height: 70vh;
   background: #fff;
   z-index: 2000;
   overflow-y: auto;
