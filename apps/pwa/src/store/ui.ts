@@ -26,6 +26,9 @@ interface UIState {
   crisisMode: boolean;
   crisisRivers: string[];
   setCrisis: (mode: boolean, rivers: string[]) => void;
+
+  reportFormOpen: boolean;
+  setReportFormOpen: (open: boolean) => void;
 }
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -77,4 +80,7 @@ export const useUIStore = create<UIState>()((set) => ({
   crisisMode: false,
   crisisRivers: [],
   setCrisis: (mode, rivers) => set({ crisisMode: mode, crisisRivers: rivers }),
+
+  reportFormOpen: false,
+  setReportFormOpen: (open) => set({ reportFormOpen: open }),
 }));

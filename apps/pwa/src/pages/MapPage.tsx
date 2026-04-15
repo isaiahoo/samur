@@ -31,7 +31,12 @@ export function MapPage() {
   const [earthquakes, setEarthquakes] = useState<EarthquakeEvent[]>([]);
   const [aiStationKeys, setAiStationKeys] = useState<Set<string>>(new Set());
   const [aiSummaries, setAiSummaries] = useState<Map<string, string>>(new Map());
-  const [showReport, setShowReport] = useState(false);
+  const [showReport, _setShowReport] = useState(false);
+  const setReportFormOpen = useUIStore((s) => s.setReportFormOpen);
+  const setShowReport = useCallback((open: boolean) => {
+    _setShowReport(open);
+    setReportFormOpen(open);
+  }, [setReportFormOpen]);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
 
   // Timeline scrubber state

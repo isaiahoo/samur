@@ -14,6 +14,7 @@ const HOLD_DURATION = 2000;
 const AUTO_SEND_DELAY = 5000;
 
 export function SOSButton() {
+  const reportFormOpen = useUIStore((s) => s.reportFormOpen);
   const [stage, setStage] = useState<Stage>("idle");
   const [holdProgress, setHoldProgress] = useState(0);
   const [autoSendCountdown, setAutoSendCountdown] = useState(AUTO_SEND_DELAY / 1000);
@@ -172,6 +173,9 @@ export function SOSButton() {
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [stage, cancel, close]);
+
+  // Hide when report form is open — user already chose "+" over SOS
+  if (stage === "idle" && reportFormOpen) return null;
 
   // Render: idle FAB
   if (stage === "idle") {
