@@ -278,7 +278,7 @@ export function HelpPage() {
         Создать
       </button>
 
-      {showForm && <HelpFormSheet tab={tab} onClose={() => { setShowForm(false); handleRefresh(); }} />}
+      {showForm && <HelpFormSheet tab={tab} onClose={() => { setShowForm(false); handleRefresh(); window.scrollTo({ top: 0, behavior: "smooth" }); }} />}
 
       {detailItem && (
         <HelpDetailSheet

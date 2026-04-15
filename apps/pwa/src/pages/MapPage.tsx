@@ -530,7 +530,13 @@ export function MapPage() {
         <>
           <div className="report-overlay-backdrop" onClick={() => setShowReport(false)} onTouchMove={(e) => e.preventDefault()} />
           <div className="report-overlay">
-            <ReportForm onClose={() => setShowReport(false)} />
+            <ReportForm
+              onClose={() => setShowReport(false)}
+              onCreated={(lat, lng) => {
+                // Fly to the newly created item after a short delay for WebSocket marker to arrive
+                setTimeout(() => mapViewRef.current?.flyTo(lng, lat, 15), 400);
+              }}
+            />
           </div>
         </>,
         document.body,

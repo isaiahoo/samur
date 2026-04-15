@@ -63,7 +63,7 @@ async function reverseGeocode(lat: number, lng: number): Promise<string | null> 
   }
 }
 
-export function ReportForm({ onClose }: { onClose: () => void }) {
+export function ReportForm({ onClose, onCreated }: { onClose: () => void; onCreated?: (lat: number, lng: number) => void }) {
   const [step, setStep] = useState(1);
   const [reportType, setReportType] = useState<ReportType | null>(null);
   const [incidentType, setIncidentType] = useState<IncidentType | null>(null);
@@ -180,6 +180,8 @@ export function ReportForm({ onClose }: { onClose: () => void }) {
           await addToOutbox({ endpoint: "/incidents", method: "POST", body: data });
           showToast("Сохранено. Отправится при подключении к сети", "info");
         }
+        onClose();
+        onCreated?.(position.lat, position.lng);
       } else if (helpCategory) {
         const data = {
           type: reportType === "help_offer" ? "offer" as const : "need" as const,
@@ -201,9 +203,9 @@ export function ReportForm({ onClose }: { onClose: () => void }) {
           await addToOutbox({ endpoint: "/help-requests", method: "POST", body: data });
           showToast("Сохранено. Отправится при подключении к сети", "info");
         }
+        onClose();
+        onCreated?.(position.lat, position.lng);
       }
-
-      onClose();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Ошибка отправки", "error");
     } finally {
