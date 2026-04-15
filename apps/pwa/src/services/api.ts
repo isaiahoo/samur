@@ -39,7 +39,15 @@ async function request<T>(
   const json = await res.json();
 
   if (!res.ok) {
-    const msg = json?.error?.message ?? `Ошибка ${res.status}`;
+    let msg = json?.error?.message ?? `Ошибка ${res.status}`;
+    // Append field-level details for validation errors
+    const details = json?.error?.details;
+    if (details && typeof details === "object") {
+      const fieldErrors = Object.entries(details)
+        .map(([field, msgs]) => `${field}: ${(msgs as string[]).join(", ")}`)
+        .join("; ");
+      if (fieldErrors) msg += ` (${fieldErrors})`;
+    }
     throw new ApiError(res.status, json?.error?.code ?? "UNKNOWN", msg);
   }
   return json;
