@@ -186,54 +186,58 @@ export function MapPage() {
     } catch { /* ignore — timeline is enhancement, not critical */ }
   }, []);
 
-  // Bounds-dependent data — refetch on map move
-  const fetchData = useCallback(async () => {
+  // Incidents — bounds-dependent, refetched on map move
+  const fetchIncidents = useCallback(async () => {
     try {
       const bounds = boundsRef.current;
-      const params: Record<string, string | number> = { limit: 100 };
+      const params: Record<string, string | number> = { limit: 100, status: "unverified" };
       if (bounds) {
         params.north = bounds.north;
         params.south = bounds.south;
         params.east = bounds.east;
         params.west = bounds.west;
       }
+      const res = await getIncidents(params).catch(() => null);
+      const data = (res?.data ?? []) as Incident[];
+      setIncidents(data);
+      await cacheItems("incidents", data as unknown as Record<string, unknown>[]);
+    } catch {
+      const cached = await getCachedItems("incidents");
+      setIncidents(cached as unknown as Incident[]);
+    }
+  }, []);
 
-      const [incRes, hrRes, shRes] = await Promise.all([
-        getIncidents({ ...params, status: "unverified" }).catch(() => null),
-        getHelpRequests({ ...params, status: "open" }).catch(() => null),
+  // Help requests & shelters — fetched once on mount (low-volume, global data)
+  // Updated in real-time via WebSocket, not on map move
+  const fetchGlobalData = useCallback(async () => {
+    try {
+      const [hrRes, shRes] = await Promise.all([
+        getHelpRequests({ limit: 100, status: "open" }).catch(() => null),
         getShelters({ limit: 100 }).catch(() => null),
       ]);
-
-      const incData = (incRes?.data ?? []) as Incident[];
       const hrData = (hrRes?.data ?? []) as HelpRequest[];
       const shData = (shRes?.data ?? []) as Shelter[];
-
-      setIncidents(incData);
       setHelpRequests(hrData);
       setShelters(shData);
-
-      // Cache for offline
       await Promise.all([
-        cacheItems("incidents", incData as unknown as Record<string, unknown>[]),
         cacheItems("help_requests", hrData as unknown as Record<string, unknown>[]),
         cacheItems("shelters", shData as unknown as Record<string, unknown>[]),
       ]);
     } catch {
-      // Fallback to cached data
-      const [cachedInc, cachedHr, cachedSh] = await Promise.all([
-        getCachedItems("incidents"),
+      const [cachedHr, cachedSh] = await Promise.all([
         getCachedItems("help_requests"),
         getCachedItems("shelters"),
       ]);
-      setIncidents(cachedInc as unknown as Incident[]);
       setHelpRequests(cachedHr as unknown as HelpRequest[]);
       setShelters(cachedSh as unknown as Shelter[]);
     }
   }, []);
 
-  // Initial data fetch — river levels + precipitation + soil moisture + snow + forecast loaded once, rest refetched on map move
+  // Initial data fetch — river levels + precipitation + soil moisture + snow + forecast loaded once
+  // Help requests & shelters loaded once (updated via WebSocket), incidents refetched on map move
   useEffect(() => {
-    fetchData();
+    fetchIncidents();
+    fetchGlobalData();
     fetchRiverLevels();
     fetchPrecipData();
     fetchSoilMoistureData();
@@ -248,7 +252,7 @@ export function MapPage() {
       if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
       clearInterval(eqInterval);
     };
-  }, [fetchData, fetchRiverLevels, fetchPrecipData, fetchSoilMoistureData, fetchSnowData, fetchRunoffData, fetchEarthquakeData, fetchForecastData, fetchAiForecast]);
+  }, [fetchIncidents, fetchGlobalData, fetchRiverLevels, fetchPrecipData, fetchSoilMoistureData, fetchSnowData, fetchRunoffData, fetchEarthquakeData, fetchForecastData, fetchAiForecast]);
 
   useEffect(() => {
     requestPosition();
@@ -383,10 +387,10 @@ export function MapPage() {
 
   const handleMapMove = useCallback((newBounds: MapBounds, _zoom: number) => {
     boundsRef.current = newBounds;
-    // Debounce: refetch data 800ms after the user stops moving the map
+    // Debounce: refetch incidents (bounds-dependent) 800ms after the user stops moving
     if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
-    fetchTimerRef.current = setTimeout(() => { fetchData(); }, 800);
-  }, [fetchData]);
+    fetchTimerRef.current = setTimeout(() => { fetchIncidents(); }, 800);
+  }, [fetchIncidents]);
 
   const toggleLayer = useCallback((key: string) => {
     setLayers((prev) => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
