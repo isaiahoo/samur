@@ -140,8 +140,9 @@ export function MapPage() {
       const summaries = new Map<string, string>();
 
       for (const [key, points] of byStation) {
-        // Filter out all-zero stations (weak models)
-        const hasReal = points.some((p) => (p.predictionUpper ?? 0) > 0);
+        // Filter out stations without usable AI predictions (levelCm must be > 0
+        // to match detail panel condition — otherwise ring shows but no AI section)
+        const hasReal = points.some((p) => (p.levelCm ?? 0) > 0);
         if (!hasReal) continue;
 
         keys.add(key);
