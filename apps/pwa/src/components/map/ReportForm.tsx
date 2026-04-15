@@ -188,8 +188,8 @@ export function ReportForm({ onClose }: { onClose: () => void }) {
           lng: position.lng,
           description: description || undefined,
           urgency: severity === "critical" ? "critical" as const : severity === "high" ? "urgent" as const : "normal" as const,
-          contactName: contactName || undefined,
-          contactPhone: contactPhone || undefined,
+          contactName: contactName.trim() || undefined,
+          contactPhone: contactPhone.replace(/[\s\-\(\)]/g, "").length >= 7 ? contactPhone.trim() : undefined,
           photoUrls: photoUrls ?? undefined,
           source: "pwa" as const,
         };
