@@ -3988,7 +3988,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 /* FAB — persistent red button, bottom-right above tabbar */
 .sos-fab {
   position: fixed;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 78px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 62px);
   left: 16px;
   z-index: 1500;
   width: 52px;
