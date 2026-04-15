@@ -846,6 +846,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 /* ── Gauge station markers (HTML markers on map) ─────────────────────────── */
 
+/* Prevent MapLibre marker wrapper from stretching gauge elements */
+.maplibregl-marker { width: max-content !important; }
+
 /* Dot variant (zoom < 7) */
 .gauge-dot {
   width: 18px;
@@ -867,6 +870,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   font-weight: 700;
   color: #fff;
   white-space: nowrap;
+  width: max-content;
   box-shadow: 0 1px 4px rgba(0,0,0,0.3);
   cursor: pointer;
   letter-spacing: 0.3px;
