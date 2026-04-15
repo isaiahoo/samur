@@ -750,6 +750,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   z-index: 2000;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   border-radius: 16px 16px 0 0;
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
   animation: report-slide-up 0.25s ease-out;
@@ -764,6 +765,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   background: rgba(0, 0, 0, 0.4);
   z-index: 1999;
   -webkit-tap-highlight-color: transparent;
+  touch-action: none;
 }
 .report-overlay::before {
   content: "";

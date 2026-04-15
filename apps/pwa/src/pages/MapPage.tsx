@@ -524,7 +524,7 @@ export function MapPage() {
 
       {showReport && (
         <>
-          <div className="report-overlay-backdrop" onClick={() => setShowReport(false)} />
+          <div className="report-overlay-backdrop" onClick={() => setShowReport(false)} onTouchMove={(e) => e.preventDefault()} />
           <div className="report-overlay">
             <ReportForm onClose={() => setShowReport(false)} />
           </div>
