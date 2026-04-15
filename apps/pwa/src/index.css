@@ -2839,15 +2839,26 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .map-legends > * {
   pointer-events: auto;
+  animation: legendFadeIn 0.3s ease-out both;
+}
+.map-legends > *:nth-child(2) { animation-delay: 0.06s; }
+.map-legends > *:nth-child(3) { animation-delay: 0.12s; }
+.map-legends > *:nth-child(4) { animation-delay: 0.18s; }
+.map-legends > *:nth-child(5) { animation-delay: 0.24s; }
+@keyframes legendFadeIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .soil-legend {
-  background: rgba(15, 15, 15, 0.9);
-  backdrop-filter: blur(10px);
-  border-radius: 8px;
+  background: rgba(10, 10, 14, 0.85);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border-radius: 10px;
   padding: 8px 12px 6px;
-  border: 1px solid rgba(160, 160, 170, 0.2);
+  border: 1px solid rgba(100, 160, 255, 0.15);
   width: 160px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 .soil-legend-header {
   display: flex;
@@ -2900,12 +2911,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 /* ── Snow / snowmelt legend ─────────────────────────────────────────────── */
 
 .snow-legend {
-  background: rgba(15, 15, 15, 0.9);
-  backdrop-filter: blur(10px);
-  border-radius: 8px;
+  background: rgba(10, 10, 14, 0.85);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border-radius: 10px;
   padding: 8px 12px 6px;
-  border: 1px solid rgba(253, 174, 97, 0.2);
+  border: 1px solid rgba(253, 174, 97, 0.15);
   width: 160px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 .snow-legend-header {
   display: flex;
@@ -3050,13 +3063,15 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 /* ── Runoff / flood risk legend ────────────────────────────────────────── */
 .runoff-legend {
-  background: rgba(15, 15, 15, 0.9);
-  backdrop-filter: blur(10px);
-  border-radius: 8px;
+  background: rgba(10, 10, 14, 0.85);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border-radius: 10px;
   padding: 8px 12px 6px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 160, 50, 0.15);
   width: 180px;
   pointer-events: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 .runoff-legend-title {
   font-size: 11px;
@@ -3118,12 +3133,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 /* ── Precipitation legend ────────────────────────────────────────────────── */
 .precip-legend {
-  background: rgba(15, 15, 15, 0.9);
-  backdrop-filter: blur(10px);
-  border-radius: 8px;
+  background: rgba(10, 10, 14, 0.85);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border-radius: 10px;
   padding: 8px 12px 6px;
-  border: 1px solid rgba(160, 170, 180, 0.2);
+  border: 1px solid rgba(100, 180, 255, 0.15);
   width: 200px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 .precip-legend-header {
   display: flex;
@@ -3177,13 +3194,15 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 /* ── Flood zone legend ───────────────────────────────────────────────────── */
 .flood-legend {
-  background: rgba(15, 15, 15, 0.9);
-  backdrop-filter: blur(10px);
-  border-radius: 8px;
+  background: rgba(10, 10, 14, 0.85);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border-radius: 10px;
   padding: 8px 12px 6px;
-  border: 1px solid rgba(250, 180, 50, 0.2);
+  border: 1px solid rgba(250, 180, 50, 0.15);
   width: 160px;
   pointer-events: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 .flood-legend-title {
   font-size: 11px;
@@ -3195,6 +3214,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .flood-legend-bar {
   height: 6px;
   border-radius: 3px;
+  box-shadow: 0 0 8px rgba(250, 180, 50, 0.2);
 }
 .flood-legend-ends {
   display: flex;
@@ -3540,17 +3560,23 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 /* ── Earthquake legend ───────────────────────────────────────────────── */
 
 .eq-legend {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(8px);
-  border-radius: 8px;
+  background: rgba(10, 10, 14, 0.85);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border-radius: 10px;
   padding: 8px 12px;
   font-size: 12px;
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  color: #e4e4e7;
 }
 
 .eq-legend-title {
   font-weight: 600;
+  font-size: 11px;
   margin-bottom: 4px;
-  color: var(--color-text);
+  color: #e4e4e7;
+  letter-spacing: 0.2px;
 }
 
 .eq-legend-items {
