@@ -2319,7 +2319,25 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   justify-content: center;
   padding: 24px;
   background: #fafafa;
+  position: relative;
 }
+.login-back-btn {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #3f3f46;
+  transition: background 0.15s;
+}
+.login-back-btn:active { background: rgba(0, 0, 0, 0.12); }
 .login-card {
   background: #fff;
   border-radius: 12px;
@@ -4627,6 +4645,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   /* Login page */
   .login-page { background: var(--color-bg); }
   .login-card { background: var(--color-surface); border-color: var(--color-border); }
+  .login-back-btn { background: rgba(255, 255, 255, 0.1); color: #d4d4d8; }
+  .login-back-btn:active { background: rgba(255, 255, 255, 0.18); }
   .login-subtitle { color: #d4d4d8; }
   .login-divider { color: #a1a1aa; }
   .login-divider::before, .login-divider::after { background: var(--color-border); }

@@ -275,6 +275,16 @@ export function LoginPage() {
 
   return (
     <div className="login-page">
+      <button
+        className="login-back-btn"
+        onClick={() => navigate(-1)}
+        aria-label="Назад"
+        type="button"
+      >
+        <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+      </button>
       <div className="login-card">
         <div className="login-header">
           <img src="/icons/icon-192.png?v=4" alt="" className="login-logo" width="150" height="150" />
