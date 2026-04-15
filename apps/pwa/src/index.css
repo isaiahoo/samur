@@ -271,6 +271,10 @@ a { color: var(--color-primary); text-decoration: none; }
   display: flex;
   flex-direction: column;
 }
+/* On desktop, sheet can be taller since viewport is wider/shorter */
+@media (min-width: 769px) {
+  .sheet { max-height: 75dvh; }
+}
 @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 .sheet-handle {
   width: 36px;
