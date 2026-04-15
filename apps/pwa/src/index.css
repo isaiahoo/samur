@@ -2858,19 +2858,18 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   display: flex;
   flex-direction: row;
   gap: 6px;
+  justify-content: center;
   pointer-events: none;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  padding: 0 5vw 4px;
-  scroll-snap-type: x proximity;
+  padding: 0 12px 4px;
 }
 .map-legends::-webkit-scrollbar {
   display: none;
 }
 .map-legends > * {
-  scroll-snap-align: start;
   flex-shrink: 0;
   pointer-events: auto;
   animation: legendFadeIn 0.3s ease-out both;
