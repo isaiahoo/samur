@@ -36,6 +36,29 @@ const helpCategoryOptions: { category: HelpCategory; icon: string }[] = [
   { category: "labor", icon: "💪" },
 ];
 
+/** Reverse-geocode coordinates to a human-readable locality name */
+async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ru&zoom=14`,
+      { headers: { "User-Agent": "Samur-PWA/1.0" } },
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const a = data.address;
+    if (!a) return null;
+    // Build locality string: village/town/city + district/county
+    const place = a.village || a.town || a.city || a.hamlet || a.suburb || a.neighbourhood || null;
+    const district = a.county || a.state_district || a.state || null;
+    if (place && district) return `${place}, ${district}`;
+    if (place) return place;
+    if (district) return district;
+    return data.display_name?.split(",").slice(0, 2).join(",").trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 export function ReportForm({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState(1);
   const [reportType, setReportType] = useState<ReportType | null>(null);
@@ -46,11 +69,16 @@ export function ReportForm({ onClose }: { onClose: () => void }) {
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [locationName, setLocationName] = useState<string>("");
+  const [locationLoading, setLocationLoading] = useState(false);
 
   const { position, loading: geoLoading, requestPosition } = useGeolocation();
   const user = useAuthStore((s) => s.user);
   const showToast = useUIStore((s) => s.showToast);
   const online = useOnline();
+
+  // User already has contact info if logged in with phone or messenger
+  const hasContactInfo = !!(user && (user.phone || user.tgId || user.vkId));
 
   useEffect(() => {
     if (user) {
@@ -58,6 +86,19 @@ export function ReportForm({ onClose }: { onClose: () => void }) {
       setContactPhone(user.phone ?? "");
     }
   }, [user]);
+
+  // Reverse-geocode when position is obtained
+  useEffect(() => {
+    if (!position) return;
+    let cancelled = false;
+    setLocationLoading(true);
+    reverseGeocode(position.lat, position.lng).then((name) => {
+      if (cancelled) return;
+      setLocationName(name ?? `${position.lat.toFixed(4)}, ${position.lng.toFixed(4)}`);
+      setLocationLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [position]);
 
   const handleSelectIncident = useCallback((type: IncidentType) => {
     setReportType("incident");
@@ -189,13 +230,23 @@ export function ReportForm({ onClose }: { onClose: () => void }) {
           <h3>Местоположение</h3>
           {geoLoading && <p className="text-muted">Определяем местоположение...</p>}
           {position && (
-            <p className="text-success">
-              Координаты: {position.lat.toFixed(4)}, {position.lng.toFixed(4)}
-            </p>
+            <div className="form-group">
+              <input
+                className="form-input"
+                type="text"
+                value={locationLoading ? "Определяем адрес..." : locationName}
+                onChange={(e) => setLocationName(e.target.value)}
+                placeholder="Населённый пункт"
+                disabled={locationLoading}
+              />
+              <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
+                {position.lat.toFixed(4)}, {position.lng.toFixed(4)}
+              </p>
+            </div>
           )}
-          {!position && (
+          {!position && !geoLoading && (
             <button className="btn btn-secondary" onClick={requestPosition} disabled={geoLoading}>
-              {geoLoading ? "Определяем..." : "Определить местоположение"}
+              Определить местоположение
             </button>
           )}
 
@@ -239,32 +290,40 @@ export function ReportForm({ onClose }: { onClose: () => void }) {
       {step === 3 && (
         <div className="report-step">
           <h3>Контактные данные</h3>
-          <p className="text-muted">Необязательно, но поможет быстрее оказать помощь</p>
+          {hasContactInfo ? (
+            <p className="text-muted">
+              Данные из вашего профиля: {user?.name}{user?.phone ? `, ${user.phone}` : ""}
+            </p>
+          ) : (
+            <>
+              <p className="text-muted">Необязательно, но поможет быстрее оказать помощь</p>
 
-          <div className="form-group">
-            <label htmlFor="report-name">Имя</label>
-            <input
-              id="report-name"
-              className="form-input"
-              type="text"
-              maxLength={200}
-              placeholder="Ваше имя"
-              value={contactName}
-              onChange={(e) => setContactName(e.target.value)}
-            />
-          </div>
+              <div className="form-group">
+                <label htmlFor="report-name">Имя</label>
+                <input
+                  id="report-name"
+                  className="form-input"
+                  type="text"
+                  maxLength={200}
+                  placeholder="Ваше имя"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                />
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="report-phone">Телефон</label>
-            <input
-              id="report-phone"
-              className="form-input"
-              type="tel"
-              placeholder="+79001234567"
-              value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
-            />
-          </div>
+              <div className="form-group">
+                <label htmlFor="report-phone">Телефон</label>
+                <input
+                  id="report-phone"
+                  className="form-input"
+                  type="tel"
+                  placeholder="+79001234567"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                />
+              </div>
+            </>
+          )}
 
           <button
             className="btn btn-primary btn-lg"
