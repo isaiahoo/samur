@@ -37,6 +37,9 @@ export function MapPage() {
   const setShowReport = useCallback((open: boolean) => {
     _setShowReport(open);
     setReportFormOpen(open);
+    // Lock body scroll on iOS — CSS alone can't prevent scroll-through
+    document.body.style.overflow = open ? "hidden" : "";
+    document.documentElement.style.overflow = open ? "hidden" : "";
   }, [setReportFormOpen]);
   const [layerMenuOpen, setLayerMenuOpen] = useState(false);
 
