@@ -12,6 +12,7 @@ const phone = z.string()
   })
   .pipe(z.string().regex(/^\+?[0-9]{7,15}$/, "Неверный формат телефона"));
 const cuid = z.string().min(1);
+const photoUrl = z.string().min(1).max(500).regex(/^\/api\/v1\/uploads\/[a-f0-9]+\.\w+$/, "Недопустимый URL фото");
 
 export const UserRoleSchema = z.enum([
   "resident",
@@ -103,7 +104,7 @@ export const CreateIncidentSchema = z.object({
   lng,
   address: z.string().max(500).optional(),
   description: z.string().max(2000).optional(),
-  photoUrls: z.array(z.string().url()).max(10).optional(),
+  photoUrls: z.array(photoUrl).max(10).optional(),
   source: SourceSchema.optional(),
 });
 
@@ -111,7 +112,7 @@ export const UpdateIncidentSchema = z.object({
   severity: SeveritySchema.optional(),
   description: z.string().max(2000).optional(),
   status: IncidentStatusSchema.optional(),
-  photoUrls: z.array(z.string().url()).max(10).optional(),
+  photoUrls: z.array(photoUrl).max(10).optional(),
 });
 
 export const CreateHelpRequestSchema = z.object({
@@ -125,7 +126,7 @@ export const CreateHelpRequestSchema = z.object({
   urgency: UrgencySchema.optional(),
   contactPhone: phone.optional(),
   contactName: z.string().max(200).optional(),
-  photoUrls: z.array(z.string().min(1).max(500).regex(/^\/api\/v1\/uploads\/[a-f0-9]+\.\w+$/, "Недопустимый URL фото")).max(5).optional(),
+  photoUrls: z.array(photoUrl).max(5).optional(),
   source: SourceSchema.optional(),
 });
 
@@ -135,7 +136,7 @@ export const UpdateHelpRequestSchema = z.object({
   status: HelpRequestStatusSchema.optional(),
   contactPhone: phone.optional(),
   contactName: z.string().max(200).optional(),
-  photoUrls: z.array(z.string().min(1).max(500).regex(/^\/api\/v1\/uploads\/[a-f0-9]+\.\w+$/, "Недопустимый URL фото")).max(5).optional(),
+  photoUrls: z.array(photoUrl).max(5).optional(),
 });
 
 export const CreateSOSSchema = z.object({
