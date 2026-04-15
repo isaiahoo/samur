@@ -2,6 +2,8 @@
 
 export const INCIDENT_TYPE_LABELS: Record<string, string> = {
   flood: "Затопление",
+  mudslide: "Сель",
+  landslide: "Оползень",
   road_blocked: "Дорога перекрыта",
   building_damaged: "Повреждение здания",
   power_out: "Отключение электричества",
@@ -97,6 +99,8 @@ export const USER_ROLE_LABELS: Record<string, string> = {
 
 export const INCIDENT_TYPES = [
   "flood",
+  "mudslide",
+  "landslide",
   "road_blocked",
   "building_damaged",
   "power_out",

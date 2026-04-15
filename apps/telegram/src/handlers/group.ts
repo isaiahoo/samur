@@ -8,6 +8,11 @@ import { INCIDENT_TYPE_LABELS, isInDagestan } from "@samur/shared";
 const TYPE_ALIASES: Record<string, string> = {
   flood: "flood",
   "затоп": "flood",
+  mudslide: "mudslide",
+  "сель": "mudslide",
+  landslide: "landslide",
+  "оползень": "landslide",
+  "оползн": "landslide",
   road: "road_blocked",
   "дорога": "road_blocked",
   building: "building_damaged",

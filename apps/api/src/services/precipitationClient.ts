@@ -35,8 +35,10 @@ export const DAGESTAN_PRECIP_GRID: GridPoint[] = [
   // Central-south mountains — row 42.0–42.4
   { lat: 42.0, lng: 46.4 },
   { lat: 42.0, lng: 46.9 },
+  { lat: 42.0, lng: 47.1 },  // Уркарах / Акуша area
   { lat: 42.0, lng: 47.4 },
   { lat: 42.0, lng: 47.9 },
+  { lat: 42.15, lng: 47.2 }, // Кули / Казикумухское Койсу
   { lat: 42.3, lng: 46.0 },
   { lat: 42.3, lng: 46.5 },
   { lat: 42.3, lng: 47.0 },

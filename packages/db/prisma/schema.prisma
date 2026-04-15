@@ -18,6 +18,8 @@ enum UserRole {
 
 enum IncidentType {
   flood
+  mudslide
+  landslide
   road_blocked
   building_damaged
   power_out

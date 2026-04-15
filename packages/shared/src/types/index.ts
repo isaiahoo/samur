@@ -4,6 +4,8 @@ export type UserRole = "resident" | "volunteer" | "coordinator" | "admin";
 
 export type IncidentType =
   | "flood"
+  | "mudslide"
+  | "landslide"
   | "road_blocked"
   | "building_damaged"
   | "power_out"

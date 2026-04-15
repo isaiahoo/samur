@@ -17,6 +17,8 @@ export const UserRoleSchema = z.enum([
 
 export const IncidentTypeSchema = z.enum([
   "flood",
+  "mudslide",
+  "landslide",
   "road_blocked",
   "building_damaged",
   "power_out",

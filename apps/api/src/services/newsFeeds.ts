@@ -41,7 +41,7 @@ export const NEWS_FEEDS: NewsFeed[] = [
     name: "МЧС Дагестан — Прогнозы ЧС",
     url: "https://05.mchs.gov.ru/deyatelnost/press-centr/operativnaya-informaciya/prognozy/rss",
     type: "rss",
-    intervalMinutes: 60,
+    intervalMinutes: 15,
     priority: 1,
     enabled: true,
     // No filters — every item is an emergency forecast, all relevant
@@ -51,7 +51,7 @@ export const NEWS_FEEDS: NewsFeed[] = [
     name: "РИА Дагестан",
     url: "http://riadagestan.ru/rss",
     type: "rss",
-    intervalMinutes: 30,
+    intervalMinutes: 15,
     priority: 2,
     keywordFilter: [
       // Flooding
@@ -77,10 +77,17 @@ export const NEWS_FEEDS: NewsFeed[] = [
     name: "Интерфакс — Юг и Кавказ",
     url: "http://www.interfax-russia.ru/rss/public.rss",
     type: "rss",
-    intervalMinutes: 60,
+    intervalMinutes: 30,
     priority: 3,
     keywordFilter: [
-      "Дагестан", "Дербент", "Махачкал", "Каспийск",
+      // Major cities
+      "Дагестан", "Дербент", "Махачкал", "Каспийск", "Буйнакск", "Хасавюрт", "Кизляр",
+      // Mountain districts & towns (mudslide/landslide risk)
+      "Уркарах", "Акуша", "Левашин", "Сергокала", "Гергебиль", "Гуниб",
+      "Ботлих", "Цумада", "Тляратин", "Рутул", "Ахты", "Агул",
+      "Хучни", "Кули", "Хунзах", "Цуриб", "Кубачи",
+      // Emergency keywords (catch articles about Dagestan disasters even without city name)
+      "сель", "оползень", "оползн", "паводок", "наводнен", "эвакуац",
     ],
     excludeKeywords: [
       // Sports
@@ -104,10 +111,17 @@ export const NEWS_FEEDS: NewsFeed[] = [
     name: "ТАСС",
     url: "https://tass.ru/rss/v2.xml",
     type: "rss",
-    intervalMinutes: 60,
+    intervalMinutes: 30,
     priority: 4,
     keywordFilter: [
-      "Дагестан", "Дербент", "Махачкал", "Каспийск",
+      // Major cities
+      "Дагестан", "Дербент", "Махачкал", "Каспийск", "Буйнакск", "Хасавюрт", "Кизляр",
+      // Mountain districts & towns (mudslide/landslide risk)
+      "Уркарах", "Акуша", "Левашин", "Сергокала", "Гергебиль", "Гуниб",
+      "Ботлих", "Цумада", "Тляратин", "Рутул", "Ахты", "Агул",
+      "Хучни", "Кули", "Хунзах", "Цуриб", "Кубачи",
+      // Emergency keywords (catch articles about Dagestan disasters even without city name)
+      "сель", "оползень", "оползн", "паводок", "наводнен", "эвакуац",
     ],
     excludeKeywords: [
       // Sports

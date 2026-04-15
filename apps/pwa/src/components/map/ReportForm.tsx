@@ -21,6 +21,8 @@ interface ReportTypeOption {
 
 const incidentOptions: ReportTypeOption[] = [
   { type: "flood", icon: "🌊", label: "Затопление" },
+  { type: "mudslide", icon: "🏔️", label: "Сель" },
+  { type: "landslide", icon: "⛰️", label: "Оползень" },
   { type: "road_blocked", icon: "🚧", label: "Дорога перекрыта" },
   { type: "building_damaged", icon: "🏚️", label: "Повреждение здания" },
   { type: "power_out", icon: "⚡", label: "Нет электричества" },

@@ -13,6 +13,8 @@ import {
 
 const TYPE_EMOJIS: Record<string, string> = {
   flood: "🌊",
+  mudslide: "🏔️",
+  landslide: "⛰️",
   road_blocked: "🚧",
   building_damaged: "🏚️",
   power_out: "💡",

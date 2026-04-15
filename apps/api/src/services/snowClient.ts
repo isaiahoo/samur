@@ -28,6 +28,7 @@ export const MOUNTAIN_SNOW_GRID: GridPoint[] = [
   { lat: 41.5, lng: 47.3 },
   { lat: 41.7, lng: 47.0 },
   // Sulak headwaters (central mountains)
+  { lat: 42.0, lng: 47.1 },  // Уркарах / Акуша mountain area
   { lat: 42.2, lng: 46.5 },
   { lat: 42.2, lng: 47.0 },
   { lat: 42.5, lng: 46.0 },
