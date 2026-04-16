@@ -151,16 +151,21 @@ class Predictor:
                 if path.exists():
                     booster = xgb.Booster()
                     booster.load_model(str(path))
-                    # Recover true base_score from the saved JSON
+                    # Recover true base_score from the saved JSON. XGBoost
+                    # sometimes stores it as a str representation of a list
+                    # ("[2.5196626E2]") rather than an actual list — handle
+                    # both shapes and bracket-wrapped strings.
                     try:
                         with open(path) as f:
                             raw = _json.load(f)
-                        true_base = float(
-                            raw["learner"]["learner_model_param"]["base_score"][0]
-                            if isinstance(raw["learner"]["learner_model_param"]["base_score"], list)
-                            else raw["learner"]["learner_model_param"]["base_score"]
-                        )
-                    except Exception:
+                        bs = raw["learner"]["learner_model_param"]["base_score"]
+                        if isinstance(bs, list) and bs:
+                            bs = bs[0]
+                        if isinstance(bs, str):
+                            bs = bs.strip().lstrip("[").rstrip("]")
+                        true_base = float(bs)
+                    except Exception as e:
+                        logger.warning("Could not read base_score for %s t+%d: %s", station_id, h, e)
                         true_base = 0.5
                     # Stash the correction offset on the booster itself
                     booster.set_attr(base_score_offset=str(true_base - 0.5))
