@@ -72,6 +72,14 @@ enum HelpRequestStatus {
   cancelled
 }
 
+enum HelpResponseStatus {
+  responded
+  on_way
+  arrived
+  helped
+  cancelled
+}
+
 enum AlertUrgency {
   info
   warning
@@ -131,6 +139,7 @@ model User {
   verifiedIncidents Incident[]    @relation("IncidentVerifier")
   helpRequests      HelpRequest[] @relation("HelpRequestAuthor")
   claimedRequests   HelpRequest[] @relation("HelpRequestClaimer")
+  helpResponses     HelpResponse[]
   alerts            Alert[]
 
   @@index([role])
@@ -199,9 +208,10 @@ model HelpRequest {
   updatedAt    DateTime          @updatedAt @map("updated_at")
   deletedAt    DateTime?         @map("deleted_at")
 
-  author   User?     @relation("HelpRequestAuthor", fields: [userId], references: [id], onDelete: SetNull)
-  claimer  User?     @relation("HelpRequestClaimer", fields: [claimedBy], references: [id], onDelete: SetNull)
-  incident Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  author    User?          @relation("HelpRequestAuthor", fields: [userId], references: [id], onDelete: SetNull)
+  claimer   User?          @relation("HelpRequestClaimer", fields: [claimedBy], references: [id], onDelete: SetNull)
+  incident  Incident?      @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  responses HelpResponse[]
 
   @@index([userId])
   @@index([claimedBy])
@@ -213,6 +223,24 @@ model HelpRequest {
   @@index([source])
   @@index([deletedAt])
   @@map("help_requests")
+}
+
+model HelpResponse {
+  id            String             @id @default(cuid())
+  helpRequestId String             @map("help_request_id")
+  userId        String             @map("user_id")
+  status        HelpResponseStatus @default(responded)
+  note          String?
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  helpRequest HelpRequest @relation(fields: [helpRequestId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([helpRequestId, userId])
+  @@index([helpRequestId, status])
+  @@index([userId])
+  @@map("help_responses")
 }
 
 model Alert {

@@ -44,6 +44,13 @@ export type HelpRequestStatus =
   | "completed"
   | "cancelled";
 
+export type HelpResponseStatus =
+  | "responded"
+  | "on_way"
+  | "arrived"
+  | "helped"
+  | "cancelled";
+
 export type AlertUrgency = "info" | "warning" | "critical";
 
 export type ShelterStatus = "open" | "full" | "closed";
@@ -92,6 +99,17 @@ export interface HelpRequestParty {
   phone?: string | null;
 }
 
+export interface HelpResponse {
+  id: string;
+  helpRequestId: string;
+  userId: string;
+  status: HelpResponseStatus;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user?: HelpRequestParty;
+}
+
 export interface HelpRequest {
   id: string;
   userId: string | null;
@@ -120,6 +138,8 @@ export interface HelpRequest {
   deletedAt: string | null;
   author?: HelpRequestParty | null;
   claimer?: HelpRequestParty | null;
+  responses?: HelpResponse[];
+  responseCount?: number;
 }
 
 export interface Alert {
@@ -280,6 +300,14 @@ export interface ServerToClientEvents {
   "help_request:created": (request: HelpRequest) => void;
   "help_request:updated": (request: HelpRequest) => void;
   "help_request:claimed": (request: HelpRequest) => void;
+  "help_response:changed": (payload: {
+    helpRequestId: string;
+    responseId: string;
+    status: HelpResponseStatus;
+    user: HelpRequestParty;
+    responseCount: number;
+    derivedStatus: HelpRequestStatus;
+  }) => void;
   "alert:broadcast": (alert: Alert) => void;
   "river_level:updated": (level: RiverLevel) => void;
   "shelter:updated": (shelter: Shelter) => void;

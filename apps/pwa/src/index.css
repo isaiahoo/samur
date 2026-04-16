@@ -2370,6 +2370,13 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   color: #27272a;
 }
 .help-card-status { font-size: 12px; color: #71717a; font-weight: 500; }
+.help-card-status--soft {
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-weight: 600;
+}
 
 /* ── Help card hero photo ──────────────────────────────── */
 .help-card-hero {
@@ -2573,6 +2580,92 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .detail-contact-empty { font-size: 14px; color: var(--color-muted); }
 .detail-contact-hint { font-size: 12px; font-weight: 400; color: var(--color-muted); }
+.detail-status-count {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.detail-responders {
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+  margin-bottom: 16px;
+}
+.detail-responders h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px;
+}
+.detail-responders-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.detail-responder {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.detail-responder--mine {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+.detail-responder-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.detail-responder-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+.detail-responder-you {
+  font-size: 12px;
+  font-weight: 500;
+  color: #2563eb;
+}
+.detail-responder-meta {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin-top: 2px;
+}
+.detail-responder-phone {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.response-pill {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.response-pill--responded { background: #e0e7ff; color: #3730a3; }
+.response-pill--on-way    { background: #fef3c7; color: #92400e; }
+.response-pill--arrived   { background: #cffafe; color: #155e75; }
+.response-pill--helped    { background: #dcfce7; color: #166534; }
+.response-pill--cancelled { background: #f1f5f9; color: #64748b; }
+
 .detail-response-banner {
   background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
   border: 1px solid #86efac;
@@ -2580,6 +2673,15 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   padding: 14px 16px;
   margin-bottom: 16px;
 }
+.detail-response-banner--on_way { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-color: #fbbf24; }
+.detail-response-banner--on_way .detail-response-banner-header { color: #78350f; }
+.detail-response-banner--on_way .detail-response-banner-body   { color: #92400e; }
+.detail-response-banner--on_way .detail-response-banner-icon   { background: #f59e0b; }
+.detail-response-banner--arrived { background: linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%); border-color: #22d3ee; }
+.detail-response-banner--arrived .detail-response-banner-header { color: #155e75; }
+.detail-response-banner--arrived .detail-response-banner-body   { color: #0e7490; }
+.detail-response-banner--arrived .detail-response-banner-icon   { background: #06b6d4; }
+.detail-response-banner--helped { background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border-color: #86efac; }
 .detail-response-banner-header {
   display: flex;
   align-items: center;
@@ -5685,6 +5787,16 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .detail-contact-name { color: #e4e4e7; }
   .detail-contact-empty { color: #71717a; }
   .detail-contact-hint { color: #71717a; }
+  .detail-status-count { background: rgba(67,56,202,0.22); color: #c7d2fe; }
+  .detail-responder { background: #27272a; border-color: var(--color-border); }
+  .detail-responder--mine { background: rgba(14,165,233,0.12); border-color: rgba(14,165,233,0.32); }
+  .detail-responder-name { color: #f4f4f5; }
+  .detail-responder-meta { color: #a1a1aa; }
+  .response-pill--responded { background: rgba(67,56,202,0.25);  color: #c7d2fe; }
+  .response-pill--on-way    { background: rgba(146,64,14,0.28);  color: #fde68a; }
+  .response-pill--arrived   { background: rgba(21,94,117,0.25);  color: #a5f3fc; }
+  .response-pill--helped    { background: rgba(22,101,52,0.25);  color: #bbf7d0; }
+  .response-pill--cancelled { background: rgba(100,116,139,0.25); color: #cbd5e1; }
   .detail-response-banner {
     background: linear-gradient(135deg, rgba(22,163,74,0.18) 0%, rgba(34,197,94,0.10) 100%);
     border-color: rgba(34,197,94,0.36);

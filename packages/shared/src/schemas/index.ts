@@ -67,6 +67,23 @@ export const HelpRequestStatusSchema = z.enum([
   "cancelled",
 ]);
 
+export const HelpResponseStatusSchema = z.enum([
+  "responded",
+  "on_way",
+  "arrived",
+  "helped",
+  "cancelled",
+]);
+
+export const UpdateMyHelpResponseSchema = z.object({
+  status: HelpResponseStatusSchema,
+  note: z.string().max(500).optional().nullable(),
+});
+
+export const CreateHelpResponseSchema = z.object({
+  note: z.string().max(500).optional(),
+});
+
 export const AlertUrgencySchema = z.enum(["info", "warning", "critical"]);
 
 export const ShelterStatusSchema = z.enum(["open", "full", "closed"]);

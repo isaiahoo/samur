@@ -226,6 +226,30 @@ export function updateHelpRequest(id: string, data: Record<string, unknown>) {
   });
 }
 
+// Multi-responder endpoints. Any volunteer/coordinator/admin can respond to a
+// help request; each responder manages their own progress state independently.
+export function respondToHelpRequest(id: string, note?: string) {
+  return request<ApiResponse>(`/help-requests/${id}/respond`, {
+    method: "POST",
+    body: JSON.stringify({ note }),
+  });
+}
+export function updateMyHelpResponse(
+  id: string,
+  status: "responded" | "on_way" | "arrived" | "helped" | "cancelled",
+  note?: string | null,
+) {
+  return request<ApiResponse>(`/help-requests/${id}/my-response`, {
+    method: "PATCH",
+    body: JSON.stringify({ status, ...(note !== undefined ? { note } : {}) }),
+  });
+}
+export function cancelMyHelpResponse(id: string) {
+  return request<ApiResponse>(`/help-requests/${id}/my-response`, {
+    method: "DELETE",
+  });
+}
+
 export function deleteHelpRequest(id: string) {
   return request<ApiResponse>(`/help-requests/${id}`, { method: "DELETE" });
 }

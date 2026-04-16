@@ -4,6 +4,9 @@ import { calculateDistance } from "@samur/shared";
 import type {
   Incident,
   HelpRequest,
+  HelpRequestParty,
+  HelpRequestStatus,
+  HelpResponseStatus,
   Alert,
   RiverLevel,
   Shelter,
@@ -66,6 +69,22 @@ export function emitHelpRequestClaimed(request: HelpRequest): void {
 
 export function emitSOSCreated(request: HelpRequest): void {
   getIO().emit("sos:created", request);
+}
+
+/**
+ * Broadcast a response-status change. Broadcast-wide (all connected clients
+ * who are looking at this request pick it up) — the payload carries no phone
+ * numbers, so there's no per-viewer filter required.
+ */
+export function emitHelpResponseChanged(payload: {
+  helpRequestId: string;
+  responseId: string;
+  status: HelpResponseStatus;
+  user: HelpRequestParty;
+  responseCount: number;
+  derivedStatus: HelpRequestStatus;
+}): void {
+  getIO().emit("help_response:changed", payload);
 }
 
 export function emitAlertBroadcast(alert: Alert): void {

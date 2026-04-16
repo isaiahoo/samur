@@ -9,15 +9,17 @@ import {
   UpdateHelpRequestSchema,
   HelpRequestQuerySchema,
   CreateSOSSchema,
+  CreateHelpResponseSchema,
+  UpdateMyHelpResponseSchema,
 } from "@samur/shared";
-import type { HelpRequest } from "@samur/shared";
+import type { HelpRequest, HelpRequestParty, HelpRequestStatus, HelpResponseStatus } from "@samur/shared";
 import { AppError } from "../middleware/error.js";
 import { getIdsWithinRadius } from "../lib/spatial.js";
 import { getHelpRequestTransitionError } from "../lib/statusTransitions.js";
 import {
   emitHelpRequestCreated,
   emitHelpRequestUpdated,
-  emitHelpRequestClaimed,
+  emitHelpResponseChanged,
   emitSOSCreated,
 } from "../lib/emitter.js";
 import { paramId } from "../lib/params.js";
@@ -32,28 +34,68 @@ const router = Router();
 
 // ── Phone-number privacy filter ───────────────────────────────────────────
 // `contactPhone` is public (the requester explicitly shared it). But the
-// user's *account* phone (`author.phone`, `claimer.phone`) is their login
-// credential, so we only expose it to parties already tied to the request:
-// the author, the current claimer, and coordinators/admins.
+// user's *account* phone (`author.phone`, `claimer.phone`, responses[].user.phone)
+// is their login credential, so we only expose it to parties already tied to
+// the request.
+//
+// Author of the request → sees phones of every responder (needs to call them).
+// Each responder → sees their own phone + the author's phone.
+// Other responders → can see peer names and statuses but NOT their phones.
+// Coordinators / admins → see everything.
 interface Caller { sub: string; role: string }
 type HelpRequestWithParties = Record<string, unknown> & {
   userId: string | null;
   claimedBy: string | null;
   author?: { phone?: string | null } | null;
   claimer?: { phone?: string | null } | null;
+  responses?: Array<{ userId: string; user?: { phone?: string | null } | null }> | null;
 };
 function filterPhones<T extends HelpRequestWithParties>(row: T, caller: Caller | null): T {
-  const isOwner = caller && row.userId === caller.sub;
-  const isClaimer = caller && row.claimedBy === caller.sub;
+  const isAuthor = !!caller && row.userId === caller.sub;
   const isPrivileged = caller?.role === "coordinator" || caller?.role === "admin";
-  if (isOwner || isClaimer || isPrivileged) return row;
-  // Strip phones. Use explicit nulls so the client gets stable shapes.
-  if (row.author) row.author = { ...row.author, phone: null };
-  if (row.claimer) row.claimer = { ...row.claimer, phone: null };
+  // Legacy single-claimer check kept for the claimer column on the row shape.
+  const isSingleClaimer = !!caller && row.claimedBy === caller.sub;
+  const canSeeAllRelatedPhones = isAuthor || isPrivileged;
+
+  if (!canSeeAllRelatedPhones && !isSingleClaimer) {
+    // Strip top-level author/claimer phones for strangers / other responders.
+    if (row.author) row.author = { ...row.author, phone: null };
+    if (row.claimer) row.claimer = { ...row.claimer, phone: null };
+  }
+
+  // Responses[].user.phone: each responder sees their own, the author sees
+  // everyone's, strangers see none.
+  if (Array.isArray(row.responses)) {
+    row.responses = row.responses.map((r) => {
+      if (!r.user) return r;
+      const isMyResponse = !!caller && r.userId === caller.sub;
+      const phoneVisible = canSeeAllRelatedPhones || isMyResponse;
+      if (phoneVisible) return r;
+      return { ...r, user: { ...r.user, phone: null } };
+    }) as typeof row.responses;
+  }
+
   return row;
 }
 function getCaller(req: { user?: { sub: string; role: string } }): Caller | null {
   return req.user ? { sub: req.user.sub, role: req.user.role } : null;
+}
+
+// Derive a HelpRequest.status from the responses list. The DB column is still
+// maintained for backwards compat and list filters, but the canonical
+// "what's happening" signal comes from responses[].
+function deriveRequestStatus(
+  current: string,
+  responses: Array<{ status: string }>,
+): string {
+  // Author cancellation is terminal — don't auto-revert it.
+  if (current === "cancelled" || current === "completed") return current;
+  if (responses.length === 0) return "open";
+  const active = responses.filter((r) => r.status !== "cancelled");
+  if (active.length === 0) return "open";
+  if (active.some((r) => r.status === "helped")) return "completed";
+  if (active.some((r) => r.status === "on_way" || r.status === "arrived")) return "in_progress";
+  return "claimed";
 }
 
 router.get(
@@ -102,6 +144,11 @@ router.get(
           include: {
             author: { select: { id: true, name: true, role: true, phone: true } },
             claimer: { select: { id: true, name: true, role: true, phone: true } },
+            responses: {
+              where: { status: { not: "cancelled" } },
+              orderBy: { createdAt: "asc" },
+              include: { user: { select: { id: true, name: true, role: true, phone: true } } },
+            },
           },
         }),
         prisma.helpRequest.count({ where }),
@@ -243,6 +290,11 @@ router.get("/:id", optionalAuth, async (req, res, next) => {
         author: { select: { id: true, name: true, role: true, phone: true } },
         claimer: { select: { id: true, name: true, role: true, phone: true } },
         incident: true,
+        responses: {
+          where: { status: { not: "cancelled" } },
+          orderBy: { createdAt: "asc" },
+          include: { user: { select: { id: true, name: true, role: true, phone: true } } },
+        },
       },
     });
 
@@ -314,6 +366,213 @@ router.post(
   }
 );
 
+// ── Multi-responder endpoints ───────────────────────────────────────────
+// Refresh the DB-backed request.status + denormalised claimedBy fields after
+// any response change, so list-view filters / legacy consumers stay coherent.
+async function recomputeRequestStatus(requestId: string): Promise<{
+  derivedStatus: HelpRequestStatus;
+  responseCount: number;
+}> {
+  const hr = await prisma.helpRequest.findUnique({
+    where: { id: requestId },
+    include: {
+      responses: {
+        where: { status: { not: "cancelled" } },
+        orderBy: { createdAt: "asc" },
+        select: { status: true, userId: true },
+      },
+    },
+  });
+  if (!hr) return { derivedStatus: "open", responseCount: 0 };
+
+  const derived = deriveRequestStatus(hr.status, hr.responses) as HelpRequestStatus;
+  // claimedBy: the first non-cancelled responder, or null if none.
+  const primary = hr.responses[0]?.userId ?? null;
+
+  const needsStatusUpdate = derived !== hr.status;
+  const needsClaimerUpdate = primary !== hr.claimedBy;
+  if (needsStatusUpdate || needsClaimerUpdate) {
+    await prisma.helpRequest.update({
+      where: { id: requestId },
+      data: {
+        ...(needsStatusUpdate ? { status: derived } : {}),
+        ...(needsClaimerUpdate ? { claimedBy: primary } : {}),
+      },
+    });
+  }
+
+  return { derivedStatus: derived, responseCount: hr.responses.length };
+}
+
+async function emitResponseChanged(
+  requestId: string,
+  response: { id: string; status: HelpResponseStatus; user: { id: string; name: string | null; role: string } },
+): Promise<void> {
+  const { derivedStatus, responseCount } = await recomputeRequestStatus(requestId);
+  const partyUser: HelpRequestParty = {
+    id: response.user.id,
+    name: response.user.name,
+    role: response.user.role,
+  };
+  emitHelpResponseChanged({
+    helpRequestId: requestId,
+    responseId: response.id,
+    status: response.status,
+    user: partyUser,
+    responseCount,
+    derivedStatus,
+  });
+}
+
+// POST /:id/respond — create a new response for the caller. Idempotent-ish:
+// if one exists in "cancelled", reset it back to "responded"; if an active
+// response already exists, return 409.
+router.post(
+  "/:id/respond",
+  requireAuth,
+  validateBody(CreateHelpResponseSchema),
+  async (req, res, next) => {
+    try {
+      const id = paramId(req);
+      const role = req.user!.role;
+      // Claim-able only by volunteers, coordinators, admins — mirrors the
+      // original volunteer-gate but with a specific error message.
+      if (role !== "volunteer" && role !== "coordinator" && role !== "admin") {
+        throw new AppError(
+          403,
+          "ROLE_REQUIRED",
+          "Откликаться могут только волонтёры — обновите свой профиль",
+        );
+      }
+
+      const existing = await prisma.helpRequest.findFirst({
+        where: { id, deletedAt: null },
+      });
+      if (!existing) throw new AppError(404, "NOT_FOUND", "Запрос помощи не найден");
+
+      if (existing.userId === req.user!.sub) {
+        throw new AppError(400, "SELF_RESPONSE", "Нельзя откликнуться на свой запрос");
+      }
+      if (existing.status === "cancelled" || existing.status === "completed") {
+        throw new AppError(
+          422,
+          "INVALID_STATE",
+          "Запрос закрыт — на него больше нельзя откликнуться",
+        );
+      }
+
+      // Upsert: re-activate a previously cancelled response instead of 409'ing.
+      const response = await prisma.helpResponse.upsert({
+        where: {
+          helpRequestId_userId: { helpRequestId: id, userId: req.user!.sub },
+        },
+        update: { status: "responded", note: req.body.note ?? null },
+        create: {
+          helpRequestId: id,
+          userId: req.user!.sub,
+          status: "responded",
+          note: req.body.note ?? null,
+        },
+        include: { user: { select: { id: true, name: true, role: true, phone: true } } },
+      });
+
+      await emitResponseChanged(id, response);
+
+      // Return the full request so the client can drop it straight into state.
+      const updated = await prisma.helpRequest.findFirst({
+        where: { id, deletedAt: null },
+        include: {
+          author: { select: { id: true, name: true, role: true, phone: true } },
+          claimer: { select: { id: true, name: true, role: true, phone: true } },
+          responses: {
+            where: { status: { not: "cancelled" } },
+            orderBy: { createdAt: "asc" },
+            include: { user: { select: { id: true, name: true, role: true, phone: true } } },
+          },
+        },
+      });
+      const caller = getCaller(req as never);
+      const filtered = filterPhones(updated as unknown as HelpRequestWithParties, caller);
+      res.status(201).json({ success: true, data: filtered });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// PATCH /:id/my-response — update the caller's response status or note.
+router.patch(
+  "/:id/my-response",
+  requireAuth,
+  validateBody(UpdateMyHelpResponseSchema),
+  async (req, res, next) => {
+    try {
+      const id = paramId(req);
+      const mine = await prisma.helpResponse.findUnique({
+        where: { helpRequestId_userId: { helpRequestId: id, userId: req.user!.sub } },
+      });
+      if (!mine) {
+        throw new AppError(404, "NO_RESPONSE", "Вы ещё не откликнулись на этот запрос");
+      }
+
+      const { status, note } = req.body as {
+        status: HelpResponseStatus;
+        note?: string | null;
+      };
+      const updated = await prisma.helpResponse.update({
+        where: { id: mine.id },
+        data: { status, ...(note !== undefined ? { note } : {}) },
+        include: { user: { select: { id: true, name: true, role: true, phone: true } } },
+      });
+
+      await emitResponseChanged(id, updated);
+
+      // Return the full request for easy client-side state swap.
+      const hr = await prisma.helpRequest.findFirst({
+        where: { id, deletedAt: null },
+        include: {
+          author: { select: { id: true, name: true, role: true, phone: true } },
+          claimer: { select: { id: true, name: true, role: true, phone: true } },
+          responses: {
+            where: { status: { not: "cancelled" } },
+            orderBy: { createdAt: "asc" },
+            include: { user: { select: { id: true, name: true, role: true, phone: true } } },
+          },
+        },
+      });
+      const caller = getCaller(req as never);
+      const filtered = filterPhones(hr as unknown as HelpRequestWithParties, caller);
+      res.json({ success: true, data: filtered });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// DELETE /:id/my-response — cancel the caller's own response (soft).
+router.delete("/:id/my-response", requireAuth, async (req, res, next) => {
+  try {
+    const id = paramId(req);
+    const mine = await prisma.helpResponse.findUnique({
+      where: { helpRequestId_userId: { helpRequestId: id, userId: req.user!.sub } },
+    });
+    if (!mine) {
+      throw new AppError(404, "NO_RESPONSE", "Вы ещё не откликнулись на этот запрос");
+    }
+
+    const updated = await prisma.helpResponse.update({
+      where: { id: mine.id },
+      data: { status: "cancelled" },
+      include: { user: { select: { id: true, name: true, role: true, phone: true } } },
+    });
+
+    await emitResponseChanged(id, updated);
+    res.json({ success: true, data: { id: mine.id, cancelled: true } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.patch(
   "/:id",
   requireAuth,
@@ -329,17 +588,21 @@ router.patch(
         throw new AppError(404, "NOT_FOUND", "Запрос помощи не найден");
       }
 
-      // Only author, claimer, coordinator/admin, or a volunteer claiming an
-      // unclaimed request can modify. The volunteer-claim case is the reason
-      // an otherwise-unrelated user is allowed to touch this row at all.
+      // Edits are restricted to the author or coordinators/admins. Responders
+      // manage their own progress via POST /:id/respond + PATCH /:id/my-response
+      // rather than writing to the request row directly.
       const isOwner = existing.userId && existing.userId === req.user!.sub;
-      const isClaimer = existing.claimedBy && existing.claimedBy === req.user!.sub;
       const isPrivileged = req.user!.role === "coordinator" || req.user!.role === "admin";
-      const isVolunteerClaiming =
-        req.body.status === "claimed" &&
-        !existing.claimedBy &&
-        req.user!.role === "volunteer";
-      if (!isOwner && !isClaimer && !isPrivileged && !isVolunteerClaiming) {
+      if (!isOwner && !isPrivileged) {
+        // Pre-response-API clients used to claim via PATCH { status: "claimed" }.
+        // Point them to the new endpoint rather than silently rejecting.
+        if (req.body.status === "claimed") {
+          throw new AppError(
+            400,
+            "USE_RESPOND_ENDPOINT",
+            "Откликаться нужно через POST /help-requests/:id/respond",
+          );
+        }
         throw new AppError(403, "FORBIDDEN", "Недостаточно прав для редактирования");
       }
 
@@ -358,20 +621,15 @@ router.patch(
       if (req.body.contactName !== undefined) data.contactName = req.body.contactName;
       if (req.body.photoUrls !== undefined) data.photoUrls = req.body.photoUrls;
 
-      let isClaim = false;
       if (newStatus !== undefined) {
         data.status = newStatus;
-        if (newStatus === "claimed" && !existing.claimedBy) {
-          // Only volunteers, coordinators, and admins can claim
-          const role = req.user!.role;
-          if (role !== "volunteer" && role !== "coordinator" && role !== "admin") {
-            throw new AppError(403, "FORBIDDEN", "Только волонтёры могут взять заявку");
-          }
-          data.claimer = { connect: { id: req.user!.sub } };
-          isClaim = true;
-        }
-        if (newStatus === "open") {
-          data.claimer = { disconnect: true };
+        // Author / admin can force-close: mark all active responses
+        // "cancelled" so the derived-status logic stays coherent next time.
+        if (newStatus === "cancelled" || newStatus === "completed") {
+          await prisma.helpResponse.updateMany({
+            where: { helpRequestId: id, status: { not: "cancelled" } },
+            data: { status: newStatus === "completed" ? "helped" : "cancelled" },
+          });
         }
       }
       data.version = { increment: 1 };
@@ -400,11 +658,7 @@ router.patch(
         { ...(updated as unknown as HelpRequestWithParties) },
         null,
       ) as unknown as HelpRequest;
-      if (isClaim) {
-        emitHelpRequestClaimed(broadcast);
-      } else {
-        emitHelpRequestUpdated(broadcast);
-      }
+      emitHelpRequestUpdated(broadcast);
 
       const caller = getCaller(req as never);
       const filtered = filterPhones(updated as unknown as HelpRequestWithParties, caller);

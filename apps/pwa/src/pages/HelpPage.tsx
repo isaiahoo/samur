@@ -7,7 +7,13 @@ import {
   HELP_CATEGORIES,
 } from "@samur/shared";
 import { formatRelativeTime } from "@samur/shared";
-import { getHelpRequests, updateHelpRequest } from "../services/api.js";
+import {
+  getHelpRequests,
+  respondToHelpRequest,
+  updateMyHelpResponse,
+  cancelMyHelpResponse,
+} from "../services/api.js";
+import type { HelpResponseStatus } from "@samur/shared";
 import { UrgencyBadge } from "../components/UrgencyBadge.js";
 import { CategoryChip } from "../components/CategoryChip.js";
 import { CategoryIcon } from "../components/CategoryIcon.js";
@@ -157,9 +163,26 @@ export function HelpPage() {
   });
   useSocketEvent("help_request:updated", (hr) => {
     setItems((prev) => prev.map((h) => (h.id === hr.id ? hr : h)));
+    setDetailItem((prev) => (prev && prev.id === hr.id ? hr : prev));
   });
   useSocketEvent("help_request:claimed", (hr) => {
     setItems((prev) => prev.map((h) => (h.id === hr.id ? hr : h)));
+    setDetailItem((prev) => (prev && prev.id === hr.id ? hr : prev));
+  });
+  // When someone else responds or changes their response state, refetch just
+  // this row so our responses[] and derived status update without a full reload.
+  useSocketEvent("help_response:changed", async (payload) => {
+    try {
+      const { getHelpRequest } = await import("../services/api.js");
+      const res = await getHelpRequest(payload.helpRequestId);
+      const hr = (res as { data?: HelpRequest }).data;
+      if (hr) {
+        setItems((prev) => prev.map((h) => (h.id === hr.id ? hr : h)));
+        setDetailItem((prev) => (prev && prev.id === hr.id ? hr : prev));
+      }
+    } catch {
+      // Silent — the next list refresh will resync.
+    }
   });
 
   const handleClaim = async (id: string) => {
@@ -168,7 +191,7 @@ export function HelpPage() {
       return;
     }
     try {
-      const res = await updateHelpRequest(id, { status: "claimed" });
+      const res = await respondToHelpRequest(id);
       const updated = res.data as HelpRequest | undefined;
       if (updated) {
         setItems((prev) => prev.map((h) => (h.id === updated.id ? updated : h)));
@@ -176,6 +199,25 @@ export function HelpPage() {
         // volunteer lands on the "you responded — now call them" screen
         // instead of being dumped back to the list with just a toast.
         setDetailItem(updated);
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Ошибка", "error");
+    }
+  };
+
+  const handleResponseStatus = async (id: string, status: HelpResponseStatus) => {
+    try {
+      const res = status === "cancelled"
+        ? await cancelMyHelpResponse(id)
+        : await updateMyHelpResponse(id, status);
+      const updated = (res as { data?: HelpRequest }).data;
+      if (updated && typeof updated === "object" && "id" in updated) {
+        setItems((prev) => prev.map((h) => (h.id === updated.id ? updated : h)));
+        setDetailItem(updated);
+      } else if (status === "cancelled") {
+        // DELETE returns { id, cancelled:true } — just refresh the row.
+        handleRefresh();
+        setDetailItem(null);
       }
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Ошибка", "error");
@@ -344,6 +386,7 @@ export function HelpPage() {
                   isMine
                   index={i}
                   userPos={position}
+                  currentUserId={user?.id ?? null}
                   onClaim={handleClaim}
                   onDetail={setDetailItem}
                 />
@@ -362,6 +405,7 @@ export function HelpPage() {
               isNeed={tab === "need"}
               index={myItems.length + i}
               userPos={position}
+              currentUserId={user?.id ?? null}
               onClaim={handleClaim}
               onDetail={setDetailItem}
             />
@@ -389,6 +433,7 @@ export function HelpPage() {
           isNeed={tab === "need"}
           currentUserId={user?.id ?? null}
           onClaim={handleClaim}
+          onUpdateResponse={handleResponseStatus}
           onClose={() => setDetailItem(null)}
         />
       )}
@@ -402,6 +447,7 @@ function HelpCard({
   isMine,
   index,
   userPos,
+  currentUserId,
   onClaim,
   onDetail,
 }: {
@@ -410,6 +456,7 @@ function HelpCard({
   isMine?: boolean;
   index: number;
   userPos: { lat: number; lng: number } | null;
+  currentUserId: string | null;
   onClaim: (id: string) => void;
   onDetail: (item: HelpRequest) => void;
 }) {
@@ -477,28 +524,44 @@ function HelpCard({
         </div>
       </div>
       <div className="help-card-actions">
-        {isNeed && item.status === "open" && (
-          <button className="btn btn-primary btn-sm" onClick={() => onClaim(item.id)}>
-            Откликнуться
-          </button>
-        )}
         {(() => {
-          // Fall back to author's account phone when no contactPhone was given
-          // (typical for SOS). The backend only returns author.phone to callers
-          // with permission, so a visible number here means the caller can use it.
+          const responses = item.responses ?? [];
+          const activeResponses = responses.filter((r) => r.status !== "cancelled");
+          const myResponse = currentUserId
+            ? responses.find((r) => r.userId === currentUserId && r.status !== "cancelled")
+            : null;
+          // Response count hint — encourages coordination ("3 already responded, I'll pick another")
+          const responseCountLabel = activeResponses.length > 0
+            ? `${activeResponses.length} ${activeResponses.length === 1 ? "отклик" : "отклика"}`
+            : null;
+          const showRespond = isNeed && !myResponse && item.status !== "completed" && item.status !== "cancelled";
           const phone = item.contactPhone ?? item.author?.phone ?? null;
-          return phone && (
-            <a href={`tel:${phone}`} className="help-card-phone" aria-label="Позвонить">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-            </a>
+
+          return (
+            <>
+              {showRespond && (
+                <button className="btn btn-primary btn-sm" onClick={() => onClaim(item.id)}>
+                  Откликнуться
+                </button>
+              )}
+              {phone && (
+                <a href={`tel:${phone}`} className="help-card-phone" aria-label="Позвонить">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                </a>
+              )}
+              {responseCountLabel && item.status !== "open" && (
+                <span className="help-card-status">
+                  {HELP_REQUEST_STATUS_LABELS[item.status]} · {responseCountLabel}
+                </span>
+              )}
+              {responseCountLabel && item.status === "open" && (
+                <span className="help-card-status help-card-status--soft">
+                  {responseCountLabel}
+                </span>
+              )}
+            </>
           );
         })()}
-        {item.status !== "open" && (
-          <span className="help-card-status">
-            {HELP_REQUEST_STATUS_LABELS[item.status]}
-            {item.claimer?.name && <> · {item.claimer.name}</>}
-          </span>
-        )}
       </div>
       {lightboxIndex !== null && (
         <ImageLightbox
