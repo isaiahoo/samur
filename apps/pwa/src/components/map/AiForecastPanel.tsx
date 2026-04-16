@@ -6,12 +6,21 @@
  */
 
 import { useMemo } from "react";
-import type { AiForecastPoint } from "../../services/api.js";
+import type { AiForecastPoint, AiSkillTier, AiInputsSource } from "../../services/api.js";
 
 interface AiForecastPanelProps {
   data: AiForecastPoint[];
   dangerLevelCm: number | null;
+  skillTier?: AiSkillTier;
+  inputsSource?: AiInputsSource;
 }
+
+const SKILL_LABELS: Record<AiSkillTier, string> = {
+  high: "Высокая",
+  medium: "Средняя",
+  low: "Низкая",
+  none: "—",
+};
 
 /** Classify a predicted level into a risk tier */
 function riskTier(
@@ -46,8 +55,9 @@ function trendText(data: AiForecastPoint[]): string {
   return diff > 0 ? "рост" : "снижение";
 }
 
-export function AiForecastPanel({ data, dangerLevelCm }: AiForecastPanelProps) {
+export function AiForecastPanel({ data, dangerLevelCm, skillTier, inputsSource }: AiForecastPanelProps) {
   const danger = dangerLevelCm ?? 0;
+  const isClimatology = inputsSource === "climatology" || inputsSource === "training-csv";
 
   const analysis = useMemo(() => {
     if (data.length === 0) return null;
@@ -145,6 +155,22 @@ export function AiForecastPanel({ data, dangerLevelCm }: AiForecastPanelProps) {
           </div>
         ))}
       </div>
+
+      {/* Skill + source badges */}
+      {(skillTier || isClimatology) && (
+        <div className="ai-panel-skill">
+          {skillTier && skillTier !== "none" && (
+            <span className={`ai-panel-skill-badge ai-panel-skill-badge--${skillTier}`}>
+              Точность: {SKILL_LABELS[skillTier]}
+            </span>
+          )}
+          {isClimatology && (
+            <span className="ai-panel-skill-note">
+              Прогноз по сезонной норме — свежих измерений нет
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Disclaimer */}
       <p className="ai-panel-disclaimer">

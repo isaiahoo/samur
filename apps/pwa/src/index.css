@@ -2039,6 +2039,33 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   font-weight: 500;
 }
 
+/* Skill + data-source notes */
+.ai-panel-skill {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.ai-panel-skill-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.ai-panel-skill-badge--high   { background: #dcfce7; color: #166534; }
+.ai-panel-skill-badge--medium { background: #fef3c7; color: #92400e; }
+.ai-panel-skill-badge--low    { background: #fee2e2; color: #b91c1c; }
+.ai-panel-skill-note {
+  font-size: 11px;
+  color: #b45309;
+  font-style: italic;
+  line-height: 1.3;
+}
+
 /* Disclaimer */
 .ai-panel-disclaimer {
   margin: 8px 0 0;
@@ -5382,6 +5409,10 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .ai-strip-weekday { color: #71717a; }
   .ai-strip-date { color: #a1a1aa; }
   .ai-panel-disclaimer { color: #52525b; }
+  .ai-panel-skill-badge--high   { background: rgba(34, 197, 94, 0.18); color: #86efac; }
+  .ai-panel-skill-badge--medium { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
+  .ai-panel-skill-badge--low    { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+  .ai-panel-skill-note { color: #fbbf24; }
 
   /* Historical section — dark mode */
   .historical-section { border-color: #3f3f46; }

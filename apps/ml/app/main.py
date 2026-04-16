@@ -107,9 +107,29 @@ async def predict_all():
             results.append({
                 "station_id": station_id,
                 "forecasts": [f.model_dump() for f in forecasts],
+                "skill_tier": predictor.skill_tier(station_id),
+                "best_nse": predictor.best_nse(station_id),
+                "inputs_source": predictor.last_inputs_source(station_id),
             })
         except Exception as e:
             logger.warning("Prediction failed for %s: %s", station_id, e)
             results.append({"station_id": station_id, "error": str(e)})
 
     return {"generated_at": datetime.now(timezone.utc).isoformat(), "data": results}
+
+
+@app.get("/skill")
+async def skill():
+    """Per-station model skill classification. Used by the API to label
+    AI forecasts with "высокая / средняя / низкая" accuracy in the UI."""
+    if not predictor:
+        raise HTTPException(503, "Models not loaded")
+    return {
+        "data": {
+            sid: {
+                "best_nse": predictor.best_nse(sid),
+                "tier": predictor.skill_tier(sid),
+            }
+            for sid in predictor.loaded_stations()
+        }
+    }

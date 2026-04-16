@@ -20,6 +20,22 @@ logger = logging.getLogger("samur-ai.predict")
 
 HORIZONS = [1, 3, 7]
 
+# NSE thresholds used to gate user-facing forecasts. A horizon whose
+# evaluation NSE falls below MIN_NSE_SERVING is dropped from responses
+# entirely (worse than predicting the historical mean — actively
+# misleading). skill_tier classifies the best *served* horizon for a
+# station so the PWA can show an accuracy badge.
+MIN_NSE_SERVING = 0.3
+
+def _skill_tier(best_nse: float | None) -> str:
+    if best_nse is None:
+        return "none"
+    if best_nse >= 0.75:
+        return "high"
+    if best_nse >= 0.5:
+        return "medium"
+    return "low"
+
 # Station metadata (mirrors gaugeStations.ts)
 STATION_META = {
     "samur_usuhchaj": {"river": "Самур", "station": "Усухчай", "lat": 41.425, "lng": 47.925},
@@ -47,10 +63,15 @@ class Predictor:
     def __init__(self, model_dir: Path, data_dir: Path):
         self.models: dict[str, dict[int, xgb.Booster]] = {}
         self.rmse: dict[str, dict[int, float]] = {}  # station → horizon → RMSE
+        self.nse: dict[str, dict[int, float]] = {}   # station → horizon → NSE
         self.data_dir = data_dir
         self._express_reachable = True  # reset per predict cycle
+        # inputs_source is set during _get_recent_data and read after the
+        # prediction finishes. Keyed by station_id to survive the per-cycle
+        # loop in /predict/all.
+        self._last_inputs_source: dict[str, str] = {}
         self._load_models(model_dir)
-        self._load_rmse(model_dir)
+        self._load_metrics(model_dir)
 
     def _load_models(self, model_dir: Path):
         """Load all XGBoost model files."""
@@ -66,8 +87,8 @@ class Predictor:
                 self.models[station_id] = station_models
                 logger.info("Loaded %d horizon models for %s", len(station_models), station_id)
 
-    def _load_rmse(self, model_dir: Path):
-        """Load evaluation RMSE for confidence band calibration."""
+    def _load_metrics(self, model_dir: Path):
+        """Load RMSE (for CI width) + NSE (for gating + skill tier)."""
         import json
         metrics_path = model_dir / "evaluation_results.json"
         if not metrics_path.exists():
@@ -77,20 +98,32 @@ class Predictor:
         for entry in data:
             sid = entry.get("basin_id", "")
             horizons = entry.get("horizons", {})
-            station_rmse = {}
+            station_rmse: dict[int, float] = {}
+            station_nse: dict[int, float] = {}
             for h in HORIZONS:
                 key = f"t{h}"
-                if key in horizons and "rmse" in horizons[key]:
-                    station_rmse[h] = horizons[key]["rmse"]
+                if key in horizons:
+                    if "rmse" in horizons[key]:
+                        station_rmse[h] = horizons[key]["rmse"]
+                    if "nse" in horizons[key]:
+                        station_nse[h] = horizons[key]["nse"]
             if station_rmse:
                 self.rmse[sid] = station_rmse
-        logger.info("Loaded RMSE metrics for %d stations", len(self.rmse))
+            if station_nse:
+                self.nse[sid] = station_nse
+        logger.info("Loaded metrics for %d stations", len(self.rmse))
 
     def loaded_stations(self) -> list[str]:
         return list(self.models.keys())
 
     def predict(self, station_id: str) -> list[ForecastPoint]:
-        """Generate 7-day forecast for a station using XGBoost."""
+        """Generate 7-day forecast for a station using XGBoost.
+
+        Horizons whose evaluation NSE is below MIN_NSE_SERVING are silently
+        dropped — those predictions are worse than the historical mean, and
+        serving them to users as "AI" is actively misleading. If all horizons
+        are gated, raises ValueError so the caller skips the station.
+        """
         if station_id not in self.models:
             raise KeyError(f"No models loaded for station: {station_id}")
 
@@ -114,8 +147,15 @@ class Predictor:
         forecasts = []
         today = datetime.now(timezone.utc).date()
 
+        station_nse = self.nse.get(station_id, {})
+        gated: list[int] = []
+
         for h in HORIZONS:
             if h not in self.models[station_id]:
+                continue
+            nse = station_nse.get(h)
+            if nse is not None and nse < MIN_NSE_SERVING:
+                gated.append(h)
                 continue
 
             model = self.models[station_id][h]
@@ -134,23 +174,52 @@ class Predictor:
                 upper_90=round(pred + band, 1),
             ))
 
-        # Interpolate between horizons for a smooth 7-day forecast
+        if gated:
+            logger.info("Gated %d horizons for %s (NSE < %.2f): %s",
+                        len(gated), station_id, MIN_NSE_SERVING, gated)
+
+        if not forecasts:
+            raise ValueError(f"All horizons gated for {station_id} (low NSE)")
+
+        # Interpolate between horizons within the served span only — do not
+        # extrapolate beyond the furthest reliable horizon.
         if len(forecasts) >= 2:
             forecasts = self._interpolate_forecasts(forecasts, today)
 
         return forecasts
+
+    def best_nse(self, station_id: str) -> float | None:
+        """Return the highest NSE across horizons that would be served
+        (i.e. above MIN_NSE_SERVING). None if the station has no metrics."""
+        horizons = self.nse.get(station_id, {})
+        served = [v for v in horizons.values() if v >= MIN_NSE_SERVING]
+        return max(served) if served else None
+
+    def skill_tier(self, station_id: str) -> str:
+        return _skill_tier(self.best_nse(station_id))
+
+    def last_inputs_source(self, station_id: str) -> str:
+        return self._last_inputs_source.get(station_id, "unknown")
 
     def _get_recent_data(self, station_id: str, meta: dict) -> pd.DataFrame | None:
         """Get recent weather + water level data.
 
         Primary path: fetch live weather from Open-Meteo + water levels from Express API.
         Fallback: use local CSV (training data) when water levels can't be fetched.
+
+        Records the actual inputs source in self._last_inputs_source[station_id]
+        so the API response can warn users when predictions are running on
+        climatology fallback rather than live observations.
         """
+        self._last_inputs_source[station_id] = "unknown"
         # Always try live data first — CSVs contain old training data
-        live = self._fetch_recent_weather(meta)
+        live = self._fetch_recent_weather(station_id, meta)
         if live is not None and len(live) >= 15:
             wl_count = live["water_level_cm"].notna().sum()
-            logger.info("Live data for %s: %d days, %d with water levels", station_id, len(live), wl_count)
+            # last_source is set inside _fill_water_levels; capture here
+            source = self._last_inputs_source.get(station_id, "unknown")
+            logger.info("Live data for %s: %d days, %d with water levels (source=%s)",
+                        station_id, len(live), wl_count, source)
             if wl_count >= 15:
                 return live
 
@@ -158,13 +227,14 @@ class Predictor:
         csv_path = self.data_dir / "time_series" / f"{station_id}.csv"
         if csv_path.exists():
             logger.warning("Using CSV fallback for %s (insufficient live water levels)", station_id)
+            self._last_inputs_source[station_id] = "training-csv"
             df = pd.read_csv(csv_path)
             df["date"] = pd.to_datetime(df["date"])
             return df.tail(45).copy()
 
         return None
 
-    def _fetch_recent_weather(self, meta: dict) -> pd.DataFrame | None:
+    def _fetch_recent_weather(self, station_id: str, meta: dict) -> pd.DataFrame | None:
         """Fetch recent weather from Open-Meteo + water levels from Express API.
 
         Water level strategy (in priority order):
@@ -202,28 +272,47 @@ class Predictor:
 
             # Skip Express API if previously marked unreachable (reset per predict cycle)
             if self._express_reachable:
-                self._fill_water_levels(df, river, station, start, end)
+                self._fill_water_levels(station_id, df, river, station, start, end)
 
             return df
         except Exception as e:
             logger.error("Failed to fetch weather: %s", e)
             return None
 
-    def _fill_water_levels(self, df: pd.DataFrame, river: str, station: str,
+    def _fill_water_levels(self, station_id: str, df: pd.DataFrame, river: str, station: str,
                            start: date, end: date) -> None:
-        """Try all water level strategies using a single HTTP client."""
+        """Try all water level strategies using a single HTTP client.
+
+        Records the source of the majority of filled rows on
+        self._last_inputs_source[station_id] so the API can warn users
+        when predictions are being built on climatology rather than live
+        observations.
+        """
         try:
             with httpx.Client(timeout=_EXPRESS_TIMEOUT) as client:
+                before = int(df["water_level_cm"].notna().sum())
+
                 # Strategy 1: live scraped water levels (most recent, from hourly scraper)
                 self._fetch_live_levels(df, river, station, client)
+                after_live = int(df["water_level_cm"].notna().sum())
 
                 # Strategy 2: imported historical data (covers 2001-2020+)
-                if df["water_level_cm"].notna().sum() < 15:
+                if after_live < 15:
                     self._fetch_historical_levels(df, river, station, start, end, client)
+                after_hist = int(df["water_level_cm"].notna().sum())
 
                 # Strategy 3: day-of-year averages (always available, lowest quality)
-                if df["water_level_cm"].notna().sum() < 15:
+                if after_hist < 15:
                     self._fetch_stats_levels(df, river, station, client)
+                after_stats = int(df["water_level_cm"].notna().sum())
+
+                fills = {
+                    "live-observations": after_live - before,
+                    "historical-imports": after_hist - after_live,
+                    "climatology": after_stats - after_hist,
+                }
+                source = max(fills, key=lambda k: fills[k])
+                self._last_inputs_source[station_id] = source if fills[source] > 0 else "unknown"
         except (httpx.ConnectError, httpx.ConnectTimeout):
             # Express API is unreachable — skip it for all remaining stations
             logger.warning("Express API unreachable, skipping water level fetch for remaining stations")
@@ -373,46 +462,43 @@ class Predictor:
         )
 
     def _interpolate_forecasts(self, points: list[ForecastPoint], today: date) -> list[ForecastPoint]:
-        """Interpolate between t+1, t+3, t+7 to get daily forecasts."""
+        """Linearly interpolate between served horizons to get daily forecasts.
+
+        Only fills days *within* the served horizon span — we never extrapolate
+        past the last reliable horizon, because copying the nearest point
+        silently turns gated-out days into confident-looking predictions.
+        """
         result = []
-        # Build a map of known points
-        known = {}
+        known: dict[int, ForecastPoint] = {}
         for p in points:
             d = date.fromisoformat(p.date)
             days_ahead = (d - today).days
             known[days_ahead] = p
 
-        for day in range(1, 8):
+        if not known:
+            return result
+
+        min_day = min(known.keys())
+        max_day = max(known.keys())
+
+        for day in range(min_day, max_day + 1):
             if day in known:
                 result.append(known[day])
-            else:
-                # Linear interpolation between nearest known points
-                below = [k for k in known if k < day]
-                above = [k for k in known if k > day]
-                if not below or not above:
-                    # Can't interpolate — use nearest known point
-                    nearest = min(known.keys(), key=lambda x: abs(x - day))
-                    np_ = known[nearest]
-                    result.append(ForecastPoint(
-                        date=(today + timedelta(days=day)).isoformat(),
-                        level_cm=np_.level_cm,
-                        lower_90=np_.lower_90,
-                        upper_90=np_.upper_90,
-                    ))
-                    continue
-                lower = max(below)
-                upper = min(above)
-                t = (day - lower) / (upper - lower)
-                lp = known[lower]
-                up = known[upper]
-                level = max(lp.level_cm + t * (up.level_cm - lp.level_cm), 0.0)
-                lo90 = max((lp.lower_90 or level) + t * ((up.lower_90 or level) - (lp.lower_90 or level)), 0.0)
-                hi90 = max((lp.upper_90 or level) + t * ((up.upper_90 or level) - (lp.upper_90 or level)), 0.0)
-                result.append(ForecastPoint(
-                    date=(today + timedelta(days=day)).isoformat(),
-                    level_cm=round(level, 1),
-                    lower_90=round(lo90, 1),
-                    upper_90=round(hi90, 1),
-                ))
+                continue
+            # day is strictly between min_day and max_day, so interpolation is safe
+            below = max(k for k in known if k < day)
+            above = min(k for k in known if k > day)
+            t = (day - below) / (above - below)
+            lp = known[below]
+            up = known[above]
+            level = max(lp.level_cm + t * (up.level_cm - lp.level_cm), 0.0)
+            lo90 = max((lp.lower_90 or level) + t * ((up.lower_90 or level) - (lp.lower_90 or level)), 0.0)
+            hi90 = max((lp.upper_90 or level) + t * ((up.upper_90 or level) - (lp.upper_90 or level)), 0.0)
+            result.append(ForecastPoint(
+                date=(today + timedelta(days=day)).isoformat(),
+                level_cm=round(level, 1),
+                lower_90=round(lo90, 1),
+                upper_90=round(hi90, 1),
+            ))
 
         return result

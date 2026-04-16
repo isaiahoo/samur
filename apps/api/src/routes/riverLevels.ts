@@ -10,7 +10,7 @@ import { emitRiverLevelUpdated } from "../lib/emitter.js";
 import { paramId } from "../lib/params.js";
 import { DAGESTAN_GAUGES } from "../services/gaugeStations.js";
 import { scrapeAllStations } from "../services/riverScraper.js";
-import { fetchAndStorePredictions, checkMlHealth } from "../services/mlClient.js";
+import { fetchAndStorePredictions, checkMlHealth, getAllAiStationMeta } from "../services/mlClient.js";
 
 const router = Router();
 
@@ -283,7 +283,7 @@ router.get("/ai-forecast", async (_req, res, next) => {
     const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
     const predictions = await prisma.riverLevel.findMany({
       where: {
-        dataSource: "samur-ai",
+        dataSource: { in: ["samur-ai", "samur-ai-climatology"] },
         isForecast: true,
         deletedAt: null,
         measuredAt: { gte: since },
@@ -299,9 +299,14 @@ router.get("/ai-forecast", async (_req, res, next) => {
         trend: true,
         measuredAt: true,
         createdAt: true,
+        dataSource: true,
       },
     });
-    res.json({ success: true, data: predictions });
+    res.json({
+      success: true,
+      data: predictions,
+      meta: { skills: getAllAiStationMeta() },
+    });
   } catch (err) {
     next(err);
   }

@@ -50,6 +50,7 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState(false);
   const [aiForecastData, setAiForecastData] = useState<AiForecastPoint[]>([]);
+  const [aiMeta, setAiMeta] = useState<{ tier?: "high" | "medium" | "low" | "none"; source?: "live-observations" | "historical-imports" | "climatology" | "training-csv" | "unknown" }>({});
 
   const tier = computeTier(r);
   const arrow = trendArrow(r.trend);
@@ -111,13 +112,17 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
     getHistoricalPeaks(r.riverName, r.stationName, 5)
       .then((res) => setHistPeaks(res.data ?? []))
       .catch(() => {});
-    // Fetch AI forecast (filtered for this station)
+    // Fetch AI forecast (filtered for this station) + per-station meta
     getAiForecast()
       .then((res) => {
         const stationData = (res.data ?? []).filter(
           (d) => d.riverName === r.riverName && d.stationName === r.stationName,
         );
         setAiForecastData(stationData);
+        const key = `${r.riverName}::${r.stationName}`;
+        const meta = res.meta?.skills?.[key];
+        if (meta) setAiMeta({ tier: meta.tier, source: meta.source });
+        else setAiMeta({});
       })
       .catch(() => {});
   }, [r.riverName, r.stationName]);
@@ -272,7 +277,12 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
 
       {/* AI forecast panel — shown in AI mode */}
       {aiMode && aiForecastData.length > 0 && (
-        <AiForecastPanel data={aiForecastData} dangerLevelCm={r.dangerLevelCm} />
+        <AiForecastPanel
+          data={aiForecastData}
+          dangerLevelCm={r.dangerLevelCm}
+          skillTier={aiMeta.tier}
+          inputsSource={aiMeta.source}
+        />
       )}
 
       {/* Chart */}

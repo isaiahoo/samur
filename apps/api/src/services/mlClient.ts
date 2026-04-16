@@ -37,8 +37,25 @@ interface MlPredictAllResponse {
   data: Array<{
     station_id: string;
     forecasts?: MlForecastPoint[];
+    skill_tier?: "high" | "medium" | "low" | "none";
+    best_nse?: number | null;
+    inputs_source?: "live-observations" | "historical-imports" | "climatology" | "training-csv" | "unknown";
     error?: string;
   }>;
+}
+
+/** Per-station skill metadata, cached across requests for the /ai-forecast route. */
+export interface AiStationMeta {
+  tier: "high" | "medium" | "low" | "none";
+  bestNse: number | null;
+  source: "live-observations" | "historical-imports" | "climatology" | "training-csv" | "unknown";
+}
+const aiStationMeta = new Map<string, AiStationMeta>();
+export function getAiStationMeta(riverName: string, stationName: string): AiStationMeta | undefined {
+  return aiStationMeta.get(`${riverName}::${stationName}`);
+}
+export function getAllAiStationMeta(): Record<string, AiStationMeta> {
+  return Object.fromEntries(aiStationMeta);
 }
 
 /**
@@ -90,6 +107,18 @@ export async function fetchAndStorePredictions(): Promise<{
         ? "falling"
         : "stable";
 
+    // Cache skill + source for the /ai-forecast route
+    aiStationMeta.set(`${stationInfo.riverName}::${stationInfo.stationName}`, {
+      tier: stationResult.skill_tier ?? "none",
+      bestNse: stationResult.best_nse ?? null,
+      source: stationResult.inputs_source ?? "unknown",
+    });
+
+    // Tag the data source so the PWA can flag climatology-fallback forecasts
+    const dataSource = stationResult.inputs_source === "climatology"
+      ? "samur-ai-climatology"
+      : "samur-ai";
+
     for (const fc of forecasts) {
       try {
         const measuredAt = new Date(fc.date + "T00:00:00Z");
@@ -105,7 +134,7 @@ export async function fetchAndStorePredictions(): Promise<{
           update: {
             levelCm: fc.level_cm,
             dangerLevelCm: gauge.dangerLevelCm,
-            dataSource: "samur-ai",
+            dataSource,
             isForecast: true,
             trend,
             predictionLower: fc.lower_90,
@@ -118,7 +147,7 @@ export async function fetchAndStorePredictions(): Promise<{
             lng: gauge.lng,
             levelCm: fc.level_cm,
             dangerLevelCm: gauge.dangerLevelCm,
-            dataSource: "samur-ai",
+            dataSource,
             isForecast: true,
             trend,
             predictionLower: fc.lower_90,

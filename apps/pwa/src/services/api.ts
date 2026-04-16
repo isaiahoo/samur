@@ -344,10 +344,23 @@ export interface AiForecastPoint {
   trend: string;
   measuredAt: string;
   createdAt: string;
+  dataSource?: string;
+}
+
+export type AiSkillTier = "high" | "medium" | "low" | "none";
+export type AiInputsSource = "live-observations" | "historical-imports" | "climatology" | "training-csv" | "unknown";
+export interface AiStationMeta {
+  tier: AiSkillTier;
+  bestNse: number | null;
+  source: AiInputsSource;
+}
+
+export interface AiForecastResponse extends ApiResponse<AiForecastPoint[]> {
+  meta?: { skills?: Record<string, AiStationMeta> };
 }
 
 export function getAiForecast() {
-  return request<ApiResponse<AiForecastPoint[]>>("/river-levels/ai-forecast");
+  return request<AiForecastResponse>("/river-levels/ai-forecast");
 }
 
 // ── Historical river data (AllRivers.info) ──────────────────────────────

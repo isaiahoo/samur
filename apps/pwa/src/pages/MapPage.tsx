@@ -164,12 +164,20 @@ export function MapPage() {
 
       const keys = new Set<string>();
       const summaries = new Map<string, string>();
+      const skills = res.meta?.skills ?? {};
 
       for (const [key, points] of byStation) {
         // Filter out stations without usable AI predictions (levelCm must be > 0
         // to match detail panel condition — otherwise ring shows but no AI section)
         const hasReal = points.some((p) => (p.levelCm ?? 0) > 0);
         if (!hasReal) continue;
+
+        // Don't show AI halo on stations whose best served horizon is below
+        // the "medium" skill bar — gating is already applied server-side at
+        // NSE < 0.3, so here we suppress the ring for stations that only made
+        // the cut with a "low" tier (0.3 ≤ NSE < 0.5).
+        const tier = skills[key]?.tier;
+        if (tier === "low" || tier === "none") continue;
 
         keys.add(key);
 
