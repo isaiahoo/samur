@@ -170,6 +170,17 @@ const DAGESTAN_SETTLEMENTS: Settlement[] = [
   { name: "Касумкент", nameGen: "Касумкента", lat: 41.7000, lng: 48.1667 },
   { name: "Белиджи", nameGen: "Белиджей", lat: 41.8667, lng: 48.3333 },
   { name: "Маджалис", nameGen: "Маджалиса", lat: 42.1333, lng: 47.8333 },
+  // Neighbouring republics — without these, Chechen / Ingush / North-Ossetian
+  // events fall back to the source's vague "CAUCASUS REGION, RUSSIA".
+  { name: "Грозный", nameGen: "Грозного", lat: 43.3178, lng: 45.6949 },
+  { name: "Гудермес", nameGen: "Гудермеса", lat: 43.3514, lng: 46.1050 },
+  { name: "Аргун", nameGen: "Аргуна", lat: 43.2928, lng: 45.8789 },
+  { name: "Шали", nameGen: "Шали", lat: 43.1481, lng: 45.9042 },
+  { name: "Назрань", nameGen: "Назрани", lat: 43.2256, lng: 44.7647 },
+  { name: "Магас", nameGen: "Магаса", lat: 43.1681, lng: 44.8117 },
+  { name: "Владикавказ", nameGen: "Владикавказа", lat: 43.0339, lng: 44.6669 },
+  { name: "Моздок", nameGen: "Моздока", lat: 43.7478, lng: 44.6558 },
+  { name: "Нальчик", nameGen: "Нальчика", lat: 43.4806, lng: 43.6075 },
 ];
 
 /** Compass bearing from `from` to `to`, rounded to 8-point cardinal. */
