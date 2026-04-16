@@ -119,6 +119,97 @@ function pruneAlertedIds(): void {
   }
 }
 
+// ── Settlements for readable place labels ───────────────────────────────
+
+/**
+ * Populated settlements in Dagestan + immediate border towns, used to turn
+ * vague EMSC/USGS labels like "CAUCASUS REGION, RUSSIA" into a useful local
+ * landmark ("10 км СЗ от Махачкалы"). nameGen is the Russian genitive form
+ * needed by the "X км DIR от Y" construction.
+ */
+interface Settlement {
+  name: string;
+  nameGen: string;
+  lat: number;
+  lng: number;
+}
+
+const DAGESTAN_SETTLEMENTS: Settlement[] = [
+  // Coast + major cities
+  { name: "Махачкала", nameGen: "Махачкалы", lat: 42.9849, lng: 47.5047 },
+  { name: "Каспийск", nameGen: "Каспийска", lat: 42.8950, lng: 47.6453 },
+  { name: "Дербент", nameGen: "Дербента", lat: 42.0675, lng: 48.2886 },
+  { name: "Хасавюрт", nameGen: "Хасавюрта", lat: 43.2483, lng: 46.5875 },
+  { name: "Буйнакск", nameGen: "Буйнакска", lat: 42.8180, lng: 47.1189 },
+  { name: "Избербаш", nameGen: "Избербаша", lat: 42.5593, lng: 47.8742 },
+  { name: "Кизилюрт", nameGen: "Кизилюрта", lat: 43.2069, lng: 46.8704 },
+  { name: "Кизляр", nameGen: "Кизляра", lat: 43.8463, lng: 46.7167 },
+  { name: "Дагестанские Огни", nameGen: "Дагестанских Огней", lat: 42.1214, lng: 48.1928 },
+  { name: "Южно-Сухокумск", nameGen: "Южно-Сухокумска", lat: 44.6575, lng: 45.6489 },
+  // Plains
+  { name: "Бабаюрт", nameGen: "Бабаюрта", lat: 43.5988, lng: 46.7842 },
+  { name: "Тарумовка", nameGen: "Тарумовки", lat: 44.1208, lng: 46.7500 },
+  { name: "Кочубей", nameGen: "Кочубея", lat: 44.4389, lng: 46.5519 },
+  // Mountain districts
+  { name: "Леваши", nameGen: "Левашей", lat: 42.4233, lng: 47.3181 },
+  { name: "Акуша", nameGen: "Акуши", lat: 42.3219, lng: 47.3000 },
+  { name: "Каякент", nameGen: "Каякента", lat: 42.4075, lng: 47.8633 },
+  { name: "Новокаякент", nameGen: "Новокаякента", lat: 42.3353, lng: 47.9478 },
+  { name: "Гуниб", nameGen: "Гуниба", lat: 42.3878, lng: 46.9578 },
+  { name: "Гергебиль", nameGen: "Гергебиля", lat: 42.4992, lng: 47.0700 },
+  { name: "Хунзах", nameGen: "Хунзаха", lat: 42.5411, lng: 46.7064 },
+  { name: "Ботлих", nameGen: "Ботлиха", lat: 42.6692, lng: 46.2200 },
+  { name: "Цунта", nameGen: "Цунты", lat: 42.1667, lng: 45.9167 },
+  { name: "Тлярата", nameGen: "Тляраты", lat: 42.1200, lng: 46.3500 },
+  { name: "Агвали", nameGen: "Агвали", lat: 42.5400, lng: 46.1200 },
+  // South (Samur basin)
+  { name: "Ахты", nameGen: "Ахтов", lat: 41.4636, lng: 47.7389 },
+  { name: "Рутул", nameGen: "Рутула", lat: 41.5425, lng: 47.4189 },
+  { name: "Магарамкент", nameGen: "Магарамкента", lat: 41.6111, lng: 48.1611 },
+  { name: "Курах", nameGen: "Кураха", lat: 41.5833, lng: 47.8500 },
+  { name: "Касумкент", nameGen: "Касумкента", lat: 41.7000, lng: 48.1667 },
+  { name: "Белиджи", nameGen: "Белиджей", lat: 41.8667, lng: 48.3333 },
+  { name: "Маджалис", nameGen: "Маджалиса", lat: 42.1333, lng: 47.8333 },
+];
+
+/** Compass bearing from `from` to `to`, rounded to 8-point cardinal. */
+function compassBearing(fromLat: number, fromLng: number, toLat: number, toLng: number): string {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const toDeg = (r: number) => (r * 180) / Math.PI;
+  const φ1 = toRad(fromLat), φ2 = toRad(toLat);
+  const Δλ = toRad(toLng - fromLng);
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  const θ = toDeg(Math.atan2(y, x));
+  const bearing = (θ + 360) % 360;
+  const dirs = ["С", "СВ", "В", "ЮВ", "Ю", "ЮЗ", "З", "СЗ"];
+  return dirs[Math.round(bearing / 45) % 8];
+}
+
+/** Find the nearest Dagestan settlement within the given radius (km). */
+function nearestSettlement(lat: number, lng: number, radiusKm = 80): (Settlement & { distanceKm: number }) | null {
+  let best: (Settlement & { distanceKm: number }) | null = null;
+  for (const s of DAGESTAN_SETTLEMENTS) {
+    const d = distanceKm(lat, lng, s.lat, s.lng);
+    if (d > radiusKm) continue;
+    if (!best || d < best.distanceKm) best = { ...s, distanceKm: Math.round(d) };
+  }
+  return best;
+}
+
+/**
+ * Turn vague "CAUCASUS REGION, RUSSIA" labels into a precise Russian landmark
+ * when a Dagestani settlement is nearby. Keeps the raw label when the event
+ * is far from every known settlement (e.g. Azerbaijan, Georgia, open sea).
+ */
+function improvePlaceLabel(raw: string, lat: number, lng: number): string {
+  const near = nearestSettlement(lat, lng, 80);
+  if (!near) return raw;
+  if (near.distanceKm <= 4) return near.name;
+  const bearing = compassBearing(near.lat, near.lng, lat, lng);
+  return `${near.distanceKm} км ${bearing} от ${near.nameGen}`;
+}
+
 // ── River stations for proximity warnings ───────────────────────────────
 
 interface RiverStation {
@@ -208,13 +299,15 @@ async function fetchFromUSGS(startDate: string): Promise<RawEvent[]> {
     if (!Array.isArray(g.coordinates) || g.coordinates.length < 3) continue;
 
     const [lng, lat, depthKm] = g.coordinates;
+    const roundedLat = Math.round(lat * 1000) / 1000;
+    const roundedLng = Math.round(lng * 1000) / 1000;
     events.push({
       externalId: `usgs:${feature.id}`,
       magnitude: Math.round(p.mag * 10) / 10,
       depth: Math.round(depthKm * 10) / 10,
-      lat: Math.round(lat * 1000) / 1000,
-      lng: Math.round(lng * 1000) / 1000,
-      place: p.place ?? "Unknown location",
+      lat: roundedLat,
+      lng: roundedLng,
+      place: improvePlaceLabel(p.place ?? "Неизвестное место", roundedLat, roundedLng),
       time: new Date(p.time).toISOString(),
       felt: p.felt ?? null,
       mmi: p.mmi !== null ? Math.round(p.mmi * 10) / 10 : null,
@@ -247,13 +340,15 @@ async function fetchFromEMSC(startDate: string): Promise<RawEvent[]> {
     if (!Array.isArray(g.coordinates) || g.coordinates.length < 3) continue;
 
     const [lng, lat, negDepth] = g.coordinates;
+    const roundedLat = Math.round(lat * 1000) / 1000;
+    const roundedLng = Math.round(lng * 1000) / 1000;
     events.push({
       externalId: `emsc:${p.unid || feature.id}`,
       magnitude: Math.round(p.mag * 10) / 10,
       depth: Math.round(Math.abs(negDepth) * 10) / 10,
-      lat: Math.round(lat * 1000) / 1000,
-      lng: Math.round(lng * 1000) / 1000,
-      place: p.flynn_region ?? "Unknown location",
+      lat: roundedLat,
+      lng: roundedLng,
+      place: improvePlaceLabel(p.flynn_region ?? "Неизвестное место", roundedLat, roundedLng),
       time: new Date(p.time).toISOString(),
       felt: null,
       mmi: null,
@@ -335,6 +430,7 @@ export async function fetchEarthquakes(): Promise<EarthquakeEvent[]> {
           depth: event.depth,
           felt: event.felt,
           mmi: event.mmi,
+          place: event.place,
         },
       });
 
