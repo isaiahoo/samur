@@ -1008,37 +1008,46 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
     const existing = eqMarkersRef.current;
     const activeKeys = new Set<string>();
 
-    for (const eq of earthquakes) {
+    // Paint stronger events on top of weaker ones — Maplibre appends markers
+    // to a single container in insertion order, so adding in ascending
+    // magnitude means larger events naturally stack above smaller ones.
+    const sorted = [...earthquakes].sort((a, b) => a.magnitude - b.magnitude);
+
+    for (const eq of sorted) {
       activeKeys.add(eq.usgsId);
       if (existing.has(eq.usgsId)) continue;
 
-      // Marker sizing by magnitude
-      const size = eq.magnitude >= 5.5 ? 32 : eq.magnitude >= 4.5 ? 22 : eq.magnitude >= 4.0 ? 14 : 10;
+      const magClass =
+        eq.magnitude < 3 ? "tiny" :
+        eq.magnitude < 4 ? "small" :
+        eq.magnitude < 4.5 ? "moderate" :
+        eq.magnitude < 5 ? "strong" :
+        eq.magnitude < 6 ? "major" : "great";
 
-      // Color by recency
+      const depthClass =
+        eq.depth < 10 ? "shallow" :
+        eq.depth <= 50 ? "mid" : "deep";
+
       const ageH = (Date.now() - new Date(eq.time).getTime()) / 3_600_000;
-      const color = ageH < 1 ? "#ef4444" : ageH < 24 ? "#f97316" : "#eab308";
-      const pulse = ageH < 1;
+      const recencyClass =
+        ageH < 1 ? "fresh" :
+        ageH < 24 ? "recent" :
+        ageH < 168 ? "old" : "stale"; // 168h = 7d
+
+      // Pulse only for fresh and non-trivial quakes (< 1h AND M ≥ 4)
+      const shouldPulse = recencyClass === "fresh" && eq.magnitude >= 4;
 
       const el = document.createElement("div");
-      el.className = `eq-marker${pulse ? " eq-marker--pulse" : ""}`;
-      el.style.width = `${size}px`;
-      el.style.height = `${size}px`;
-      el.style.background = color;
-      el.style.borderRadius = "50%";
-      el.style.border = "2px solid #fff";
-      el.style.cursor = "pointer";
-      el.style.display = "flex";
-      el.style.alignItems = "center";
-      el.style.justifyContent = "center";
-      el.style.boxShadow = `0 0 6px ${color}80`;
-
-      if (size >= 22) {
-        el.style.fontSize = "10px";
-        el.style.fontWeight = "700";
-        el.style.color = "#fff";
-        el.textContent = String(eq.magnitude);
-      }
+      el.className = shouldPulse ? "eq-marker eq-marker--pulse" : "eq-marker";
+      el.setAttribute("data-mag-class", magClass);
+      el.setAttribute("data-depth", depthClass);
+      el.setAttribute("data-recency", recencyClass);
+      el.innerHTML =
+        '<span class="eq-marker-pulse" aria-hidden="true"></span>'
+        + '<span class="eq-marker-ring" aria-hidden="true"></span>'
+        + '<span class="eq-marker-core">'
+        +   `<span class="eq-marker-label">M${eq.magnitude.toFixed(1)}</span>`
+        + '</span>';
 
       el.addEventListener("click", () => {
         const fresh = earthquakesRef.current.find((e) => e.usgsId === eq.usgsId);
