@@ -4541,6 +4541,17 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   color: #fff;
 }
 
+/* Quiet footnote inside a section body — source attribution, coverage notes */
+.ep-section-note {
+  margin: 8px 8px 4px;
+  padding: 6px 10px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #71717a;
+  background: rgba(0, 0, 0, 0.025);
+  border-radius: 6px;
+}
+
 /* Per-section "Show all (N)" footer */
 .ep-show-all {
   width: calc(100% - 8px);
@@ -5219,6 +5230,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     color: #a1a1aa;
   }
   .ep-show-all:hover { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.2); }
+  .ep-section-note { background: rgba(255, 255, 255, 0.04); color: #a1a1aa; }
   .ep-row:hover  { background: rgba(255, 255, 255, 0.05); }
   .ep-row:active { background: rgba(255, 255, 255, 0.08); }
   .ep-row-title { color: #e4e4e7; }

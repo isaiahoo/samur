@@ -32,7 +32,10 @@ const BBOX = {
   maxlon: 49.0,
 } as const;
 
-const MIN_MAGNITUDE = 2.5;
+// 1.5 covers everything EMSC publishes for the Caucasus — smaller local
+// tremors (< M2) often aren't caught at all by international catalogs, so
+// this is as low as lowering helps. Above 1.5 we start dropping felt events.
+const MIN_MAGNITUDE = 1.5;
 const LOOKBACK_DAYS = 7;
 
 /** Alert thresholds */

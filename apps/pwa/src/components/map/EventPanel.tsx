@@ -470,6 +470,9 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
                 {showAll ? "Свернуть" : `Показать все (${sortedEq.length})`}
               </button>
             )}
+            <div className="ep-section-note">
+              Источники: USGS, EMSC. Мелкие локальные толчки могут не отображаться.
+            </div>
           </>
         );
       }
