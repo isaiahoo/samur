@@ -76,6 +76,7 @@ export function MapPage() {
   const [geoBannerDismissed, setGeoBannerDismissed] = useState(false);
   const openSheet = useUIStore((s) => s.openSheet);
   const closeSheet = useUIStore((s) => s.closeSheet);
+  const sheetContent = useUIStore((s) => s.sheetContent);
   const setCrisis = useUIStore((s) => s.setCrisis);
   const crisisMode = useUIStore((s) => s.crisisMode);
   const showToast = useUIStore((s) => s.showToast);
@@ -91,6 +92,12 @@ export function MapPage() {
       document.documentElement.classList.remove("crisis-mode");
     };
   }, [crisisMode]);
+
+  // When the detail sheet closes, drop the persistent "selected" state on the
+  // gauge marker that was tied to it.
+  useEffect(() => {
+    if (!sheetContent) mapViewRef.current?.clearGaugeSelection();
+  }, [sheetContent]);
 
   // River levels are a small fixed dataset — fetch once, update via WebSocket
   const fetchRiverLevels = useCallback(async () => {

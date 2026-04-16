@@ -17,6 +17,23 @@ import type { GaugeTier, ForecastWarning, UpstreamWarning } from "./gaugeUtils.j
 
 export type MarkerVariant = "dot" | "pill" | "card";
 
+/**
+ * Curated list of hydrologically-important stations. These render slightly
+ * larger so coordinators can spot the anchor stations at a glance regardless
+ * of current status.
+ */
+const MAJOR_STATIONS = new Set<string>([
+  "Сулак::Миатлы",
+  "Сулак::Сулак",
+  "Терек::Каргалинский гидроузел",
+  "Самур::Ахты",
+  "Аварское Койсу::Красный Мост",
+]);
+
+function isMajorStation(riverName: string, stationName: string): boolean {
+  return MAJOR_STATIONS.has(`${riverName}::${stationName}`);
+}
+
 /** Escape HTML entities to prevent XSS from API-sourced text */
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -77,11 +94,18 @@ export function variantForMarker(zoom: number, tierNumber: number, hasData: bool
 
 // ── Dot marker (zoom < 7) ──────────────────────────────────────────────────
 
-function createDotElement(tier: GaugeTier, upstream?: UpstreamWarning | null, hasAi?: boolean): HTMLDivElement {
+function createDotElement(
+  riverName: string,
+  stationName: string,
+  tier: GaugeTier,
+  upstream?: UpstreamWarning | null,
+  hasAi?: boolean,
+): HTMLDivElement {
   const el = document.createElement("div");
   const tierCls = tier.hasData ? `tier-${tier.tier}` : "tier-nodata";
   const decor = decorationClass(tier, upstream, hasAi);
-  el.className = `gauge-dot ${tierCls}${decor ? ` ${decor}` : ""}`;
+  const majorCls = isMajorStation(riverName, stationName) ? " gauge-major" : "";
+  el.className = `gauge-dot ${tierCls}${decor ? ` ${decor}` : ""}${majorCls}`;
   return el;
 }
 
@@ -106,6 +130,7 @@ function pillInnerHTML(
 
 function createPillElement(
   riverName: string,
+  stationName: string,
   trend: string,
   tier: GaugeTier,
   forecast?: ForecastWarning | null,
@@ -113,7 +138,8 @@ function createPillElement(
   hasAi?: boolean,
 ): HTMLDivElement {
   const wrap = document.createElement("div");
-  wrap.className = "gauge-marker gauge-marker--pill";
+  const majorCls = isMajorStation(riverName, stationName) ? " gauge-marker--major" : "";
+  wrap.className = `gauge-marker gauge-marker--pill${majorCls}`;
 
   const tierCls = tier.hasData ? `tier-${tier.tier}` : "tier-nodata";
   const decor = decorationClass(tier, upstream, hasAi);
@@ -166,7 +192,8 @@ function createCardElement(
   aiSummary?: string | null,
 ): HTMLDivElement {
   const wrap = document.createElement("div");
-  wrap.className = "gauge-marker gauge-marker--card";
+  const majorCls = isMajorStation(riverName, stationName) ? " gauge-marker--major" : "";
+  wrap.className = `gauge-marker gauge-marker--card${majorCls}`;
 
   const tierCls = tier.hasData ? `tier-${tier.tier}` : "tier-nodata";
   const decor = decorationClass(tier, upstream, hasAi);
@@ -196,9 +223,9 @@ export function createMarkerElement(
 ): HTMLDivElement {
   switch (variant) {
     case "dot":
-      return createDotElement(data.tier, data.upstream, data.hasAiForecast);
+      return createDotElement(data.riverName, data.stationName, data.tier, data.upstream, data.hasAiForecast);
     case "pill":
-      return createPillElement(data.riverName, data.trend, data.tier, data.forecast, data.upstream, data.hasAiForecast);
+      return createPillElement(data.riverName, data.stationName, data.trend, data.tier, data.forecast, data.upstream, data.hasAiForecast);
     case "card":
       return createCardElement(data.riverName, data.stationName, data.trend, data.tier, data.forecast, data.upstream, data.hasAiForecast, data.aiSummary);
   }
@@ -219,9 +246,13 @@ export function updateMarkerElement(
   const tierClass = data.tier.hasData ? `tier-${data.tier.tier}` : "tier-nodata";
   const decor = decorationClass(data.tier, data.upstream, data.hasAiForecast);
   const decorSuffix = decor ? ` ${decor}` : "";
+  const major = isMajorStation(data.riverName, data.stationName);
+  // Preserve the persistent "gauge-selected" class if the caller has applied
+  // it on this marker (selection state lives outside data — see MapView).
+  const selected = existing.classList.contains("gauge-selected") ? " gauge-selected" : "";
 
   if (newVariant === "dot") {
-    existing.className = `gauge-dot ${tierClass}${decorSuffix}`;
+    existing.className = `gauge-dot ${tierClass}${decorSuffix}${major ? " gauge-major" : ""}${selected}`;
     return false;
   }
 
@@ -230,7 +261,7 @@ export function updateMarkerElement(
     ? pillInnerHTML(data.riverName, data.trend, data.tier, data.forecast, data.upstream)
     : cardInnerHTML(data.riverName, data.stationName, data.trend, data.tier, data.forecast, data.upstream, data.hasAiForecast, data.aiSummary);
   const mainClass = innerPill ? "gauge-pill" : "gauge-card";
-  existing.className = `gauge-marker gauge-marker--${newVariant}`;
+  existing.className = `gauge-marker gauge-marker--${newVariant}${major ? " gauge-marker--major" : ""}${selected}`;
   existing.innerHTML = `<div class="${mainClass} ${tierClass}${decorSuffix}">${inner}</div><div class="gauge-anchor-dot ${tierClass}"></div>`;
   return false;
 }

@@ -43,6 +43,8 @@ export type MarkerType = "incident" | "helpRequest" | "shelter" | "riverLevel" |
 export interface MapViewHandle {
   flyTo(lng: number, lat: number, zoom?: number): void;
   highlightMarker(type: MarkerType, key: string): void;
+  /** Clear the persistent "selected" state on any gauge marker. */
+  clearGaugeSelection(): void;
 }
 type LayerKey = "incidents" | "helpRequests" | "shelters" | "riverLevels" | "floodHeatmap" | "precipitation" | "soilMoisture" | "snow" | "runoff" | "earthquakes";
 
@@ -166,9 +168,30 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
 
   const highlightTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
+  // Persistent gauge-marker selection — the user tapped this station, the
+  // DetailPanel is open for it. Cleared when the panel closes (from MapPage).
+  const selectedGaugeKeyRef = useRef<string | null>(null);
+
+  const applyGaugeSelection = (key: string | null) => {
+    // Remove the class from the previous selected marker, if any
+    const prev = selectedGaugeKeyRef.current;
+    if (prev && prev !== key) {
+      const old = gaugeMarkersRef.current.get(prev);
+      old?.element.classList.remove("gauge-selected");
+    }
+    selectedGaugeKeyRef.current = key;
+    if (key) {
+      const cur = gaugeMarkersRef.current.get(key);
+      cur?.element.classList.add("gauge-selected");
+    }
+  };
+
   useImperativeHandle(ref, () => ({
     flyTo(lng: number, lat: number, zoom?: number) {
       mapRef.current?.flyTo({ center: [lng, lat], zoom: zoom ?? 15, duration: 1200, essential: true });
+    },
+    clearGaugeSelection() {
+      applyGaugeSelection(null);
     },
     highlightMarker(type: MarkerType, key: string) {
       const map = mapRef.current;
@@ -874,6 +897,7 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
 
       // Click handler that always reads fresh data from ref
       const makeClickHandler = (stationKey: string) => () => {
+        applyGaugeSelection(stationKey);
         const fresh = riverLevelsRef.current.find(
           (rl) => `${rl.riverName}::${rl.stationName}` === stationKey,
         );
@@ -886,6 +910,7 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
         if (needsRebuild) {
           const newEl = createMarkerElement(markerData, variant);
           newEl.addEventListener("click", makeClickHandler(key));
+          if (selectedGaugeKeyRef.current === key) newEl.classList.add("gauge-selected");
           entry.marker.remove();
           const newMarker = new maplibregl.Marker({ element: newEl, anchor: "center" })
             .setLngLat([r.lng, r.lat])
@@ -902,6 +927,7 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
         // Create new marker
         const el = createMarkerElement(markerData, variant);
         el.addEventListener("click", makeClickHandler(key));
+        if (selectedGaugeKeyRef.current === key) el.classList.add("gauge-selected");
         const marker = new maplibregl.Marker({ element: el, anchor: "center" })
           .setLngLat([r.lng, r.lat])
           .addTo(map);
@@ -939,11 +965,13 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
         const newEl = createMarkerElement(entry.data, newVariant);
         const lngLat = entry.marker.getLngLat();
         newEl.addEventListener("click", () => {
+          applyGaugeSelection(key);
           const fresh = riverLevelsRef.current.find(
             (rl) => `${rl.riverName}::${rl.stationName}` === key,
           );
           if (fresh) onMarkerClickRef.current("riverLevel", fresh);
         });
+        if (selectedGaugeKeyRef.current === key) newEl.classList.add("gauge-selected");
         entry.marker.remove();
         const newMarker = new maplibregl.Marker({ element: newEl, anchor: "center" })
           .setLngLat(lngLat)

@@ -1073,6 +1073,60 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .gauge-card.tier-nodata { background: #fafafa; border-left-color: #a1a1aa; opacity: 0.85; }
 .gauge-card.tier-nodata .gauge-card-tier { color: #71717a; }
 
+/* ── Major stations (curated list) ────────────────────────────────────── */
+/* Slightly larger label + anchor dot so coordinators can spot the key
+   hydrological stations (Миатлы, Сулак-ГЭС, Каргалинский, Ахты, Красный
+   Мост) at a glance regardless of current status. */
+.gauge-marker--major .gauge-pill {
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.gauge-marker--major .gauge-pill-pct {
+  font-size: 12px;
+  line-height: 18px;
+}
+.gauge-marker--major .gauge-anchor-dot {
+  width: 12px;
+  height: 12px;
+  left: -6px;
+  top: -6px;
+  border-width: 2.5px;
+}
+.gauge-marker--major .gauge-card {
+  padding: 10px 14px;
+  min-width: 150px;
+}
+.gauge-marker--major .gauge-card-river {
+  font-size: 13px;
+}
+.gauge-dot.gauge-major {
+  width: 22px;
+  height: 22px;
+  border-width: 3px;
+}
+
+/* ── Selected marker (DetailPanel is open for this station) ───────────── */
+.gauge-selected .gauge-pill,
+.gauge-selected .gauge-card {
+  transform: translateX(-50%) scale(1.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28), 0 2px 4px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+.gauge-selected .gauge-pill:hover,
+.gauge-selected .gauge-card:hover {
+  transform: translateX(-50%) scale(1.1);
+}
+.gauge-selected .gauge-anchor-dot {
+  box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.35), 0 1px 3px rgba(0, 0, 0, 0.3);
+  z-index: 11;
+}
+.gauge-selected.gauge-dot {
+  transform: scale(1.25);
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.5), 0 1px 4px rgba(0, 0, 0, 0.35);
+  z-index: 10;
+}
+
 /* No-data pill: quiet — thin outline, smaller padding, lighter weight */
 .gauge-pill.tier-nodata {
   background: rgba(255, 255, 255, 0.88);
