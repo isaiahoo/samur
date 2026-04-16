@@ -464,11 +464,14 @@ export function MapPage() {
       {/* Toggle button — desktop: side tab, mobile: bottom bar */}
       {!eventPanelOpen && (
         <button
-          className="ep-toggle"
+          className={`ep-toggle${crisisMode ? " ep-toggle--crisis" : ""}`}
           onClick={() => setEventPanelOpen(true)}
           aria-label="Показать панель событий"
         >
-          <span className="ep-toggle-label">МОНИТОРИНГ</span>
+          <svg className="ep-toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3 12h4l3-8 4 16 3-8h4" />
+          </svg>
+          <span className="ep-toggle-label">{crisisMode ? "МОНИТОРИНГ" : "Мониторинг"}</span>
         </button>
       )}
 

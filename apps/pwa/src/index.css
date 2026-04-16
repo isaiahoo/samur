@@ -3582,9 +3582,16 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .fab {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 74px);
   }
-  /* On map page, FAB must sit above the МОНИТОРИНГ toggle bar */
+  /* On map page, FAB sits above the МОНИТОРИНГ toggle; when the panel is
+     open its height is exposed on :root as --ep-visible-height so the FAB
+     lifts to stay above the sheet. */
   .map-page .fab {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 100px);
+    bottom: calc(
+      env(safe-area-inset-bottom, 0px)
+      + 100px
+      + var(--ep-visible-height, 0px)
+    );
+    transition: bottom 0.28s cubic-bezier(0.32, 0.72, 0, 1);
   }
 }
 
@@ -3979,25 +3986,36 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 .ep-header-title {
-  font-family: "Courier New", Courier, monospace;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 600;
-  letter-spacing: 2.5px;
-  color: #a1a1aa;
+  letter-spacing: 0;
+  color: #18181b;
   white-space: nowrap;
 }
 .ep-header-line {
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.1), transparent);
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.08), transparent);
 }
 .ep-header-count {
-  font-family: "Courier New", Courier, monospace;
-  font-size: 10px;
-  font-weight: 700;
-  color: #a1a1aa;
+  font-size: 12px;
+  font-weight: 600;
+  color: #71717a;
   min-width: 16px;
   text-align: right;
+}
+/* Crisis mode restores the NERV monospace feel */
+.ep--crisis .ep-header-title {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 10px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: #a1a1aa;
+}
+.ep--crisis .ep-header-count {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 10px;
+  color: #a1a1aa;
 }
 
 .ep-empty {
@@ -4050,11 +4068,16 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .ep-section-title { flex: 1; }
 
 .ep-section-count {
-  font-family: "Courier New", Courier, monospace;
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 600;
   color: #a1a1aa;
   min-width: 18px;
   text-align: right;
+}
+.ep--crisis .ep-section-count {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 10px;
+  font-weight: 400;
 }
 
 .ep-section-chevron {
@@ -4084,85 +4107,87 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .ep-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
-  padding: 6px 8px;
+  padding: 10px 12px 10px 9px;
   background: none;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   color: inherit;
-  font-size: inherit;
   cursor: pointer;
   text-align: left;
-  transition: background 0.2s ease, transform 0.15s ease;
-  border-left: 2px solid transparent;
+  transition: background 0.15s ease, transform 0.1s ease;
 }
-.ep-row:hover {
-  background: rgba(0, 0, 0, 0.04);
-  border-left-color: rgba(0, 0, 0, 0.15);
-}
-.ep-row:active { transform: scale(0.99); }
+.ep-row:hover   { background: rgba(0, 0, 0, 0.035); }
+.ep-row:active  { background: rgba(0, 0, 0, 0.06); transform: scale(0.995); }
 
-.ep-row-badge {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
+.ep-row-stripe {
+  width: 3px;
+  align-self: stretch;
+  border-radius: 2px;
   flex-shrink: 0;
-  box-shadow: 0 0 4px currentColor;
-}
-
-.ep-row-mag {
-  font-family: "Courier New", Courier, monospace;
-  font-size: 12px;
-  font-weight: 700;
-  min-width: 30px;
-  text-align: center;
-  flex-shrink: 0;
-  letter-spacing: -0.5px;
+  min-height: 28px;
 }
 
 .ep-row-body {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
   flex: 1;
 }
 
 .ep-row-title {
-  font-size: 11px;
+  font-size: 13.5px;
   font-weight: 500;
-  color: #27272a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #18181b;
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+}
+.ep-row-title-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .ep-row-tag {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
-  padding: 1px 5px;
-  border-radius: 3px;
+  padding: 1px 6px;
+  border-radius: 4px;
   background: rgba(0, 0, 0, 0.06);
   color: #71717a;
   flex-shrink: 0;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
 }
 
-.ep-row-arrow {
-  font-size: 13px;
+.ep-row-trend {
   flex-shrink: 0;
+  color: #a1a1aa;
 }
+.ep-row-trend--up   { color: #dc2626; }
+.ep-row-trend--down { color: #16a34a; }
 
 .ep-row-sub {
-  font-size: 10px;
+  font-size: 12px;
   color: #71717a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.ep-row-pill {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  min-width: 48px;
+  text-align: center;
 }
 
 /* When panel is open, shift map controls left */
@@ -4175,7 +4200,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 /* ── Event panel responsive ────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
-  /* ── Panel: full-width bottom sheet ── */
+  /* ── Panel: full-width draggable bottom sheet ── */
   .ep {
     position: fixed;
     top: auto;
@@ -4183,20 +4208,45 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     left: 0;
     right: 0;
     width: 100%;
-    max-height: 40vh;
+    max-height: 85vh;
     border-left: none;
     border-top: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 12px 12px 0 0;
+    border-radius: 14px 14px 0 0;
     background: #fff;
     backdrop-filter: none;
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
+    transition: height 0.28s cubic-bezier(0.32, 0.72, 0, 1);
   }
+  .ep--dragging { transition: none; }
+  /* Drag handle — the top pill */
+  .ep-drag-handle {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0 4px;
+    touch-action: none;
+    cursor: grab;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ep-drag-handle-bar {
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(0, 0, 0, 0.18);
+    transition: background 0.15s, width 0.2s, height 0.2s;
+  }
+  .ep--dragging .ep-drag-handle { cursor: grabbing; }
+  .ep--dragging .ep-drag-handle-bar { background: rgba(0, 0, 0, 0.32); width: 48px; }
   .ep .ep-header {
     position: static;
     backdrop-filter: none;
     background: #fff;
     flex-shrink: 0;
-    border-radius: 12px 12px 0 0;
+    border-radius: 0;
+    padding-top: 4px;
   }
   .ep-body {
     overflow-y: scroll;
@@ -4242,12 +4292,21 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   }
   .ep-toggle-label {
     display: inline;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: #52525b;
+  }
+  .ep-toggle--crisis .ep-toggle-label {
     font-family: "Courier New", Courier, monospace;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 2px;
     color: #a1a1aa;
+    text-transform: uppercase;
   }
+  .ep-toggle-icon { color: #71717a; }
+  .ep-toggle--crisis .ep-toggle-icon { color: #a1a1aa; }
 }
 
 /* ── Accessibility: prefers-reduced-motion ─────────────────────────────── */
@@ -4325,9 +4384,15 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .sos-fab {
     bottom: calc(env(safe-area-inset-bottom, 0px) + 134px);
   }
-  /* On map page, SOS stacks above "Сообщить", which sits above the МОНИТОРИНГ bar */
+  /* On map page, SOS stacks above "Сообщить"; when the monitoring sheet is
+     open both FABs lift by --ep-visible-height so they stay above it. */
   .app-layout:has(.tab-alive--visible > .map-page) .sos-fab {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 160px);
+    bottom: calc(
+      env(safe-area-inset-bottom, 0px)
+      + 160px
+      + var(--ep-visible-height, 0px)
+    );
+    transition: bottom 0.28s cubic-bezier(0.32, 0.72, 0, 1);
   }
 }
 
@@ -4353,7 +4418,11 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     bottom: calc(env(safe-area-inset-bottom, 0px) + 206px);
   }
   .app-layout:has(.tab-alive--visible > .map-page) .sos-hint {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 232px);
+    bottom: calc(
+      env(safe-area-inset-bottom, 0px)
+      + 232px
+      + var(--ep-visible-height, 0px)
+    );
   }
 }
 @keyframes sos-hint-fade {
@@ -4659,13 +4728,15 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .ep-section { border-bottom-color: rgba(255, 255, 255, 0.05); }
   .ep-section-header { color: #d4d4d8; }
   .ep-section-header:hover { background: rgba(255, 255, 255, 0.05); }
-  .ep-row:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-left-color: rgba(255, 255, 255, 0.15);
-  }
+  .ep-row:hover  { background: rgba(255, 255, 255, 0.05); }
+  .ep-row:active { background: rgba(255, 255, 255, 0.08); }
   .ep-row-title { color: #e4e4e7; }
   .ep-row-tag { background: rgba(255, 255, 255, 0.08); color: #a1a1aa; }
-  .ep-row-sub { color: #71717a; }
+  .ep-row-sub { color: #a1a1aa; }
+  .ep-row-trend { color: #71717a; }
+  .ep-header-title { color: #e4e4e7; }
+  .ep-header-count { color: #a1a1aa; }
+  .ep-section-count { color: #71717a; }
   @media (max-width: 768px) {
     .ep {
       background: #27272a;
@@ -4675,6 +4746,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     .ep .ep-header { background: #27272a; }
     .ep-close { background: rgba(255, 255, 255, 0.1); color: #a1a1aa; }
     .ep-close:active { background: rgba(255, 255, 255, 0.2); }
+    .ep-drag-handle-bar { background: rgba(255, 255, 255, 0.2); }
+    .ep--dragging .ep-drag-handle-bar { background: rgba(255, 255, 255, 0.4); }
     .ep-toggle {
       background: #27272a;
       border-top-color: rgba(255, 255, 255, 0.08);
