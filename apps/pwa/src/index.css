@@ -4216,20 +4216,31 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     backdrop-filter: none;
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
     transition: height 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    /* Keep all vertical gestures (scroll + drag) inside the panel so they
+       don't leak to the MapLibre canvas behind and pan the map. */
+    touch-action: pan-y;
+    overscroll-behavior: none;
   }
   .ep--dragging { transition: none; }
-  /* Drag handle — the top pill */
+  /* Drag handle — visible pill + generous invisible hit area */
   .ep-drag-handle {
     flex-shrink: 0;
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 8px 0 4px;
+    padding: 10px 0 6px;
     touch-action: none;
     cursor: grab;
     -webkit-user-select: none;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+  }
+  /* Expand the tappable region to ~28px without changing visual size */
+  .ep-drag-handle::before {
+    content: "";
+    position: absolute;
+    inset: -4px 0 -4px 0;
   }
   .ep-drag-handle-bar {
     width: 40px;
@@ -4247,11 +4258,13 @@ textarea.form-input { resize: vertical; min-height: 80px; }
     flex-shrink: 0;
     border-radius: 0;
     padding-top: 4px;
+    touch-action: pan-y;
   }
   .ep-body {
-    overflow-y: scroll;
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     touch-action: pan-y;
+    overscroll-behavior-y: none;
   }
   /* Close button — X in header */
   .ep-close {
