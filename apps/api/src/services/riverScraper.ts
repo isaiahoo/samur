@@ -471,6 +471,76 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
         continue;
       }
 
+      // ── Past-day history: upsert older pastReadings *before* the
+      //    today-specific dedup path (which may `continue` and skip
+      //    everything below). We want historical rows to keep
+      //    populating even when today's reading is deduped.
+      //    Every row gets a rating-curve level if applicable.
+      for (let i = 1; i < pastReadings.length; i++) {
+        const past = pastReadings[i];
+        const win3 = pastReadings.slice(i, Math.min(i + 3, pastReadings.length))
+          .map((r) => r.discharge).filter((v) => v > 0);
+        const win7 = pastReadings.slice(i, Math.min(i + 7, pastReadings.length))
+          .map((r) => r.discharge).filter((v) => v > 0);
+        const m3 = win3.length > 0 ? win3.reduce((a, b) => a + b, 0) / win3.length : null;
+        const m7 = win7.length > 0 ? win7.reduce((a, b) => a + b, 0) / win7.length : null;
+
+        const pastMeasuredAt = new Date(past.date + "T12:00:00Z");
+        const pastCurve = estimateLevelCm(
+          station.riverName, station.stationName,
+          past.discharge, m3, m7, pastMeasuredAt,
+        );
+
+        try {
+          await prisma.riverLevel.upsert({
+            where: {
+              riverName_stationName_measuredAt: {
+                riverName: station.riverName,
+                stationName: station.stationName,
+                measuredAt: pastMeasuredAt,
+              },
+            },
+            update: {
+              levelCm: pastCurve?.levelCm ?? null,
+              dangerLevelCm: pastCurve ? station.dangerLevelCm : null,
+              dischargeCubicM: past.discharge,
+              dischargeMean: past.dischargeMean,
+              dischargeMax: past.dischargeMax,
+              dischargeMedian: past.dischargeMedian,
+              dischargeMin: past.dischargeMin,
+              dischargeP25: past.dischargeP25,
+              dischargeP75: past.dischargeP75,
+              dischargeAnnualMean: station.meanDischarge,
+              dataSource: "open-meteo",
+              isForecast: false,
+            },
+            create: {
+              riverName: station.riverName,
+              stationName: station.stationName,
+              measuredAt: pastMeasuredAt,
+              lat: station.lat,
+              lng: station.lng,
+              levelCm: pastCurve?.levelCm ?? null,
+              dangerLevelCm: pastCurve ? station.dangerLevelCm : null,
+              dischargeCubicM: past.discharge,
+              dischargeMean: past.dischargeMean,
+              dischargeMax: past.dischargeMax,
+              dischargeMedian: past.dischargeMedian,
+              dischargeMin: past.dischargeMin,
+              dischargeP25: past.dischargeP25,
+              dischargeP75: past.dischargeP75,
+              dischargeAnnualMean: station.meanDischarge,
+              dataSource: "open-meteo",
+              isForecast: false,
+              trend: "stable",
+            },
+          });
+        } catch (err) {
+          log.debug({ river: station.riverName, station: station.stationName, date: past.date, err: String(err) },
+                    "Failed to upsert past-day row");
+        }
+      }
+
       // Get previous reading for trend + dedup
       const previous = await prisma.riverLevel.findFirst({
         where: {
@@ -555,76 +625,6 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
       if (alertTriggered) stats.alerts++;
 
       stats.scraped++;
-
-      // ── Past-day history: upsert older pastReadings too, so the ML
-      //    service sees a continuous level history over its 45-day feature
-      //    window. Every row gets a rating-curve level if applicable.
-      //    No alerts / socket emits for historical rows.
-      for (let i = 1; i < pastReadings.length; i++) {
-        const past = pastReadings[i];
-        const windowStart = i;
-        const win3 = pastReadings.slice(windowStart, Math.min(windowStart + 3, pastReadings.length))
-          .map((r) => r.discharge).filter((v) => v > 0);
-        const win7 = pastReadings.slice(windowStart, Math.min(windowStart + 7, pastReadings.length))
-          .map((r) => r.discharge).filter((v) => v > 0);
-        const m3 = win3.length > 0 ? win3.reduce((a, b) => a + b, 0) / win3.length : null;
-        const m7 = win7.length > 0 ? win7.reduce((a, b) => a + b, 0) / win7.length : null;
-
-        const pastMeasuredAt = new Date(past.date + "T12:00:00Z");
-        const pastCurve = estimateLevelCm(
-          station.riverName, station.stationName,
-          past.discharge, m3, m7, pastMeasuredAt,
-        );
-
-        try {
-          await prisma.riverLevel.upsert({
-            where: {
-              riverName_stationName_measuredAt: {
-                riverName: station.riverName,
-                stationName: station.stationName,
-                measuredAt: pastMeasuredAt,
-              },
-            },
-            update: {
-              levelCm: pastCurve?.levelCm ?? null,
-              dangerLevelCm: pastCurve ? station.dangerLevelCm : null,
-              dischargeCubicM: past.discharge,
-              dischargeMean: past.dischargeMean,
-              dischargeMax: past.dischargeMax,
-              dischargeMedian: past.dischargeMedian,
-              dischargeMin: past.dischargeMin,
-              dischargeP25: past.dischargeP25,
-              dischargeP75: past.dischargeP75,
-              dischargeAnnualMean: station.meanDischarge,
-              dataSource: "open-meteo",
-              isForecast: false,
-            },
-            create: {
-              riverName: station.riverName,
-              stationName: station.stationName,
-              measuredAt: pastMeasuredAt,
-              lat: station.lat,
-              lng: station.lng,
-              levelCm: pastCurve?.levelCm ?? null,
-              dangerLevelCm: pastCurve ? station.dangerLevelCm : null,
-              dischargeCubicM: past.discharge,
-              dischargeMean: past.dischargeMean,
-              dischargeMax: past.dischargeMax,
-              dischargeMedian: past.dischargeMedian,
-              dischargeMin: past.dischargeMin,
-              dischargeP25: past.dischargeP25,
-              dischargeP75: past.dischargeP75,
-              dischargeAnnualMean: station.meanDischarge,
-              dataSource: "open-meteo",
-              isForecast: false,
-              trend: "stable",
-            },
-          });
-        } catch (err) {
-          log.debug({ river: station.riverName, station: station.stationName, date: past.date, err: String(err) },
-                    "Failed to upsert past-day row");
-        }
-      }
 
       // Step 4: Store forecast rows from Open-Meteo (batched)
       const forecasts = readings.filter((r) => r.isForecast);
