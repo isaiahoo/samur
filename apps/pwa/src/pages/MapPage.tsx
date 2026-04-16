@@ -93,10 +93,10 @@ export function MapPage() {
     };
   }, [crisisMode]);
 
-  // When the detail sheet closes, drop the persistent "selected" state on the
-  // gauge marker that was tied to it.
+  // When the detail sheet closes, drop the persistent "selected" state on
+  // whichever marker was tied to it (gauge station or earthquake).
   useEffect(() => {
-    if (!sheetContent) mapViewRef.current?.clearGaugeSelection();
+    if (!sheetContent) mapViewRef.current?.clearMarkerSelection();
   }, [sheetContent]);
 
   // River levels are a small fixed dataset — fetch once, update via WebSocket

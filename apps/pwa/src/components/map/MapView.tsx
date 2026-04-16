@@ -43,8 +43,8 @@ export type MarkerType = "incident" | "helpRequest" | "shelter" | "riverLevel" |
 export interface MapViewHandle {
   flyTo(lng: number, lat: number, zoom?: number): void;
   highlightMarker(type: MarkerType, key: string): void;
-  /** Clear the persistent "selected" state on any gauge marker. */
-  clearGaugeSelection(): void;
+  /** Clear the persistent "selected" state on any gauge or earthquake marker. */
+  clearMarkerSelection(): void;
 }
 type LayerKey = "incidents" | "helpRequests" | "shelters" | "riverLevels" | "floodHeatmap" | "precipitation" | "soilMoisture" | "snow" | "runoff" | "earthquakes";
 
@@ -168,12 +168,12 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
 
   const highlightTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // Persistent gauge-marker selection — the user tapped this station, the
+  // Persistent marker selection — the user tapped this station/quake, the
   // DetailPanel is open for it. Cleared when the panel closes (from MapPage).
   const selectedGaugeKeyRef = useRef<string | null>(null);
+  const selectedEqKeyRef = useRef<string | null>(null);
 
   const applyGaugeSelection = (key: string | null) => {
-    // Remove the class from the previous selected marker, if any
     const prev = selectedGaugeKeyRef.current;
     if (prev && prev !== key) {
       const old = gaugeMarkersRef.current.get(prev);
@@ -186,12 +186,26 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
     }
   };
 
+  const applyEqSelection = (key: string | null) => {
+    const prev = selectedEqKeyRef.current;
+    if (prev && prev !== key) {
+      const old = eqMarkersRef.current.get(prev);
+      old?.element.classList.remove("eq-marker--selected");
+    }
+    selectedEqKeyRef.current = key;
+    if (key) {
+      const cur = eqMarkersRef.current.get(key);
+      cur?.element.classList.add("eq-marker--selected");
+    }
+  };
+
   useImperativeHandle(ref, () => ({
     flyTo(lng: number, lat: number, zoom?: number) {
       mapRef.current?.flyTo({ center: [lng, lat], zoom: zoom ?? 15, duration: 1200, essential: true });
     },
-    clearGaugeSelection() {
+    clearMarkerSelection() {
       applyGaugeSelection(null);
+      applyEqSelection(null);
     },
     highlightMarker(type: MarkerType, key: string) {
       const map = mapRef.current;
@@ -1050,9 +1064,14 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
         + '</span>';
 
       el.addEventListener("click", () => {
+        applyEqSelection(eq.usgsId);
         const fresh = earthquakesRef.current.find((e) => e.usgsId === eq.usgsId);
         if (fresh) onMarkerClickRef.current("earthquake", fresh);
       });
+
+      if (selectedEqKeyRef.current === eq.usgsId) {
+        el.classList.add("eq-marker--selected");
+      }
 
       const marker = new maplibregl.Marker({ element: el, anchor: "center" })
         .setLngLat([eq.lng, eq.lat])
