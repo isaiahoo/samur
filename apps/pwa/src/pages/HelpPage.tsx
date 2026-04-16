@@ -10,6 +10,7 @@ import { formatRelativeTime } from "@samur/shared";
 import { getHelpRequests, updateHelpRequest } from "../services/api.js";
 import { UrgencyBadge } from "../components/UrgencyBadge.js";
 import { CategoryChip } from "../components/CategoryChip.js";
+import { CategoryIcon } from "../components/CategoryIcon.js";
 import { Spinner } from "../components/Spinner.js";
 import { HelpFormSheet } from "../components/HelpFormSheet.js";
 import { ImageLightbox } from "../components/ImageLightbox.js";
@@ -17,17 +18,24 @@ import { HelpDetailSheet } from "../components/HelpDetailSheet.js";
 import { useAuthStore } from "../store/auth.js";
 import { useUIStore } from "../store/ui.js";
 import { useSocketEvent } from "../hooks/useSocket.js";
+import { useGeolocation } from "../hooks/useGeolocation.js";
+import { haversineMeters, formatDistance } from "../utils/distance.js";
 
 type Tab = "need" | "offer";
+
+type Urgency = "" | "critical" | "urgent" | "normal";
 
 export function HelpPage() {
   const [tab, setTab] = useState<Tab>("need");
   const [category, setCategory] = useState<string>("");
+  const [urgency, setUrgency] = useState<Urgency>("");
   const [search, setSearch] = useState("");
   const [items, setItems] = useState<HelpRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [otherTabTotal, setOtherTabTotal] = useState(0);
+  const [urgencyCounts, setUrgencyCounts] = useState({ critical: 0, urgent: 0, normal: 0 });
   const [showForm, setShowForm] = useState(false);
   const [detailItem, setDetailItem] = useState<HelpRequest | null>(null);
   const loadingMore = useRef(false);
@@ -37,6 +45,11 @@ export function HelpPage() {
   const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn());
   const showToast = useUIStore((s) => s.showToast);
+  const { position, requestPosition } = useGeolocation();
+
+  useEffect(() => {
+    requestPosition();
+  }, [requestPosition]);
 
   // Debounce search
   useEffect(() => {
@@ -57,6 +70,7 @@ export function HelpPage() {
           order: "desc",
         };
         if (category) params.category = category;
+        if (urgency) params.urgency = urgency;
 
         const res = await getHelpRequests(params);
         const data = (res.data ?? []) as HelpRequest[];
@@ -74,13 +88,47 @@ export function HelpPage() {
         loadingMore.current = false;
       }
     },
-    [tab, category, showToast],
+    [tab, category, urgency, showToast],
   );
+
+  // Counts are computed ignoring the urgency filter so the summary strip
+  // stays informative while the list narrows.
+  const fetchCounts = useCallback(async () => {
+    const otherTab = tab === "need" ? "offer" : "need";
+    const base: Record<string, string | number> = {
+      status: "open",
+      limit: 1,
+      page: 1,
+    };
+    if (category) base.category = category;
+
+    const safe = async (params: Record<string, string | number>): Promise<number> => {
+      try {
+        const r = await getHelpRequests(params);
+        return r.meta?.total ?? 0;
+      } catch {
+        return 0;
+      }
+    };
+
+    const [other, critical, urgent, normal] = await Promise.all([
+      safe({ ...base, type: otherTab }),
+      safe({ ...base, type: tab, urgency: "critical" }),
+      safe({ ...base, type: tab, urgency: "urgent" }),
+      safe({ ...base, type: tab, urgency: "normal" }),
+    ]);
+    setOtherTabTotal(other);
+    setUrgencyCounts({ critical, urgent, normal });
+  }, [tab, category]);
 
   useEffect(() => {
     setPage(1);
     fetchItems(1);
   }, [fetchItems]);
+
+  useEffect(() => {
+    fetchCounts();
+  }, [fetchCounts]);
 
   useEffect(() => {
     const el = document.getElementById("app-main");
@@ -153,6 +201,12 @@ export function HelpPage() {
     [filtered, user],
   );
 
+  const currentTabTotal = urgencyCounts.critical + urgencyCounts.urgent + urgencyCounts.normal;
+  const needCount = tab === "need" ? currentTabTotal : otherTabTotal;
+  const offerCount = tab === "offer" ? currentTabTotal : otherTabTotal;
+
+  const toggleUrgency = (u: Urgency) => setUrgency(urgency === u ? "" : u);
+
   return (
     <div className="help-page">
       <div className="help-tabs">
@@ -161,12 +215,14 @@ export function HelpPage() {
           onClick={() => setTab("need")}
         >
           Нужна помощь
+          {needCount > 0 && <span className="help-tab-count">{needCount}</span>}
         </button>
         <button
           className={`help-tab ${tab === "offer" ? "help-tab--active" : ""}`}
           onClick={() => setTab("offer")}
         >
           Могу помочь
+          {offerCount > 0 && <span className="help-tab-count">{offerCount}</span>}
         </button>
       </div>
 
@@ -199,6 +255,44 @@ export function HelpPage() {
           />
         ))}
       </div>
+
+      {currentTabTotal > 0 && (
+        <div className="help-summary" role="group" aria-label="Фильтр по срочности">
+          {urgencyCounts.critical > 0 && (
+            <button
+              type="button"
+              className={`help-summary-item help-summary-item--critical ${urgency === "critical" ? "is-active" : ""}`}
+              onClick={() => toggleUrgency("critical")}
+              aria-pressed={urgency === "critical"}
+            >
+              <span className="help-summary-count">{urgencyCounts.critical}</span>
+              <span className="help-summary-label">критич.</span>
+            </button>
+          )}
+          {urgencyCounts.urgent > 0 && (
+            <button
+              type="button"
+              className={`help-summary-item help-summary-item--urgent ${urgency === "urgent" ? "is-active" : ""}`}
+              onClick={() => toggleUrgency("urgent")}
+              aria-pressed={urgency === "urgent"}
+            >
+              <span className="help-summary-count">{urgencyCounts.urgent}</span>
+              <span className="help-summary-label">срочн.</span>
+            </button>
+          )}
+          {urgencyCounts.normal > 0 && (
+            <button
+              type="button"
+              className={`help-summary-item help-summary-item--normal ${urgency === "normal" ? "is-active" : ""}`}
+              onClick={() => toggleUrgency("normal")}
+              aria-pressed={urgency === "normal"}
+            >
+              <span className="help-summary-count">{urgencyCounts.normal}</span>
+              <span className="help-summary-label">обычн.</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="help-list">
@@ -242,6 +336,7 @@ export function HelpPage() {
                   isNeed={tab === "need"}
                   isMine
                   index={i}
+                  userPos={position}
                   onClaim={handleClaim}
                   onDetail={setDetailItem}
                 />
@@ -259,6 +354,7 @@ export function HelpPage() {
               item={hr}
               isNeed={tab === "need"}
               index={myItems.length + i}
+              userPos={position}
               onClaim={handleClaim}
               onDetail={setDetailItem}
             />
@@ -292,17 +388,12 @@ export function HelpPage() {
   );
 }
 
-const categoryIcons: Record<string, string> = {
-  rescue: "🆘", shelter: "🏠", food: "🍞", water: "💧",
-  medicine: "💊", equipment: "🔧", transport: "🚗", labor: "💪",
-  generator: "⚡", pump: "🔄",
-};
-
 function HelpCard({
   item,
   isNeed,
   isMine,
   index,
+  userPos,
   onClaim,
   onDetail,
 }: {
@@ -310,12 +401,18 @@ function HelpCard({
   isNeed: boolean;
   isMine?: boolean;
   index: number;
+  userPos: { lat: number; lng: number } | null;
   onClaim: (id: string) => void;
   onDetail: (item: HelpRequest) => void;
 }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const photos = item.photoUrls ?? [];
   const animDelay = index < 10 ? index * 50 : 0;
+
+  const distance = useMemo(() => {
+    if (!userPos || item.lat == null || item.lng == null) return null;
+    return haversineMeters(userPos.lat, userPos.lng, item.lat, item.lng);
+  }, [userPos, item.lat, item.lng]);
 
   return (
     <div
@@ -333,22 +430,41 @@ function HelpCard({
       )}
       <div className="help-card-body" onClick={() => onDetail(item)}>
         <div className="help-card-header">
-          <span className="help-card-icon">{categoryIcons[item.category] ?? "📋"}</span>
+          <span className="help-card-icon" data-category={item.category} data-urgency={item.urgency}>
+            <CategoryIcon category={item.category} size={20} />
+          </span>
           <span className="help-card-category">{HELP_CATEGORY_LABELS[item.category]}</span>
-          <UrgencyBadge value={item.urgency} kind="urgency" />
+          {item.urgency === "critical" ? (
+            <span className="help-card-critical-label" role="status">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              КРИТИЧНО
+            </span>
+          ) : (
+            <UrgencyBadge value={item.urgency} kind="urgency" />
+          )}
         </div>
         {item.description && <p className="help-card-desc">{item.description}</p>}
         <div className="help-card-meta">
           {item.address && (
-            <span className="help-card-address">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              {item.address}
+            <span className="help-card-address" title={item.address}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <span className="help-card-address-text">{item.address}</span>
             </span>
           )}
-          <span>
+          {distance != null && (
+            <span className="help-card-distance" title="Расстояние от вас">
+              {formatDistance(distance)}
+            </span>
+          )}
+          <span
+            className="help-card-time"
+            title={new Date(item.createdAt).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+          >
             {formatRelativeTime(item.createdAt)}
-            {" · "}
-            {new Date(item.createdAt).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
           </span>
         </div>
       </div>

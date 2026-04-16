@@ -1866,7 +1866,66 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   cursor: pointer;
   min-height: 44px;
 }
+.help-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
 .help-tab--active { color: #2563eb; border-bottom-color: #2563eb; }
+.help-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  background: #e4e4e7;
+  color: #52525b;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+.help-tab--active .help-tab-count {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+/* ── Urgency summary strip ────────────────────────────── */
+.help-summary {
+  display: flex;
+  gap: 8px;
+  padding: 4px 16px 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.help-summary::-webkit-scrollbar { display: none; }
+.help-summary-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 32px;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+.help-summary-item:active { transform: scale(0.97); }
+.help-summary-count { font-size: 14px; font-weight: 800; }
+.help-summary-label { font-size: 12px; color: #71717a; font-weight: 500; }
+.help-summary-item--critical .help-summary-count { color: #b91c1c; }
+.help-summary-item--urgent   .help-summary-count { color: #c2410c; }
+.help-summary-item--normal   .help-summary-count { color: #1d4ed8; }
+.help-summary-item.is-active { background: #18181b; border-color: #18181b; }
+.help-summary-item.is-active .help-summary-count,
+.help-summary-item.is-active .help-summary-label { color: #fff; }
+.help-summary-item--critical.is-active { background: #dc2626; border-color: #dc2626; }
+.help-summary-item--urgent.is-active { background: #ea580c; border-color: #ea580c; }
+.help-summary-item--normal.is-active { background: #2563eb; border-color: #2563eb; }
 .help-list { padding: 8px 16px; }
 .help-card {
   background: #fff;
@@ -1876,17 +1935,76 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   border: 1px solid #e4e4e7;
   border-left: 3px solid #e4e4e7;
   overflow: hidden;
+  position: relative;
 }
 .help-card[data-urgency="urgent"] {
+  border-left-width: 4px;
   border-left-color: #F97316;
-  background: rgba(249,115,22,0.04);
+  background: rgba(249,115,22,0.05);
 }
 .help-card[data-urgency="critical"] {
+  border-left-width: 5px;
   border-left-color: var(--color-danger);
-  background: rgba(239,68,68,0.06);
+  background: rgba(239,68,68,0.09);
+  box-shadow: 0 2px 12px rgba(239, 68, 68, 0.12);
 }
-.help-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.help-card-icon { font-size: 20px; }
+.help-card[data-urgency="critical"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.25);
+}
+.help-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.help-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #f4f4f5;
+  color: #52525b;
+  flex-shrink: 0;
+}
+.help-card-icon[data-category="rescue"]    { background: #fee2e2; color: #b91c1c; }
+.help-card-icon[data-category="shelter"]   { background: #e0e7ff; color: #4338ca; }
+.help-card-icon[data-category="food"]      { background: #fef3c7; color: #92400e; }
+.help-card-icon[data-category="water"]     { background: #dbeafe; color: #1d4ed8; }
+.help-card-icon[data-category="medicine"]  { background: #fce7f3; color: #be185d; }
+.help-card-icon[data-category="equipment"] { background: #f3f4f6; color: #374151; }
+.help-card-icon[data-category="transport"] { background: #dcfce7; color: #166534; }
+.help-card-icon[data-category="labor"]     { background: #e0f2fe; color: #075985; }
+.help-card-icon[data-category="generator"] { background: #fef9c3; color: #854d0e; }
+.help-card-icon[data-category="pump"]      { background: #cffafe; color: #155e75; }
+/* Critical urgency: rescue icon pulses subtly */
+.help-card-icon[data-urgency="critical"][data-category="rescue"] {
+  animation: help-icon-pulse 2s ease-in-out infinite;
+}
+@keyframes help-icon-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+  50%      { box-shadow: 0 0 0 6px rgba(239,68,68,0.18); }
+}
+
+/* Inline "КРИТИЧНО" label (replaces urgency badge for critical cards) */
+.help-card-critical-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  background: #EF4444;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(239, 68, 68, 0.35);
+}
+@media (prefers-reduced-motion: reduce) {
+  .help-card-icon[data-urgency="critical"][data-category="rescue"] { animation: none; }
+}
 .help-card-category { font-weight: 600; font-size: 15px; flex: 1; }
 .help-card-desc {
   font-size: 14px;
@@ -1897,9 +2015,43 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.help-card-meta { display: flex; gap: 12px; font-size: 12px; color: #71717a; margin-bottom: 8px; align-items: center; }
-.help-card-address { display: inline-flex; align-items: center; gap: 3px; }
+.help-card-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #71717a;
+  margin-bottom: 8px;
+  align-items: center;
+  min-width: 0;
+}
+.help-card-address {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
 .help-card-address svg { flex-shrink: 0; }
+.help-card-address-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.help-card-time {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.help-card-distance {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: #f4f4f5;
+  color: #3f3f46;
+  font-size: 11px;
+  font-weight: 600;
+}
 .help-card-actions { display: flex; gap: 8px; align-items: center; }
 .help-card-actions .btn-primary { flex: 1; }
 .help-card-phone {
@@ -4717,9 +4869,28 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .help-card-desc { color: #d4d4d8; }
   .help-card-meta { color: #a1a1aa; }
   .help-card-status { color: #a1a1aa; }
+  .help-card-distance { background: #27272a; color: #d4d4d8; }
+  .help-card-icon                              { background: #27272a; color: #a1a1aa; }
+  .help-card-icon[data-category="rescue"]      { background: rgba(239,68,68,0.18);   color: #fca5a5; }
+  .help-card-icon[data-category="shelter"]     { background: rgba(99,102,241,0.18);  color: #a5b4fc; }
+  .help-card-icon[data-category="food"]        { background: rgba(245,158,11,0.18);  color: #fcd34d; }
+  .help-card-icon[data-category="water"]       { background: rgba(59,130,246,0.18);  color: #93c5fd; }
+  .help-card-icon[data-category="medicine"]    { background: rgba(236,72,153,0.18);  color: #f9a8d4; }
+  .help-card-icon[data-category="equipment"]   { background: rgba(156,163,175,0.18); color: #d4d4d8; }
+  .help-card-icon[data-category="transport"]   { background: rgba(34,197,94,0.18);   color: #86efac; }
+  .help-card-icon[data-category="labor"]       { background: rgba(14,165,233,0.18);  color: #7dd3fc; }
+  .help-card-icon[data-category="generator"]   { background: rgba(234,179,8,0.18);   color: #fde68a; }
+  .help-card-icon[data-category="pump"]        { background: rgba(6,182,212,0.18);   color: #67e8f9; }
   .help-card-phone { background: #3f3f46; border-color: #52525b; color: #e4e4e7; }
   .help-tab { color: #a1a1aa; }
   .help-tab--active { color: var(--color-primary); }
+  .help-tab-count { background: #27272a; color: #a1a1aa; }
+  .help-tab--active .help-tab-count { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+  .help-summary-item { background: var(--color-surface); border-color: var(--color-border); }
+  .help-summary-label { color: #a1a1aa; }
+  .help-summary-item--critical .help-summary-count { color: #fca5a5; }
+  .help-summary-item--urgent   .help-summary-count { color: #fdba74; }
+  .help-summary-item--normal   .help-summary-count { color: #93c5fd; }
   .photo-preview { border-color: var(--color-border); }
   .empty-state-icon { color: #52525b; }
   .empty-state-title { color: #d4d4d8; }
