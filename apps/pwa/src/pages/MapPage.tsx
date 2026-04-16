@@ -500,6 +500,7 @@ export function MapPage() {
           riverLevels={effectiveRiverLevels}
           earthquakes={earthquakes}
           layers={layers}
+          userPos={position}
           isLoading={riverLevels.length === 0}
           onEventClick={handleEventPanelClick}
           onClose={() => setEventPanelOpen(false)}
