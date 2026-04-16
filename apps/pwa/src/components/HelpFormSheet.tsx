@@ -8,12 +8,44 @@ import { useAuthStore } from "../store/auth.js";
 import { useUIStore } from "../store/ui.js";
 import { useGeolocation } from "../hooks/useGeolocation.js";
 import { compressImage } from "../utils/compressImage.js";
+import { CategoryIcon } from "./CategoryIcon.js";
 
-const categoryIcons: Record<string, string> = {
-  rescue: "🆘", shelter: "🏠", food: "🍞", water: "💧",
-  medicine: "💊", equipment: "🔧", transport: "🚗", labor: "💪",
-  generator: "⚡", pump: "🔄",
-};
+const URGENCY_OPTIONS = [
+  { value: "normal",   label: "Обычная",     sub: "в течение дня" },
+  { value: "urgent",   label: "Срочная",     sub: "в ближайший час" },
+  { value: "critical", label: "Критическая", sub: "нужна помощь сейчас" },
+] as const;
+
+function UrgencyIcon({ kind }: { kind: "normal" | "urgent" | "critical" }) {
+  const common = {
+    width: 14, height: 14, viewBox: "0 0 24 24",
+    fill: "none", stroke: "currentColor", strokeWidth: 2,
+    strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+  if (kind === "normal") {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </svg>
+    );
+  }
+  if (kind === "urgent") {
+    return (
+      <svg {...common}>
+        <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...common} strokeWidth={2.25}>
+      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
 
 interface Props {
   tab: "need" | "offer";
@@ -34,7 +66,6 @@ export function HelpFormSheet({ tab, onClose }: Props) {
   const [compressing, setCompressing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const user = useAuthStore((s) => s.user);
   const showToast = useUIStore((s) => s.showToast);
@@ -131,12 +162,6 @@ export function HelpFormSheet({ tab, onClose }: Props) {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleCameraCapture = (e: ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files ?? []);
-    if (selected.length) addPhotos(selected);
-    if (cameraInputRef.current) cameraInputRef.current.value = "";
-  };
-
   const removePhoto = (index: number) => {
     if (photoPreviews[index]) URL.revokeObjectURL(photoPreviews[index]);
     setPhotos((prev) => prev.filter((_, i) => i !== index));
@@ -183,7 +208,12 @@ export function HelpFormSheet({ tab, onClose }: Props) {
         <div className="sheet-handle" />
         <div className="sheet-form-header">
           <h3>{tab === "offer" ? "Предложить помощь" : "Запросить помощь"}</h3>
-          <button className="btn-close" onClick={onClose}>✕</button>
+          <button className="btn-close" onClick={onClose} aria-label="Закрыть">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="6" y1="6" x2="18" y2="18" />
+              <line x1="6" y1="18" x2="18" y2="6" />
+            </svg>
+          </button>
         </div>
 
         <div className="sheet-form-body">
@@ -218,8 +248,8 @@ export function HelpFormSheet({ tab, onClose }: Props) {
             )}
           </div>
 
-          {/* Category grid */}
-          <div className="qf-section-label">Выберите категорию</div>
+          {/* Category grid (no section label — disabled submit already prompts
+              "Выберите категорию") */}
           <div className="category-grid">
             {HELP_CATEGORIES.map((cat) => (
               <button
@@ -228,7 +258,9 @@ export function HelpFormSheet({ tab, onClose }: Props) {
                 className={`category-card ${category === cat ? "category-card--selected" : ""}`}
                 onClick={() => setCategory(cat)}
               >
-                <span className="category-card-icon">{categoryIcons[cat] ?? "📋"}</span>
+                <span className="category-card-icon" data-category={cat}>
+                  <CategoryIcon category={cat} size={22} />
+                </span>
                 <span className="category-card-label">{HELP_CATEGORY_LABELS[cat]}</span>
               </button>
             ))}
@@ -244,37 +276,44 @@ export function HelpFormSheet({ tab, onClose }: Props) {
           />
 
           {/* Urgency pills */}
-          <div className="urgency-pills">
-            {(["normal", "urgent", "critical"] as const).map((u) => (
+          <div className="urgency-pills" role="radiogroup" aria-label="Срочность">
+            {URGENCY_OPTIONS.map((opt) => (
               <button
-                key={u}
+                key={opt.value}
                 type="button"
-                className={`urgency-pill ${urgency === u ? `urgency-pill--${u}` : ""}`}
-                onClick={() => setUrgency(u)}
+                role="radio"
+                aria-checked={urgency === opt.value}
+                className={`urgency-pill ${urgency === opt.value ? `urgency-pill--${opt.value}` : ""}`}
+                onClick={() => setUrgency(opt.value)}
               >
-                {u === "urgent" && "⚡ "}
-                {u === "critical" && "🔴 "}
-                {u === "normal" ? "Обычная" : u === "urgent" ? "Срочная" : "Критическая"}
+                <span className="urgency-pill-main">
+                  <UrgencyIcon kind={opt.value} />
+                  <span className="urgency-pill-label">{opt.label}</span>
+                </span>
+                <span className="urgency-pill-sub">{opt.sub}</span>
               </button>
             ))}
           </div>
+          {urgency === "critical" && (
+            <div className="qf-critical-warning" role="note">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <span>Используйте только при угрозе жизни или здоровью</span>
+            </div>
+          )}
 
-          {/* Photo slots */}
+          {/* Photo slots — filled previews + one add button (native iOS/Android
+              chooser offers camera OR library). No dead empty placeholders. */}
           <div className="photo-slots">
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/heic"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/*"
               multiple
               onChange={handlePhotoSelect}
-              style={{ display: "none" }}
-            />
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleCameraCapture}
               style={{ display: "none" }}
             />
 
@@ -285,8 +324,12 @@ export function HelpFormSheet({ tab, onClose }: Props) {
                   type="button"
                   className="photo-slot-remove"
                   onClick={() => removePhoto(i)}
+                  aria-label="Удалить фото"
                 >
-                  &times;
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                    <line x1="6" y1="18" x2="18" y2="6" />
+                  </svg>
                 </button>
               </div>
             ))}
@@ -295,34 +338,16 @@ export function HelpFormSheet({ tab, onClose }: Props) {
               <button
                 type="button"
                 className="photo-slot photo-slot--add"
-                onClick={() => cameraInputRef.current?.click()}
-                disabled={compressing}
-              >
-                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                  <circle cx="12" cy="13" r="4" />
-                </svg>
-              </button>
-            )}
-            {photos.length < 5 && (
-              <button
-                type="button"
-                className="photo-slot photo-slot--add"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={compressing}
+                aria-label="Добавить фото"
               >
-                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <path d="m21 15-5-5L5 21" />
+                <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
                 </svg>
+                <span className="photo-slot-hint">Фото</span>
               </button>
             )}
-
-            {/* Empty placeholder slots */}
-            {Array.from({ length: Math.max(0, 5 - photos.length - 2) }).map((_, i) => (
-              <div key={`empty-${i}`} className="photo-slot photo-slot--empty" />
-            ))}
           </div>
           {compressing && <div className="qf-hint">Сжатие фото...</div>}
 
@@ -335,7 +360,10 @@ export function HelpFormSheet({ tab, onClose }: Props) {
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
               <span className="qf-chip-text">{address}</span>
-              <span className="qf-chip-edit">✏️</span>
+              <svg className="qf-chip-edit" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />
+              </svg>
             </button>
           ) : (
             <input
@@ -357,7 +385,10 @@ export function HelpFormSheet({ tab, onClose }: Props) {
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               <span className="qf-chip-text">{contactSummary}</span>
-              <span className="qf-chip-edit">✏️</span>
+              <svg className="qf-chip-edit" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />
+              </svg>
             </button>
           ) : (
             <div className="qf-contact-row">
@@ -390,7 +421,7 @@ export function HelpFormSheet({ tab, onClose }: Props) {
                 ? "Загрузка фото..."
                 : "Отправляем..."
               : category
-                ? "Отправить заявку →"
+                ? tab === "offer" ? "Предложить помощь" : "Запросить помощь"
                 : "Выберите категорию"}
           </button>
         </div>
