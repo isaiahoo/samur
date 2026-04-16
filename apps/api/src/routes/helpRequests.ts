@@ -290,11 +290,17 @@ router.patch(
         throw new AppError(404, "NOT_FOUND", "Запрос помощи не найден");
       }
 
-      // Only author, claimer, or coordinator/admin can modify
+      // Only author, claimer, coordinator/admin, or a volunteer claiming an
+      // unclaimed request can modify. The volunteer-claim case is the reason
+      // an otherwise-unrelated user is allowed to touch this row at all.
       const isOwner = existing.userId && existing.userId === req.user!.sub;
       const isClaimer = existing.claimedBy && existing.claimedBy === req.user!.sub;
       const isPrivileged = req.user!.role === "coordinator" || req.user!.role === "admin";
-      if (!isOwner && !isClaimer && !isPrivileged) {
+      const isVolunteerClaiming =
+        req.body.status === "claimed" &&
+        !existing.claimedBy &&
+        req.user!.role === "volunteer";
+      if (!isOwner && !isClaimer && !isPrivileged && !isVolunteerClaiming) {
         throw new AppError(403, "FORBIDDEN", "Недостаточно прав для редактирования");
       }
 
