@@ -90,6 +90,25 @@ export async function fetchAndStorePredictions(): Promise<{
     return { stored: 0, errors: ["ML service unavailable"] };
   }
 
+  // Normalise "today" to UTC midnight so one call per day dedups cleanly via
+  // the (riverName, stationName, forecastMadeAt, horizonDays) unique index.
+  const now = new Date();
+  const forecastMadeAt = new Date(Date.UTC(
+    now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(),
+  ));
+  const snapshotRows: Array<{
+    riverName: string;
+    stationName: string;
+    forecastMadeAt: Date;
+    targetDate: Date;
+    horizonDays: number;
+    predictedCm: number;
+    predictionLower: number | null;
+    predictionUpper: number | null;
+    dataSource: string;
+    modelVersion: string | null;
+  }> = [];
+
   for (const stationResult of result.data) {
     if (stationResult.error || !stationResult.forecasts) {
       errors.push(`${stationResult.station_id}: ${stationResult.error ?? "no forecasts"}`);
@@ -135,6 +154,25 @@ export async function fetchAndStorePredictions(): Promise<{
     for (const fc of forecasts) {
       try {
         const measuredAt = new Date(fc.date + "T00:00:00Z");
+        const horizonDays = Math.round(
+          (measuredAt.getTime() - forecastMadeAt.getTime()) / 86_400_000,
+        );
+        // Horizon 0 = "today's nowcast", 1-7 = future forecasts. We only care
+        // about h ≥ 1 for skill evaluation (h = 0 is effectively observed).
+        if (horizonDays >= 1) {
+          snapshotRows.push({
+            riverName: stationInfo.riverName,
+            stationName: stationInfo.stationName,
+            forecastMadeAt,
+            targetDate: measuredAt,
+            horizonDays,
+            predictedCm: fc.level_cm,
+            predictionLower: fc.lower_90,
+            predictionUpper: fc.upper_90,
+            dataSource,
+            modelVersion: result.model_version ?? null,
+          });
+        }
 
         await prisma.riverLevel.upsert({
           where: {
@@ -174,6 +212,25 @@ export async function fetchAndStorePredictions(): Promise<{
         log.warn({ station: stationResult.station_id, date: fc.date, error: msg }, "Failed to store prediction");
         errors.push(`${stationResult.station_id}/${fc.date}: ${msg}`);
       }
+    }
+  }
+
+  // Persist snapshots in one batch. skipDuplicates so a manual admin re-trigger
+  // on the same day doesn't error or overwrite the first-of-day prediction.
+  if (snapshotRows.length > 0) {
+    try {
+      const snapResult = await prisma.forecastSnapshot.createMany({
+        data: snapshotRows,
+        skipDuplicates: true,
+      });
+      log.info(
+        { attempted: snapshotRows.length, inserted: snapResult.count },
+        "Forecast snapshots persisted",
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn({ error: msg }, "Failed to persist forecast snapshots");
+      errors.push(`forecast_snapshots: ${msg}`);
     }
   }
 

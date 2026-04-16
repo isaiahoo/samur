@@ -371,6 +371,29 @@ export function getAiForecast() {
   return request<AiForecastResponse>("/river-levels/ai-forecast");
 }
 
+export interface AiSkillRow {
+  riverName: string;
+  stationName: string;
+  horizonDays: number;
+  n: number;
+  nse: number | null;
+  rmseCm: number;
+  biasCm: number;
+  climatologyShare: number;
+}
+export interface AiSkillResponse extends ApiResponse<AiSkillRow[]> {
+  meta?: {
+    days: number;
+    windowStart: string;
+    windowEnd: string;
+    totalSnapshots: number;
+    evaluatedPairs: number;
+  };
+}
+export function getAiSkill(days = 30) {
+  return request<AiSkillResponse>(`/river-levels/ai-skill?days=${days}`);
+}
+
 // ── Historical river data (AllRivers.info) ──────────────────────────────
 
 export interface HistoricalStat {

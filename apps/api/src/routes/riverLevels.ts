@@ -314,6 +314,153 @@ router.get("/ai-forecast", async (_req, res, next) => {
   }
 });
 
+// Retrospective skill: for each (station, horizon) pair, compute NSE / RMSE /
+// bias over the last N days of evaluated forecasts (target_date ≤ today).
+// This is the "forecast vs. actual" drift signal for operators.
+router.get("/ai-skill", async (req, res, next) => {
+  try {
+    const parsedDays = parseInt(String(req.query.days), 10);
+    const days = Math.min(Math.max(Number.isNaN(parsedDays) ? 30 : parsedDays, 1), 180);
+
+    // Evaluation window: snapshots whose target_date fell within the last N days.
+    // We exclude today (target_date < today) because the observed row for today
+    // may still be a forecast or may not yet have a rating-curve estimate.
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const windowStart = new Date(today.getTime() - days * 86_400_000);
+
+    const snapshots = await prisma.forecastSnapshot.findMany({
+      where: {
+        targetDate: { gte: windowStart, lt: today },
+      },
+      select: {
+        riverName: true,
+        stationName: true,
+        horizonDays: true,
+        targetDate: true,
+        predictedCm: true,
+        dataSource: true,
+      },
+    });
+
+    if (snapshots.length === 0) {
+      res.json({
+        success: true,
+        data: [],
+        meta: {
+          days,
+          windowStart: windowStart.toISOString(),
+          windowEnd: today.toISOString(),
+          totalSnapshots: 0,
+        },
+      });
+      return;
+    }
+
+    // Fetch observed levels across all target_dates in the window, all stations
+    // referenced. One query instead of per-group.
+    const stationKeys = new Set(
+      snapshots.map((s) => `${s.riverName}::${s.stationName}`),
+    );
+    const observedRows = await prisma.riverLevel.findMany({
+      where: {
+        deletedAt: null,
+        isForecast: false,
+        measuredAt: { gte: windowStart, lt: today },
+        levelCm: { not: null },
+        OR: Array.from(stationKeys).map((k) => {
+          const [riverName, stationName] = k.split("::");
+          return { riverName, stationName };
+        }),
+      },
+      select: {
+        riverName: true,
+        stationName: true,
+        measuredAt: true,
+        levelCm: true,
+      },
+    });
+
+    // Build observed lookup: (station::YYYY-MM-DD) → levelCm
+    const observedMap = new Map<string, number>();
+    for (const r of observedRows) {
+      if (r.levelCm === null) continue;
+      const day = r.measuredAt.toISOString().slice(0, 10);
+      const key = `${r.riverName}::${r.stationName}::${day}`;
+      // If there are multiple observed rows for one day (shouldn't happen with
+      // daily data), keep the first — they should agree to within noise.
+      if (!observedMap.has(key)) observedMap.set(key, r.levelCm);
+    }
+
+    // Group snapshots by (riverName, stationName, horizonDays).
+    interface Pair { pred: number; obs: number; climatology: boolean }
+    const groups = new Map<string, { pairs: Pair[]; riverName: string; stationName: string; horizonDays: number }>();
+
+    for (const s of snapshots) {
+      const day = s.targetDate.toISOString().slice(0, 10);
+      const obs = observedMap.get(`${s.riverName}::${s.stationName}::${day}`);
+      if (obs === undefined) continue;
+      const groupKey = `${s.riverName}::${s.stationName}::${s.horizonDays}`;
+      let g = groups.get(groupKey);
+      if (!g) {
+        g = { pairs: [], riverName: s.riverName, stationName: s.stationName, horizonDays: s.horizonDays };
+        groups.set(groupKey, g);
+      }
+      g.pairs.push({
+        pred: s.predictedCm,
+        obs,
+        climatology: s.dataSource === "samur-ai-climatology",
+      });
+    }
+
+    const data = Array.from(groups.values()).map((g) => {
+      const { pairs } = g;
+      const n = pairs.length;
+      const meanObs = pairs.reduce((a, p) => a + p.obs, 0) / n;
+      const sseObs = pairs.reduce((a, p) => a + (p.obs - meanObs) ** 2, 0);
+      const ssePred = pairs.reduce((a, p) => a + (p.obs - p.pred) ** 2, 0);
+      // NSE is undefined when there's zero observed variance (all obs equal).
+      // In that case RMSE is still meaningful, so we return nse=null and let
+      // the UI decide how to render.
+      const nse = sseObs > 0 ? 1 - ssePred / sseObs : null;
+      const rmse = Math.sqrt(ssePred / n);
+      const bias = pairs.reduce((a, p) => a + (p.pred - p.obs), 0) / n;
+      const climatologyShare = pairs.filter((p) => p.climatology).length / n;
+
+      return {
+        riverName: g.riverName,
+        stationName: g.stationName,
+        horizonDays: g.horizonDays,
+        n,
+        nse: nse === null ? null : Math.round(nse * 1000) / 1000,
+        rmseCm: Math.round(rmse * 10) / 10,
+        biasCm: Math.round(bias * 10) / 10,
+        climatologyShare: Math.round(climatologyShare * 100) / 100,
+      };
+    });
+
+    data.sort((a, b) => {
+      if (a.riverName !== b.riverName) return a.riverName.localeCompare(b.riverName);
+      if (a.stationName !== b.stationName) return a.stationName.localeCompare(b.stationName);
+      return a.horizonDays - b.horizonDays;
+    });
+
+    res.json({
+      success: true,
+      data,
+      meta: {
+        days,
+        windowStart: windowStart.toISOString(),
+        windowEnd: today.toISOString(),
+        totalSnapshots: snapshots.length,
+        evaluatedPairs: data.reduce((a, d) => a + d.n, 0),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get("/ai-health", async (_req, res, next) => {
   try {
     const health = await checkMlHealth();

@@ -9,8 +9,9 @@ const HelpManagement = lazy(() => import("./HelpManagement.js").then((m) => ({ d
 const AlertComposer = lazy(() => import("./AlertComposer.js").then((m) => ({ default: m.AlertComposer })));
 const StatsDashboard = lazy(() => import("./StatsDashboard.js").then((m) => ({ default: m.StatsDashboard })));
 const RiverLevelsEditor = lazy(() => import("./RiverLevelsEditor.js").then((m) => ({ default: m.RiverLevelsEditor })));
+const AiSkillPanel = lazy(() => import("./AiSkillPanel.js").then((m) => ({ default: m.AiSkillPanel })));
 
-type AdminTab = "verify" | "help" | "alert" | "stats" | "rivers";
+type AdminTab = "verify" | "help" | "alert" | "stats" | "rivers" | "aiSkill";
 
 export function AdminPage() {
   const [tab, setTab] = useState<AdminTab>("verify");
@@ -26,6 +27,7 @@ export function AdminPage() {
     { key: "alert", label: "Оповещение" },
     { key: "stats", label: "Статистика" },
     { key: "rivers", label: "Реки" },
+    { key: "aiSkill", label: "Точность ИИ" },
   ];
 
   return (
@@ -49,6 +51,7 @@ export function AdminPage() {
           {tab === "alert" && <AlertComposer />}
           {tab === "stats" && <StatsDashboard />}
           {tab === "rivers" && <RiverLevelsEditor />}
+          {tab === "aiSkill" && <AiSkillPanel />}
         </Suspense>
       </div>
     </div>

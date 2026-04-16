@@ -325,6 +325,26 @@ model HistoricalRiverStats {
   @@map("historical_river_stats")
 }
 
+model ForecastSnapshot {
+  id              String   @id @default(cuid())
+  riverName       String   @map("river_name")
+  stationName     String   @map("station_name")
+  forecastMadeAt  DateTime @map("forecast_made_at") @db.Date
+  targetDate      DateTime @map("target_date") @db.Date
+  horizonDays     Int      @map("horizon_days")
+  predictedCm     Float    @map("predicted_cm")
+  predictionLower Float?   @map("prediction_lower")
+  predictionUpper Float?   @map("prediction_upper")
+  dataSource      String   @map("data_source")
+  modelVersion    String?  @map("model_version")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@unique([riverName, stationName, forecastMadeAt, horizonDays])
+  @@index([riverName, stationName, targetDate])
+  @@index([targetDate])
+  @@map("forecast_snapshots")
+}
+
 model MlModelMetrics {
   id          String   @id @default(cuid())
   modelName   String   @map("model_name")
