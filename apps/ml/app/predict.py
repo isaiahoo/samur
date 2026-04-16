@@ -133,7 +133,17 @@ class Predictor:
         return violations
 
     def _load_models(self, model_dir: Path):
-        """Load all XGBoost model files."""
+        """Load all XGBoost model files.
+
+        XGBoost ≥ 2.x has a known bug (and behaviour change) where
+        load_model() resets base_score to its default 0.5 instead of
+        restoring the value saved in the JSON. That shifts every
+        prediction by (true_base - 0.5) ≈ mean water level (≈ 250 cm
+        for these gauges) and makes raw predictions hover near zero.
+        To fix, we read the true base_score directly from the JSON and
+        apply the correction at inference time (see predict()).
+        """
+        import json as _json
         for station_id in STATION_META:
             station_models = {}
             for h in HORIZONS:
@@ -141,6 +151,19 @@ class Predictor:
                 if path.exists():
                     booster = xgb.Booster()
                     booster.load_model(str(path))
+                    # Recover true base_score from the saved JSON
+                    try:
+                        with open(path) as f:
+                            raw = _json.load(f)
+                        true_base = float(
+                            raw["learner"]["learner_model_param"]["base_score"][0]
+                            if isinstance(raw["learner"]["learner_model_param"]["base_score"], list)
+                            else raw["learner"]["learner_model_param"]["base_score"]
+                        )
+                    except Exception:
+                        true_base = 0.5
+                    # Stash the correction offset on the booster itself
+                    booster.set_attr(base_score_offset=str(true_base - 0.5))
                     station_models[h] = booster
             if station_models:
                 self.models[station_id] = station_models
@@ -226,7 +249,11 @@ class Predictor:
             model = self.models[station_id][h]
             X = latest[feature_cols].values
             dmat = xgb.DMatrix(X, feature_names=feature_cols)
-            pred = max(float(model.predict(dmat)[0]), 0.0)  # Clamp to non-negative
+            # Correct the XGBoost 2.x load-time base_score reset — add the
+            # offset captured when the model was loaded.
+            offset_attr = model.attr("base_score_offset")
+            offset = float(offset_attr) if offset_attr else 0.0
+            pred = max(float(model.predict(dmat)[0]) + offset, 0.0)  # Clamp to non-negative
 
             forecast_date = today + timedelta(days=h)
             # 90% CI ≈ ±1.645 × RMSE (assumes roughly normal errors)
@@ -403,7 +430,7 @@ class Predictor:
         """Fill water_level_cm from live scraped data (river_levels table)."""
         try:
             url = f"{EXPRESS_API}/api/v1/river-levels/history/{river}/{station}"
-            resp = client.get(url, params={"days": "30", "includeForecast": "false"})
+            resp = client.get(url, params={"days": "45", "includeForecast": "false"})
             resp.raise_for_status()
             levels_data = resp.json().get("data", [])
 

@@ -117,7 +117,9 @@ router.get("/history/:riverName/:stationName", async (req, res, next) => {
   try {
     const { riverName, stationName } = req.params;
     const parsedDays = parseInt(req.query.days as string, 10);
-    const days = Math.min(Math.max(Number.isNaN(parsedDays) ? 7 : parsedDays, 1), 30);
+    // Cap at 60 days — the ML service needs up to 45 days of level history
+    // to populate level_lag_14 features; a 30-day cap truncated it.
+    const days = Math.min(Math.max(Number.isNaN(parsedDays) ? 7 : parsedDays, 1), 60);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
     const includeForecast = req.query.includeForecast === "true";

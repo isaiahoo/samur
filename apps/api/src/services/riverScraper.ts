@@ -629,6 +629,24 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
       // Step 4: Store forecast rows from Open-Meteo (batched)
       const forecasts = readings.filter((r) => r.isForecast);
       if (forecasts.length > 0) {
+        // For rating-curve features we need rolling Q context stretching
+        // back from each forecast day into the historical series.
+        const byDate = new Map<string, number>();
+        for (const r of readings) byDate.set(r.date, r.discharge);
+        const dischargeAtOffset = (fromDate: string, dayOffset: number): number | null => {
+          const d = new Date(fromDate + "T00:00:00Z");
+          d.setUTCDate(d.getUTCDate() + dayOffset);
+          return byDate.get(d.toISOString().slice(0, 10)) ?? null;
+        };
+        const rollingMean = (fromDate: string, days: number): number | null => {
+          const vals: number[] = [];
+          for (let i = 0; i > -days; i--) {
+            const v = dischargeAtOffset(fromDate, i);
+            if (v != null && v > 0) vals.push(v);
+          }
+          return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+        };
+
         // Delete old forecasts for this station, then batch-insert new ones
         await prisma.riverLevel.deleteMany({
           where: {
@@ -639,26 +657,36 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
         });
 
         await prisma.riverLevel.createMany({
-          data: forecasts.map((fc) => ({
-            riverName: station.riverName,
-            stationName: station.stationName,
-            lat: station.lat,
-            lng: station.lng,
-            levelCm: null,
-            dangerLevelCm: null,
-            dischargeCubicM: fc.discharge,
-            dischargeMean: fc.dischargeMean,
-            dischargeMax: fc.dischargeMax,
-            dischargeMedian: fc.dischargeMedian,
-            dischargeMin: fc.dischargeMin,
-            dischargeP25: fc.dischargeP25,
-            dischargeP75: fc.dischargeP75,
-            dischargeAnnualMean: station.meanDischarge,
-            dataSource: "open-meteo",
-            isForecast: true,
-            trend: "stable" as const,
-            measuredAt: new Date(fc.date + "T12:00:00Z"),
-          })),
+          data: forecasts.map((fc) => {
+            const measuredAt = new Date(fc.date + "T12:00:00Z");
+            const curve = estimateLevelCm(
+              station.riverName, station.stationName,
+              fc.discharge,
+              rollingMean(fc.date, 3),
+              rollingMean(fc.date, 7),
+              measuredAt,
+            );
+            return {
+              riverName: station.riverName,
+              stationName: station.stationName,
+              lat: station.lat,
+              lng: station.lng,
+              levelCm: curve?.levelCm ?? null,
+              dangerLevelCm: curve ? station.dangerLevelCm : null,
+              dischargeCubicM: fc.discharge,
+              dischargeMean: fc.dischargeMean,
+              dischargeMax: fc.dischargeMax,
+              dischargeMedian: fc.dischargeMedian,
+              dischargeMin: fc.dischargeMin,
+              dischargeP25: fc.dischargeP25,
+              dischargeP75: fc.dischargeP75,
+              dischargeAnnualMean: station.meanDischarge,
+              dataSource: "open-meteo",
+              isForecast: true,
+              trend: "stable" as const,
+              measuredAt,
+            };
+          }),
         });
         log.debug({ station: key, count: forecasts.length }, "Stored forecast rows (batched)");
       }
