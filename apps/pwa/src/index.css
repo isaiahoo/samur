@@ -2572,11 +2572,33 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   font-weight: 600;
 }
 .detail-contact-empty { font-size: 14px; color: var(--color-muted); }
+.detail-contact-hint { font-size: 12px; font-weight: 400; color: var(--color-muted); }
+.detail-claimer {
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+  margin-bottom: 16px;
+  background: #f0f9ff;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #bae6fd;
+}
+.detail-claimer h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0c4a6e;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 6px;
+}
+.detail-claimer-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: #0c4a6e; }
+.detail-claimer-role { font-size: 13px; font-weight: 400; color: #0369a1; }
 .detail-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+.detail-actions > * { flex: 1 1 140px; }
 .detail-actions .btn { flex: 1; }
 
 /* ── Photo upload form ───────────────────────────────────── */
@@ -5628,6 +5650,11 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .detail-desc { color: #e4e4e7; }
   .detail-contact-name { color: #e4e4e7; }
   .detail-contact-empty { color: #71717a; }
+  .detail-contact-hint { color: #71717a; }
+  .detail-claimer { background: rgba(14,165,233,0.08); border-color: rgba(14,165,233,0.28); }
+  .detail-claimer h4 { color: #7dd3fc; }
+  .detail-claimer-name { color: #e0f2fe; }
+  .detail-claimer-role { color: #bae6fd; }
   .detail-photo { border: 1px solid var(--color-border); }
 
   /* Alerts page */

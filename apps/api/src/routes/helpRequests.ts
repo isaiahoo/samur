@@ -30,8 +30,35 @@ import {
 
 const router = Router();
 
+// ── Phone-number privacy filter ───────────────────────────────────────────
+// `contactPhone` is public (the requester explicitly shared it). But the
+// user's *account* phone (`author.phone`, `claimer.phone`) is their login
+// credential, so we only expose it to parties already tied to the request:
+// the author, the current claimer, and coordinators/admins.
+interface Caller { sub: string; role: string }
+type HelpRequestWithParties = Record<string, unknown> & {
+  userId: string | null;
+  claimedBy: string | null;
+  author?: { phone?: string | null } | null;
+  claimer?: { phone?: string | null } | null;
+};
+function filterPhones<T extends HelpRequestWithParties>(row: T, caller: Caller | null): T {
+  const isOwner = caller && row.userId === caller.sub;
+  const isClaimer = caller && row.claimedBy === caller.sub;
+  const isPrivileged = caller?.role === "coordinator" || caller?.role === "admin";
+  if (isOwner || isClaimer || isPrivileged) return row;
+  // Strip phones. Use explicit nulls so the client gets stable shapes.
+  if (row.author) row.author = { ...row.author, phone: null };
+  if (row.claimer) row.claimer = { ...row.claimer, phone: null };
+  return row;
+}
+function getCaller(req: { user?: { sub: string; role: string } }): Caller | null {
+  return req.user ? { sub: req.user.sub, role: req.user.role } : null;
+}
+
 router.get(
   "/",
+  optionalAuth,
   validateQuery(HelpRequestQuerySchema),
   async (req, res, next) => {
     try {
@@ -73,16 +100,20 @@ router.get(
           skip: (q.page - 1) * q.limit,
           take: q.limit,
           include: {
-            author: { select: { id: true, name: true, role: true } },
-            claimer: { select: { id: true, name: true, role: true } },
+            author: { select: { id: true, name: true, role: true, phone: true } },
+            claimer: { select: { id: true, name: true, role: true, phone: true } },
           },
         }),
         prisma.helpRequest.count({ where }),
       ]);
 
+      const caller = getCaller(req as never);
+      const filtered = items.map((row) =>
+        filterPhones(row as unknown as HelpRequestWithParties, caller)
+      );
       res.json({
         success: true,
-        data: items,
+        data: filtered,
         meta: { total, page: q.page, limit: q.limit },
       });
     } catch (err) {
@@ -203,7 +234,7 @@ router.post(
   }
 );
 
-router.get("/:id", async (req, res, next) => {
+router.get("/:id", optionalAuth, async (req, res, next) => {
   try {
     const id = paramId(req);
     const hr = await prisma.helpRequest.findFirst({
@@ -219,7 +250,9 @@ router.get("/:id", async (req, res, next) => {
       throw new AppError(404, "NOT_FOUND", "Запрос помощи не найден");
     }
 
-    res.json({ success: true, data: hr });
+    const caller = getCaller(req as never);
+    const filtered = filterPhones(hr as unknown as HelpRequestWithParties, caller);
+    res.json({ success: true, data: filtered });
   } catch (err) {
     next(err);
   }
@@ -261,14 +294,20 @@ router.post(
           source: source ?? "pwa",
         },
         include: {
-          author: { select: { id: true, name: true, role: true } },
-          claimer: { select: { id: true, name: true, role: true } },
+          author: { select: { id: true, name: true, role: true, phone: true } },
+          claimer: { select: { id: true, name: true, role: true, phone: true } },
         },
       });
 
-      emitHelpRequestCreated(hr as unknown as HelpRequest);
+      const broadcast = filterPhones(
+        { ...(hr as unknown as HelpRequestWithParties) },
+        null,
+      ) as unknown as HelpRequest;
+      emitHelpRequestCreated(broadcast);
 
-      res.status(201).json({ success: true, data: hr });
+      const caller = getCaller(req as never);
+      const filtered = filterPhones(hr as unknown as HelpRequestWithParties, caller);
+      res.status(201).json({ success: true, data: filtered });
     } catch (err) {
       next(err);
     }
@@ -343,8 +382,8 @@ router.patch(
           where: { id, version: existing.version },
           data,
           include: {
-            author: { select: { id: true, name: true, role: true } },
-            claimer: { select: { id: true, name: true, role: true } },
+            author: { select: { id: true, name: true, role: true, phone: true } },
+            claimer: { select: { id: true, name: true, role: true, phone: true } },
           },
         });
       } catch (err: unknown) {
@@ -354,14 +393,22 @@ router.patch(
         throw err;
       }
 
-      const typed = updated as unknown as HelpRequest;
+      // Socket broadcast goes to every connected client — strip phones before
+      // emitting so the public event never carries account-phone numbers.
+      // Each party re-fetches the REST detail to get their allowed phones.
+      const broadcast = filterPhones(
+        { ...(updated as unknown as HelpRequestWithParties) },
+        null,
+      ) as unknown as HelpRequest;
       if (isClaim) {
-        emitHelpRequestClaimed(typed);
+        emitHelpRequestClaimed(broadcast);
       } else {
-        emitHelpRequestUpdated(typed);
+        emitHelpRequestUpdated(broadcast);
       }
 
-      res.json({ success: true, data: updated });
+      const caller = getCaller(req as never);
+      const filtered = filterPhones(updated as unknown as HelpRequestWithParties, caller);
+      res.json({ success: true, data: filtered });
     } catch (err) {
       next(err);
     }

@@ -89,19 +89,43 @@ export function HelpDetailSheet({ item, isNeed, onClaim, onClose }: Props) {
             </div>
           </div>
 
-          {/* Contact info */}
+          {/* Contact info — the requester */}
           <div className="detail-contact">
-            <h4>Контакт</h4>
+            <h4>Контакт заявителя</h4>
             {item.contactName && <p className="detail-contact-name">{item.contactName}</p>}
-            {item.contactPhone && (
+            {item.contactPhone ? (
               <a href={`tel:${item.contactPhone}`} className="detail-contact-phone">
                 {item.contactPhone}
               </a>
-            )}
-            {!item.contactName && !item.contactPhone && (
+            ) : item.author?.phone ? (
+              // Fallback to author's account phone when no explicit contactPhone
+              // was provided (typical for SOS / panic-button submissions).
+              <a href={`tel:${item.author.phone}`} className="detail-contact-phone">
+                {item.author.phone}
+                <span className="detail-contact-hint"> · телефон автора</span>
+              </a>
+            ) : !item.contactName ? (
               <p className="detail-contact-empty">Не указано</p>
-            )}
+            ) : null}
           </div>
+
+          {/* Claimer block — visible once someone has responded */}
+          {(item.status === "claimed" || item.status === "in_progress") && item.claimer && (
+            <div className="detail-claimer">
+              <h4>Откликнулся</h4>
+              <p className="detail-claimer-name">
+                {item.claimer.name ?? "Волонтёр"}
+                {item.claimer.role === "volunteer" && <span className="detail-claimer-role"> · Волонтёр</span>}
+                {item.claimer.role === "coordinator" && <span className="detail-claimer-role"> · Координатор</span>}
+                {item.claimer.role === "admin" && <span className="detail-claimer-role"> · Администратор</span>}
+              </p>
+              {item.claimer.phone && (
+                <a href={`tel:${item.claimer.phone}`} className="detail-contact-phone">
+                  {item.claimer.phone}
+                </a>
+              )}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="detail-actions">
@@ -113,9 +137,21 @@ export function HelpDetailSheet({ item, isNeed, onClaim, onClose }: Props) {
                 Откликнуться
               </button>
             )}
-            {item.contactPhone && (
-              <a href={`tel:${item.contactPhone}`} className="btn btn-secondary btn-lg">
-                Позвонить
+            {(() => {
+              // Primary call target depends on who's looking:
+              // - If you already claimed (or are the author), the most useful
+              //   number is on the claimer block above. Still, surface a
+              //   fallback call button to the reachable phone.
+              const fallbackPhone = item.contactPhone ?? item.author?.phone ?? null;
+              return fallbackPhone && (
+                <a href={`tel:${fallbackPhone}`} className="btn btn-secondary btn-lg">
+                  Позвонить заявителю
+                </a>
+              );
+            })()}
+            {item.claimer?.phone && (
+              <a href={`tel:${item.claimer.phone}`} className="btn btn-secondary btn-lg">
+                Позвонить волонтёру
               </a>
             )}
           </div>

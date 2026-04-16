@@ -85,6 +85,13 @@ export interface Incident {
   deletedAt: string | null;
 }
 
+export interface HelpRequestParty {
+  id: string;
+  name: string | null;
+  role: string;
+  phone?: string | null;
+}
+
 export interface HelpRequest {
   id: string;
   userId: string | null;
@@ -111,6 +118,8 @@ export interface HelpRequest {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  author?: HelpRequestParty | null;
+  claimer?: HelpRequestParty | null;
 }
 
 export interface Alert {
