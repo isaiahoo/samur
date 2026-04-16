@@ -3343,22 +3343,26 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   bottom: calc(env(safe-area-inset-bottom, 0px) + 62px);
   right: 16px;
   height: 48px;
-  padding: 0 20px;
+  padding: 0 18px 0 14px;
   border-radius: 24px;
   background: var(--color-primary);
   color: #fff;
   border: none;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 15px;
   font-weight: 600;
+  letter-spacing: 0.01em;
   box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35), 0 1px 3px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   z-index: 500;
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.15s, box-shadow 0.15s;
+}
+.fab-label {
+  line-height: 1;
 }
 .fab:active {
   transform: scale(0.95);
@@ -4048,45 +4052,72 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 /* ── SOS Button ────────────────────────────────────────────────────────── */
 
-/* FAB — persistent red button, bottom-right above tabbar */
+/* FAB — persistent red button, bottom-right, stacked above the "Сообщить" pill */
 .sos-fab {
   position: fixed;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 62px);
-  left: 16px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 122px);
+  right: 16px;
   z-index: 1500;
-  width: 52px;
-  height: 52px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.28);
   background: #dc2626;
   color: #fff;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.45), 0 0 0 0 rgba(220, 38, 38, 0);
-  animation: sos-glow 3s ease-in-out infinite;
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.55), 0 2px 4px rgba(0, 0, 0, 0.18);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.sos-fab:active {
+  transform: scale(0.94);
+}
+/* Conditional pulse — only active when a real crisis signal is on */
+.sos-fab--alert {
+  animation: sos-glow 2.2s ease-in-out infinite;
+}
+/* While user is holding, halt the pulse so the progress ring is clear */
+.sos-fab--holding.sos-fab--alert {
+  animation: none;
+}
+.sos-fab-ring {
+  position: absolute;
+  inset: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.sos-fab--holding .sos-fab-ring {
+  opacity: 1;
 }
 .sos-fab-text {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 800;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
   line-height: 1;
+  position: relative; /* stack above ring */
 }
 @media (max-width: 768px) {
   .sos-fab {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 74px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 134px);
   }
-  /* On map page, both SOS and FAB sit above the МОНИТОРИНГ bar */
+  /* On map page, SOS stacks above "Сообщить", which sits above the МОНИТОРИНГ bar */
   .app-layout:has(.tab-alive--visible > .map-page) .sos-fab {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 100px);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 160px);
   }
 }
 @keyframes sos-glow {
-  0%, 100% { box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4), 0 0 0 0 rgba(220, 38, 38, 0); }
-  50% { box-shadow: 0 4px 20px rgba(220, 38, 38, 0.6), 0 0 0 6px rgba(220, 38, 38, 0.12); }
+  0%, 100% { box-shadow: 0 6px 20px rgba(220, 38, 38, 0.55), 0 0 0 0 rgba(220, 38, 38, 0); }
+  50% { box-shadow: 0 6px 24px rgba(220, 38, 38, 0.7), 0 0 0 10px rgba(220, 38, 38, 0.15); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sos-fab--alert { animation: none; }
 }
 
 /* Full-screen overlay */
@@ -4132,44 +4163,6 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   font-size: 14px;
   color: rgba(255, 255, 255, 0.55);
   line-height: 1.4;
-}
-
-/* Hold button + circular progress ring */
-.sos-hold-wrapper {
-  position: relative;
-  width: 112px;
-  height: 112px;
-  margin: 8px 0 4px;
-}
-.sos-hold-ring {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-.sos-hold-ring-progress {
-  transition: stroke-dashoffset 0.05s linear;
-  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6));
-}
-.sos-hold-btn {
-  position: absolute;
-  inset: 6px;
-  border-radius: 50%;
-  border: none;
-  background: radial-gradient(circle at 40% 35%, #ef4444, #b91c1c);
-  color: #fff;
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: none;
-  box-shadow: 0 4px 24px rgba(220, 38, 38, 0.5), inset 0 -2px 6px rgba(0,0,0,0.2);
-  transition: transform 0.1s;
-}
-.sos-hold-btn:active {
-  transform: scale(0.94);
 }
 
 .sos-location-status {

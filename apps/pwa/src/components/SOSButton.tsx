@@ -8,9 +8,9 @@ import { useOnline } from "../hooks/useOnline.js";
 import { useUIStore } from "../store/ui.js";
 import { MAKHACHKALA_CENTER } from "@samur/shared";
 
-type Stage = "idle" | "confirm" | "situation" | "sending" | "sent" | "error";
+type Stage = "idle" | "situation" | "sending" | "sent" | "error";
 
-const HOLD_DURATION = 2000;
+const HOLD_DURATION = 1200;
 const AUTO_SEND_DELAY = 5000;
 
 export function SOSButton() {
@@ -34,6 +34,7 @@ export function SOSButton() {
   const onlineRef = useRef(online);
   onlineRef.current = online;
   const showToast = useUIStore((s) => s.showToast);
+  const crisisMode = useUIStore((s) => s.crisisMode);
 
   // Acquire GPS when confirm overlay opens
   const acquireLocation = useCallback(() => {
@@ -81,10 +82,12 @@ export function SOSButton() {
     }
   }, [showToast]);
 
-  // Long-press handlers
+  // Long-press handlers — FAB itself is the hold target
   const onHoldStart = useCallback(() => {
     holdStartRef.current = performance.now();
     try { navigator.vibrate?.(50); } catch {}
+    // Acquire GPS in background as soon as user starts holding
+    acquireLocation();
 
     const animate = () => {
       const elapsed = performance.now() - holdStartRef.current;
@@ -100,14 +103,19 @@ export function SOSButton() {
       holdRafRef.current = requestAnimationFrame(animate);
     };
     holdRafRef.current = requestAnimationFrame(animate);
-  }, []);
+  }, [acquireLocation]);
 
   const onHoldEnd = useCallback(() => {
     cancelAnimationFrame(holdRafRef.current);
+    const elapsed = performance.now() - holdStartRef.current;
+    // Quick tap (< 250ms) → show discovery hint so users learn the gesture
+    if (elapsed < 250 && holdProgress < 1) {
+      showToast("Удерживайте SOS 1 секунду", "info");
+    }
     if (holdProgress < 1) {
       setHoldProgress(0);
     }
-  }, [holdProgress]);
+  }, [holdProgress, showToast]);
 
   // Auto-send countdown when in situation picker
   useEffect(() => {
@@ -139,11 +147,6 @@ export function SOSButton() {
     clearInterval(countdownIntervalRef.current);
     sendSOS(sit);
   }, [sendSOS]);
-
-  const openConfirm = useCallback(() => {
-    setStage("confirm");
-    acquireLocation();
-  }, [acquireLocation]);
 
   const cancel = useCallback(() => {
     setStage("idle");
@@ -177,14 +180,35 @@ export function SOSButton() {
   // Hide when report form is open — user already chose "+" over SOS
   if (stage === "idle" && reportFormOpen) return null;
 
-  // Render: idle FAB
+  // Render: idle FAB — hold-to-activate, progress ring around the button
   if (stage === "idle") {
+    const alert = crisisMode;
+    const classes = ["sos-fab"];
+    if (alert) classes.push("sos-fab--alert");
+    if (holdProgress > 0) classes.push("sos-fab--holding");
+    const r = 34;
+    const circ = 2 * Math.PI * r;
     return (
       <button
-        className="sos-fab"
-        onClick={openConfirm}
-        aria-label="SOS — Я в беде"
+        className={classes.join(" ")}
+        onPointerDown={onHoldStart}
+        onPointerUp={onHoldEnd}
+        onPointerLeave={onHoldEnd}
+        onPointerCancel={onHoldEnd}
+        aria-label="SOS — удерживайте для отправки сигнала"
       >
+        <svg className="sos-fab-ring" viewBox="0 0 72 72" aria-hidden="true">
+          <circle
+            cx="36" cy="36" r={r}
+            fill="none"
+            stroke="#fff"
+            strokeWidth="3"
+            strokeDasharray={circ}
+            strokeDashoffset={circ * (1 - holdProgress)}
+            strokeLinecap="round"
+            transform="rotate(-90 36 36)"
+          />
+        </svg>
         <span className="sos-fab-text">SOS</span>
       </button>
     );
@@ -193,60 +217,16 @@ export function SOSButton() {
   // Full-screen overlay for all active stages
   return (
     <div className="sos-overlay" role="alertdialog" aria-label="Экстренный сигнал SOS" aria-modal="true">
-      {stage === "confirm" && (
-        <div className="sos-panel">
-          <div className="sos-panel-icon">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-          </div>
-          <p className="sos-panel-title">Я в беде</p>
-          <p className="sos-panel-subtitle">
-            Удерживайте кнопку 2 секунды
-          </p>
-
-          <div className="sos-hold-wrapper">
-            <svg className="sos-hold-ring" viewBox="0 0 120 120">
-              <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="5" />
-              <circle
-                cx="60" cy="60" r="54"
-                fill="none" stroke="#ef4444" strokeWidth="5"
-                strokeDasharray={`${2 * Math.PI * 54}`}
-                strokeDashoffset={`${2 * Math.PI * 54 * (1 - holdProgress)}`}
-                strokeLinecap="round"
-                transform="rotate(-90 60 60)"
-                className="sos-hold-ring-progress"
-              />
-            </svg>
-            <button
-              className="sos-hold-btn"
-              onPointerDown={onHoldStart}
-              onPointerUp={onHoldEnd}
-              onPointerLeave={onHoldEnd}
-              onPointerCancel={onHoldEnd}
-              aria-label="Удерживайте для SOS"
-            >
-              SOS
-            </button>
-          </div>
-
-          <p className="sos-location-status">
-            {locating && "Определяем местоположение..."}
-            {location && `Координаты получены (${Math.round(location.accuracy)}м)`}
-            {!locating && !location && "GPS недоступен — будет отправлен без координат"}
-          </p>
-
-          <button className="sos-cancel-btn" onClick={cancel}>Отмена</button>
-        </div>
-      )}
-
       {stage === "situation" && (
         <div className="sos-panel">
           <p className="sos-panel-title">Выберите ситуацию</p>
           <p className="sos-countdown-text">
-            Отправка через <span className="sos-countdown-num">{autoSendCountdown}</span>с
+            Не выбрали? Отправим через <span className="sos-countdown-num">{autoSendCountdown}</span>с
+          </p>
+          <p className="sos-location-status">
+            {locating && "Определяем местоположение..."}
+            {location && `Координаты получены (±${Math.round(location.accuracy)}м)`}
+            {!locating && !location && "GPS недоступен — отправим без координат"}
           </p>
 
           <div className="sos-situation-grid">
@@ -349,7 +329,7 @@ export function SOSButton() {
           </div>
           <p className="sos-panel-title" style={{ color: "#f87171" }}>Ошибка отправки</p>
           <p className="sos-panel-subtitle">Попробуйте ещё раз</p>
-          <button className="sos-retry-btn" onClick={() => setStage("confirm")}>
+          <button className="sos-retry-btn" onClick={() => sendSOS()}>
             Повторить
           </button>
           <button className="sos-cancel-btn" onClick={cancel}>Закрыть</button>
