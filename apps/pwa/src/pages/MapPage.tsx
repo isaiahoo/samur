@@ -82,6 +82,16 @@ export function MapPage() {
 
   useSocketSubscription(position?.lat ?? null, position?.lng ?? null, 50000);
 
+  // Mirror crisisMode to :root so purely-CSS gated rules (marker pills,
+  // monospace typography) can react without threading a prop into every
+  // imperative DOM surface.
+  useEffect(() => {
+    document.documentElement.classList.toggle("crisis-mode", crisisMode);
+    return () => {
+      document.documentElement.classList.remove("crisis-mode");
+    };
+  }, [crisisMode]);
+
   // River levels are a small fixed dataset — fetch once, update via WebSocket
   const fetchRiverLevels = useCallback(async () => {
     try {

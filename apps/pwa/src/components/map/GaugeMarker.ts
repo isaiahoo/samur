@@ -5,8 +5,12 @@
  *
  * Three zoom-adaptive variants:
  *   - Dot (zoom < 7):   colored circle, 16px
- *   - Pill (zoom 7-9):  colored badge with river name + trend arrow
- *   - Card (zoom ≥ 10): full info card with tier label + % of mean
+ *   - Pill (zoom 7-9):  rounded pill with river name, trend SVG, pct chip
+ *   - Card (zoom ≥ 10): info card with tier label, pct, and optional notes
+ *
+ * Pill + card markers compose a wrapper with the visible label above and a
+ * tiny colored anchor dot at the geographic coordinate so the exact station
+ * location is always clear even when the label is shifted by layout.
  */
 
 import type { GaugeTier, ForecastWarning, UpstreamWarning } from "./gaugeUtils.js";
@@ -25,6 +29,18 @@ function formatPct(pct: number): string {
   if (diff === 0) return "Норма";
   if (diff > 0) return `на ${diff}% выше нормы`;
   return `на ${Math.abs(diff)}% ниже нормы`;
+}
+
+/** Inline SVG for trend direction. `trend` is "rising" | "falling" | "stable". */
+function trendIconHTML(trend: string): string {
+  const attrs = 'width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+  if (trend === "rising") {
+    return `<svg class="gauge-trend gauge-trend--up" ${attrs}><path d="M7 17l5-5 5 5"/><path d="M12 12V4"/></svg>`;
+  }
+  if (trend === "falling") {
+    return `<svg class="gauge-trend gauge-trend--down" ${attrs}><path d="M7 7l5 5 5-5"/><path d="M12 12v8"/></svg>`;
+  }
+  return `<svg class="gauge-trend" ${attrs}><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>`;
 }
 
 export function variantForZoom(zoom: number): MarkerVariant {
@@ -46,61 +62,102 @@ function createDotElement(tier: GaugeTier, upstream?: UpstreamWarning | null, ha
 
 // ── Pill marker (zoom 7-9) ─────────────────────────────────────────────────
 
+function pillInnerHTML(
+  riverName: string,
+  trend: string,
+  tier: GaugeTier,
+  forecast?: ForecastWarning | null,
+  upstream?: UpstreamWarning | null,
+): string {
+  const name = esc(riverName);
+  const arrow = tier.hasData ? trendIconHTML(trend) : "";
+  const pct = tier.hasData && tier.tier >= 2
+    ? `<span class="gauge-pill-pct">${tier.pctOfMean}%</span>`
+    : "";
+  const warn = forecast?.hasDanger ? `<span class="gauge-pill-flag" aria-label="Прогноз опасности">⚠</span>` : "";
+  const up = upstream ? `<span class="gauge-pill-flag" aria-label="Опасность выше по течению">▲</span>` : "";
+  return `<span class="gauge-pill-name">${name}</span>${arrow}${pct}${warn}${up}`;
+}
+
 function createPillElement(
   riverName: string,
-  arrow: string,
+  trend: string,
   tier: GaugeTier,
   forecast?: ForecastWarning | null,
   upstream?: UpstreamWarning | null,
   hasAi?: boolean,
 ): HTMLDivElement {
-  const el = document.createElement("div");
-  el.className = tier.hasData ? `gauge-pill tier-${tier.tier}` : "gauge-pill tier-nodata";
-  if (tier.tier >= 3 && tier.hasData) el.className += " gauge-pulse";
-  if (upstream) el.className += " gauge-upstream-ring";
-  if (hasAi) el.className += " gauge-ai-ring";
+  const wrap = document.createElement("div");
+  wrap.className = "gauge-marker gauge-marker--pill";
 
-  const text = tier.hasData ? `${riverName} ${arrow}` : riverName;
-  const warn = forecast?.hasDanger ? " \u26A0" : "";
-  const upWarn = upstream ? " \u25B2" : ""; // ▲ upstream indicator
-  el.textContent = text + warn + upWarn;
-  return el;
+  const pillClasses = ["gauge-pill"];
+  pillClasses.push(tier.hasData ? `tier-${tier.tier}` : "tier-nodata");
+  if (tier.tier >= 3 && tier.hasData) pillClasses.push("gauge-pulse");
+  if (upstream) pillClasses.push("gauge-upstream-ring");
+  if (hasAi) pillClasses.push("gauge-ai-ring");
+
+  const dotClasses = ["gauge-anchor-dot"];
+  dotClasses.push(tier.hasData ? `tier-${tier.tier}` : "tier-nodata");
+
+  wrap.innerHTML = `<div class="${pillClasses.join(" ")}">${pillInnerHTML(riverName, trend, tier, forecast, upstream)}</div><div class="${dotClasses.join(" ")}"></div>`;
+  return wrap;
 }
 
 // ── Card marker (zoom ≥ 10) ────────────────────────────────────────────────
 
+function cardInnerHTML(
+  riverName: string,
+  stationName: string,
+  trend: string,
+  tier: GaugeTier,
+  forecast?: ForecastWarning | null,
+  upstream?: UpstreamWarning | null,
+  hasAi?: boolean,
+  aiSummary?: string | null,
+): string {
+  const pctText = formatPct(tier.pctOfMean);
+  const tierLabel = tier.hasData ? esc(tier.label) : "—";
+  const arrow = tier.hasData ? trendIconHTML(trend) : "";
+
+  const forecastHTML = forecast?.hasDanger
+    ? `<div class="gauge-card-forecast">⚠ ${esc(forecast.text)}</div>`
+    : "";
+  const upstreamHTML = upstream
+    ? `<div class="gauge-card-upstream">▲ ${esc(upstream.text)}</div>`
+    : "";
+  const aiHTML = hasAi && aiSummary
+    ? `<div class="gauge-card-ai">${esc(aiSummary)}</div>`
+    : "";
+
+  return `<div class="gauge-card-header"><span class="gauge-card-river">${esc(riverName)} — ${esc(stationName)}</span></div>`
+    + `<div class="gauge-card-body"><span class="gauge-card-tier">${tierLabel}${arrow}</span><span class="gauge-card-pct">${esc(pctText)}</span></div>`
+    + `${forecastHTML}${upstreamHTML}${aiHTML}`;
+}
+
 function createCardElement(
   riverName: string,
   stationName: string,
-  arrow: string,
+  trend: string,
   tier: GaugeTier,
   forecast?: ForecastWarning | null,
   upstream?: UpstreamWarning | null,
   hasAi?: boolean,
   aiSummary?: string | null,
 ): HTMLDivElement {
-  const el = document.createElement("div");
-  el.className = tier.hasData ? `gauge-card tier-${tier.tier}` : "gauge-card tier-nodata";
-  if (tier.tier >= 3 && tier.hasData) el.className += " gauge-pulse";
-  if (upstream) el.className += " gauge-upstream-ring";
-  if (hasAi) el.className += " gauge-ai-ring";
+  const wrap = document.createElement("div");
+  wrap.className = "gauge-marker gauge-marker--card";
 
-  const pctText = formatPct(tier.pctOfMean);
+  const cardClasses = ["gauge-card"];
+  cardClasses.push(tier.hasData ? `tier-${tier.tier}` : "tier-nodata");
+  if (tier.tier >= 3 && tier.hasData) cardClasses.push("gauge-pulse");
+  if (upstream) cardClasses.push("gauge-upstream-ring");
+  if (hasAi) cardClasses.push("gauge-ai-ring");
 
-  const forecastHTML = forecast?.hasDanger
-    ? `<div class="gauge-card-forecast">\u26A0 ${esc(forecast.text)}</div>`
-    : "";
+  const dotClasses = ["gauge-anchor-dot"];
+  dotClasses.push(tier.hasData ? `tier-${tier.tier}` : "tier-nodata");
 
-  const upstreamHTML = upstream
-    ? `<div class="gauge-card-upstream">\u25B2 ${esc(upstream.text)}</div>`
-    : "";
-
-  const aiHTML = hasAi && aiSummary
-    ? `<div class="gauge-card-ai">${esc(aiSummary)}</div>`
-    : "";
-
-  el.innerHTML = `<div class="gauge-card-header"><span class="gauge-card-river">${esc(riverName)} — ${esc(stationName)}</span></div><div class="gauge-card-body"><span class="gauge-card-tier">${tier.hasData ? esc(tier.label) : "—"} ${esc(arrow)}</span><span class="gauge-card-pct">${esc(pctText)}</span></div>${forecastHTML}${upstreamHTML}${aiHTML}`;
-  return el;
+  wrap.innerHTML = `<div class="${cardClasses.join(" ")}">${cardInnerHTML(riverName, stationName, trend, tier, forecast, upstream, hasAi, aiSummary)}</div><div class="${dotClasses.join(" ")}"></div>`;
+  return wrap;
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -108,7 +165,7 @@ function createCardElement(
 export interface GaugeMarkerData {
   riverName: string;
   stationName: string;
-  arrow: string;
+  trend: string;
   tier: GaugeTier;
   forecast?: ForecastWarning | null;
   upstream?: UpstreamWarning | null;
@@ -124,15 +181,15 @@ export function createMarkerElement(
     case "dot":
       return createDotElement(data.tier, data.upstream, data.hasAiForecast);
     case "pill":
-      return createPillElement(data.riverName, data.arrow, data.tier, data.forecast, data.upstream, data.hasAiForecast);
+      return createPillElement(data.riverName, data.trend, data.tier, data.forecast, data.upstream, data.hasAiForecast);
     case "card":
-      return createCardElement(data.riverName, data.stationName, data.arrow, data.tier, data.forecast, data.upstream, data.hasAiForecast, data.aiSummary);
+      return createCardElement(data.riverName, data.stationName, data.trend, data.tier, data.forecast, data.upstream, data.hasAiForecast, data.aiSummary);
   }
 }
 
 /**
- * Update an existing marker element in-place by swapping its class + content.
- * Returns true if the element was replaced (caller should swap the marker).
+ * Update an existing marker element in-place by swapping inner markup.
+ * Returns true if the variant changed and the caller should rebuild.
  */
 export function updateMarkerElement(
   existing: HTMLDivElement,
@@ -140,10 +197,8 @@ export function updateMarkerElement(
   newVariant: MarkerVariant,
   currentVariant: MarkerVariant,
 ): boolean {
-  // If variant changed, we need a full rebuild
   if (newVariant !== currentVariant) return true;
 
-  // Same variant — update in-place
   const tierClass = data.tier.hasData ? `tier-${data.tier.tier}` : "tier-nodata";
   const pulseClass = data.tier.tier >= 3 && data.tier.hasData ? " gauge-pulse" : "";
   const upClass = data.upstream ? " gauge-upstream-ring" : "";
@@ -154,26 +209,13 @@ export function updateMarkerElement(
     return false;
   }
 
-  if (newVariant === "pill") {
-    existing.className = `gauge-pill ${tierClass}${pulseClass}${upClass}${aiClass}`;
-    const warn = data.forecast?.hasDanger ? " \u26A0" : "";
-    const upWarn = data.upstream ? " \u25B2" : "";
-    existing.textContent = (data.tier.hasData ? `${data.riverName} ${data.arrow}` : data.riverName) + warn + upWarn;
-    return false;
-  }
-
-  // Card — update inner HTML
-  existing.className = `gauge-card ${tierClass}${pulseClass}${upClass}${aiClass}`;
-  const pctText = formatPct(data.tier.pctOfMean);
-  const forecastHTML = data.forecast?.hasDanger
-    ? `<div class="gauge-card-forecast">\u26A0 ${esc(data.forecast.text)}</div>`
-    : "";
-  const upstreamHTML = data.upstream
-    ? `<div class="gauge-card-upstream">\u25B2 ${esc(data.upstream.text)}</div>`
-    : "";
-  const aiHTML = data.hasAiForecast && data.aiSummary
-    ? `<div class="gauge-card-ai">${esc(data.aiSummary)}</div>`
-    : "";
-  existing.innerHTML = `<div class="gauge-card-header"><span class="gauge-card-river">${esc(data.riverName)} — ${esc(data.stationName)}</span></div><div class="gauge-card-body"><span class="gauge-card-tier">${data.tier.hasData ? esc(data.tier.label) : "—"} ${esc(data.arrow)}</span><span class="gauge-card-pct">${esc(pctText)}</span></div>${forecastHTML}${upstreamHTML}${aiHTML}`;
+  // Pill + card: update wrapper + inner markup
+  const innerPill = newVariant === "pill";
+  const inner = innerPill
+    ? pillInnerHTML(data.riverName, data.trend, data.tier, data.forecast, data.upstream)
+    : cardInnerHTML(data.riverName, data.stationName, data.trend, data.tier, data.forecast, data.upstream, data.hasAiForecast, data.aiSummary);
+  const mainClass = innerPill ? "gauge-pill" : "gauge-card";
+  existing.className = `gauge-marker gauge-marker--${newVariant}`;
+  existing.innerHTML = `<div class="${mainClass} ${tierClass}${pulseClass}${upClass}${aiClass}">${inner}</div><div class="gauge-anchor-dot ${tierClass}"></div>`;
   return false;
 }

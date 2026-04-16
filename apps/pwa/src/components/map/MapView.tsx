@@ -29,7 +29,7 @@ import { generateSnowOverlayImage, SNOW_BOUNDS, getSettlementsAtMeltRisk } from 
 import { generateRunoffOverlayImage } from "./RunoffOverlay.js";
 import { generatePrecipitationImage } from "./PrecipitationOverlay.js";
 import { generateFloodZoneImage } from "./FloodZoneOverlay.js";
-import { computeTier, trendArrow, checkUpstreamDanger, type GaugeTier } from "./gaugeUtils.js";
+import { computeTier, checkUpstreamDanger, type GaugeTier } from "./gaugeUtils.js";
 import {
   createMarkerElement,
   updateMarkerElement,
@@ -857,13 +857,12 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
       activeKeys.add(key);
 
       const tier = computeTier(r);
-      const arrow = trendArrow(r.trend);
       const upstream = checkUpstreamDanger(r.riverName, r.stationName, tier, riverLevels);
       const hasAi = aiStationKeys?.has(key) ?? false;
       const markerData: GaugeMarkerData = {
         riverName: r.riverName,
         stationName: r.stationName,
-        arrow,
+        trend: r.trend,
         tier,
         upstream,
         hasAiForecast: hasAi,
