@@ -169,13 +169,14 @@ export function HelpPage() {
     }
     try {
       const res = await updateHelpRequest(id, { status: "claimed" });
-      // PATCH returns the full row with author/claimer (filtered by caller),
-      // so we can render phones immediately without a second fetch.
       const updated = res.data as HelpRequest | undefined;
       if (updated) {
         setItems((prev) => prev.map((h) => (h.id === updated.id ? updated : h)));
+        // Open (or refresh) the detail sheet on the claimed row so the
+        // volunteer lands on the "you responded — now call them" screen
+        // instead of being dumped back to the list with just a toast.
+        setDetailItem(updated);
       }
-      showToast("Вы откликнулись — контакт заявителя в карточке", "success");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Ошибка", "error");
     }
@@ -386,6 +387,7 @@ export function HelpPage() {
         <HelpDetailSheet
           item={detailItem}
           isNeed={tab === "need"}
+          currentUserId={user?.id ?? null}
           onClaim={handleClaim}
           onClose={() => setDetailItem(null)}
         />

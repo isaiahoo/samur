@@ -20,13 +20,31 @@ const categoryIcons: Record<string, string> = {
 interface Props {
   item: HelpRequest;
   isNeed: boolean;
+  currentUserId: string | null;
   onClaim: (id: string) => void;
   onClose: () => void;
 }
 
-export function HelpDetailSheet({ item, isNeed, onClaim, onClose }: Props) {
+const ROLE_LABELS: Record<string, string> = {
+  volunteer: "Волонтёр",
+  coordinator: "Координатор",
+  admin: "Администратор",
+  resident: "Житель",
+};
+
+export function HelpDetailSheet({ item, isNeed, currentUserId, onClaim, onClose }: Props) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const photos = item.photoUrls ?? [];
+
+  const isAuthorMe = !!currentUserId && item.userId === currentUserId;
+  const isClaimerMe = !!currentUserId && item.claimedBy === currentUserId;
+  const isClaimed = item.status === "claimed" || item.status === "in_progress";
+
+  // The phone to reach the requester: explicit contactPhone first, falling
+  // back to the author's account phone (which the API only returns to
+  // authorised callers — so "visible" implies "may use").
+  const requesterPhone = item.contactPhone ?? item.author?.phone ?? null;
+  const volunteerPhone = item.claimer?.phone ?? null;
 
   // Lock body scroll
   useEffect(() => {
@@ -89,69 +107,91 @@ export function HelpDetailSheet({ item, isNeed, onClaim, onClose }: Props) {
             </div>
           </div>
 
-          {/* Contact info — the requester */}
-          <div className="detail-contact">
-            <h4>Контакт заявителя</h4>
-            {item.contactName && <p className="detail-contact-name">{item.contactName}</p>}
-            {item.contactPhone ? (
-              <a href={`tel:${item.contactPhone}`} className="detail-contact-phone">
-                {item.contactPhone}
-              </a>
-            ) : item.author?.phone ? (
-              // Fallback to author's account phone when no explicit contactPhone
-              // was provided (typical for SOS / panic-button submissions).
-              <a href={`tel:${item.author.phone}`} className="detail-contact-phone">
-                {item.author.phone}
-                <span className="detail-contact-hint"> · телефон автора</span>
-              </a>
-            ) : !item.contactName ? (
-              <p className="detail-contact-empty">Не указано</p>
-            ) : null}
-          </div>
+          {/* Post-claim confirmation — only visible to the volunteer who just
+              responded. Big, unmissable: the most important next step is now
+              calling the requester, so we lead with exactly that. */}
+          {isClaimerMe && isClaimed && (
+            <div className="detail-response-banner">
+              <div className="detail-response-banner-header">
+                <span className="detail-response-banner-icon" aria-hidden="true">✓</span>
+                <span>Вы откликнулись</span>
+              </div>
+              <p className="detail-response-banner-body">
+                Свяжитесь с заявителем{item.contactName ? ` (${item.contactName})` : ""}
+                {" "}и договоритесь о встрече. Если не получилось дозвониться, координаторы увидят ваш отклик в админке.
+              </p>
+            </div>
+          )}
 
-          {/* Claimer block — visible once someone has responded */}
-          {(item.status === "claimed" || item.status === "in_progress") && item.claimer && (
+          {/* Contact info — the requester. Hidden for the requester viewing
+              their own request (they know their own number). */}
+          {!isAuthorMe && (
+            <div className="detail-contact">
+              <h4>Контакт заявителя</h4>
+              {item.contactName && <p className="detail-contact-name">{item.contactName}</p>}
+              {requesterPhone ? (
+                <a href={`tel:${requesterPhone}`} className="detail-contact-phone">
+                  {requesterPhone}
+                  {!item.contactPhone && item.author?.phone && (
+                    <span className="detail-contact-hint"> · телефон автора</span>
+                  )}
+                </a>
+              ) : !item.contactName ? (
+                <p className="detail-contact-empty">Не указано — заявитель увидит ваш отклик в приложении</p>
+              ) : null}
+            </div>
+          )}
+
+          {/* Volunteer who responded — shown to the requester so they know who
+              is on the way. Hidden for the volunteer themselves (they know
+              they claimed it; the confirmation banner above serves them). */}
+          {isClaimed && item.claimer && !isClaimerMe && (
             <div className="detail-claimer">
               <h4>Откликнулся</h4>
               <p className="detail-claimer-name">
                 {item.claimer.name ?? "Волонтёр"}
-                {item.claimer.role === "volunteer" && <span className="detail-claimer-role"> · Волонтёр</span>}
-                {item.claimer.role === "coordinator" && <span className="detail-claimer-role"> · Координатор</span>}
-                {item.claimer.role === "admin" && <span className="detail-claimer-role"> · Администратор</span>}
+                {item.claimer.role && ROLE_LABELS[item.claimer.role] && (
+                  <span className="detail-claimer-role"> · {ROLE_LABELS[item.claimer.role]}</span>
+                )}
               </p>
-              {item.claimer.phone && (
+              {item.claimer.phone ? (
                 <a href={`tel:${item.claimer.phone}`} className="detail-contact-phone">
                   {item.claimer.phone}
                 </a>
+              ) : (
+                <p className="detail-contact-empty">Телефон скрыт — волонтёр свяжется сам</p>
               )}
             </div>
           )}
 
-          {/* Actions */}
+          {/* Actions — scaled to the viewer. The claim button only fires for
+              logged-in non-authors, the primary call CTA matches who's looking. */}
           <div className="detail-actions">
-            {isNeed && item.status === "open" && (
+            {isNeed && item.status === "open" && !isAuthorMe && (
               <button
                 className="btn btn-primary btn-lg"
-                onClick={() => { onClaim(item.id); onClose(); }}
+                onClick={() => onClaim(item.id)}
               >
                 Откликнуться
               </button>
             )}
-            {(() => {
-              // Primary call target depends on who's looking:
-              // - If you already claimed (or are the author), the most useful
-              //   number is on the claimer block above. Still, surface a
-              //   fallback call button to the reachable phone.
-              const fallbackPhone = item.contactPhone ?? item.author?.phone ?? null;
-              return fallbackPhone && (
-                <a href={`tel:${fallbackPhone}`} className="btn btn-secondary btn-lg">
-                  Позвонить заявителю
-                </a>
-              );
-            })()}
-            {item.claimer?.phone && (
-              <a href={`tel:${item.claimer.phone}`} className="btn btn-secondary btn-lg">
+            {/* Claimer → big primary button to call the requester */}
+            {isClaimerMe && requesterPhone && (
+              <a href={`tel:${requesterPhone}`} className="btn btn-primary btn-lg">
+                Позвонить заявителю
+              </a>
+            )}
+            {/* Author viewing their claimed request → big primary to call volunteer */}
+            {isAuthorMe && isClaimed && volunteerPhone && (
+              <a href={`tel:${volunteerPhone}`} className="btn btn-primary btn-lg">
                 Позвонить волонтёру
+              </a>
+            )}
+            {/* Stranger viewing a claimed request — still surface the requester
+                phone as a secondary action if they want to help too. */}
+            {!isClaimerMe && !isAuthorMe && requesterPhone && item.status === "open" && (
+              <a href={`tel:${requesterPhone}`} className="btn btn-secondary btn-lg">
+                Позвонить
               </a>
             )}
           </div>
