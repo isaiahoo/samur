@@ -9,6 +9,7 @@ import { DAGESTAN_GAUGES, stationKey } from "./gaugeStations.js";
 import type { GaugeStation } from "./gaugeStations.js";
 import { fetchDischargeForStations } from "./openMeteoClient.js";
 import type { DischargeReading } from "./openMeteoClient.js";
+import { estimateLevelCm } from "./ratingCurve.js";
 
 const log = logger.child({ service: "river-scraper" });
 
@@ -399,9 +400,34 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
       const htmlResult = htmlResults.get(key) ?? null;
       const readings = dischargeData.get(key) ?? [];
       const today = new Date().toISOString().slice(0, 10);
-      const todayReading = readings
+      const pastReadings = readings
         .filter((r) => !r.isForecast && r.date <= today)
-        .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+        .sort((a, b) => b.date.localeCompare(a.date));
+      const todayReading = pastReadings[0] ?? null;
+
+      // Rolling 3-day / 7-day discharge means for the rating-curve features
+      const meanOf = (n: number): number | null => {
+        const slice = pastReadings.slice(0, n).map((r) => r.discharge).filter((v) => v > 0);
+        if (slice.length === 0) return null;
+        return slice.reduce((a, b) => a + b, 0) / slice.length;
+      };
+      const rolling3 = meanOf(3);
+      const rolling7 = meanOf(7);
+
+      // If HTML scraping didn't give us a level, try the offline-fitted
+      // rating curve (level = seasonal-rolling function of GloFAS discharge).
+      // Present only for stations with R² ≥ 0.4 on the held-out year;
+      // returns null otherwise and the old NULL fallback applies.
+      const curveLevel = !htmlResult && todayReading
+        ? estimateLevelCm(
+            station.riverName,
+            station.stationName,
+            todayReading.discharge,
+            rolling3,
+            rolling7,
+            new Date(todayReading.date + "T12:00:00Z"),
+          )
+        : null;
 
       // Merge: prefer HTML cm + Open-Meteo discharge together
       const merged: ScrapeResult | null = htmlResult
@@ -417,7 +443,7 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
           }
         : todayReading
           ? {
-              levelCm: null,
+              levelCm: curveLevel?.levelCm ?? null,
               dischargeCubicM: todayReading.discharge,
               dischargeMean: todayReading.dischargeMean,
               dischargeMax: todayReading.dischargeMax,
@@ -426,10 +452,18 @@ export async function scrapeAllStations(): Promise<ScrapeStats> {
               dischargeP25: todayReading.dischargeP25,
               dischargeP75: todayReading.dischargeP75,
               measuredAt: new Date(todayReading.date + "T12:00:00Z"),
-              source: "open-meteo" as const,
+              source: curveLevel ? ("open-meteo" as const) : ("open-meteo" as const),
               isForecast: false,
             }
           : null;
+
+      if (curveLevel) {
+        log.debug(
+          { river: station.riverName, station: station.stationName,
+            discharge: todayReading?.discharge, level: curveLevel.levelCm, r2: curveLevel.r2 },
+          "level_cm derived from rating curve",
+        );
+      }
 
       if (!merged) {
         stats.failed++;

@@ -36,6 +36,10 @@ COPY --from=base /app/apps/api/dist ./apps/api/dist
 COPY --from=base /app/apps/api/package.json ./apps/api/
 COPY --from=base /app/package.json ./
 
+# Rating curves for discharge → water level conversion in the scraper
+# (produced offline by apps/ml/scripts/build_rating_curves.py)
+COPY apps/ml/models/rating_curves.json ./ml/models/rating_curves.json
+
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 RUN mkdir -p /app/uploads && chown nodejs:nodejs /app/uploads
 USER nodejs
