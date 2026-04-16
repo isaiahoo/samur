@@ -4,6 +4,8 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useUIStore } from "../store/ui.js";
 import { useAuthStore } from "../store/auth.js";
 import { useOnline } from "../hooks/useOnline.js";
+import { getMe } from "../services/api.js";
+import type { User } from "@samur/shared";
 import { BottomSheet } from "./BottomSheet.js";
 import { Toast } from "./Toast.js";
 import { SOSButton } from "./SOSButton.js";
@@ -35,9 +37,28 @@ export function Layout() {
   }, [path]);
 
   const user = useAuthStore((s) => s.user);
+  const setAuth = useAuthStore((s) => s.setAuth);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const logout = useAuthStore((s) => s.logout);
   const loggedIn = isLoggedIn();
+
+  // One-shot JWT sync on app load. If the user's role was changed server-side
+  // but their token still carries the old claim, GET /auth/me returns a fresh
+  // token alongside the user record — swap it in so role-gated actions (like
+  // claiming a help request as a volunteer) stop failing with 403.
+  useEffect(() => {
+    if (!loggedIn) return;
+    let cancelled = false;
+    getMe().then((res) => {
+      if (cancelled) return;
+      const nextUser = res.data as User | undefined;
+      const nextToken = res.token;
+      if (nextToken && nextUser) {
+        setAuth(nextToken, nextUser);
+      }
+    }).catch(() => { /* silent — token stays as-is */ });
+    return () => { cancelled = true; };
+  }, [loggedIn, setAuth]);
 
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);

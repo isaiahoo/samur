@@ -132,11 +132,16 @@ export function telegramAuth(data: {
 }
 
 export function getMe() {
-  return request<ApiResponse>("/auth/me");
+  // Backend includes a fresh JWT in the response when it detects the caller's
+  // token carries a stale role claim (e.g. role was changed server-side since
+  // the token was issued). Callers should swap it into the auth store.
+  return request<ApiResponse & { token?: string }>("/auth/me");
 }
 
 export function updateProfile(data: { name?: string; role?: string }) {
-  return request<ApiResponse>("/auth/me", {
+  // Backend returns a fresh JWT alongside the user whenever the role
+  // actually changed — callers should swap it into the auth store.
+  return request<ApiResponse & { token?: string }>("/auth/me", {
     method: "PATCH",
     body: JSON.stringify(data),
   });

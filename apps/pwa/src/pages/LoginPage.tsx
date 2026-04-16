@@ -228,9 +228,11 @@ export function LoginPage() {
       const res = await updateProfile(data);
       const updatedUser = res.data as User;
 
-      // Update stored auth with fresh user data
-      const token = useAuthStore.getState().token;
-      if (token) setAuth(token, updatedUser);
+      // When the role changes, the backend mints a new JWT with the updated
+      // role claim and returns it alongside the user. Swap it in so the next
+      // authorised request (e.g. claiming a help request) uses the fresh role.
+      const nextToken = res.token ?? useAuthStore.getState().token;
+      if (nextToken) setAuth(nextToken, updatedUser);
 
       showToast("Добро пожаловать!", "success");
       navigate("/");

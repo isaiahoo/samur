@@ -107,7 +107,12 @@ router.get("/me", requireAuth, async (req, res, next) => {
       throw new AppError(404, "USER_NOT_FOUND", "Пользователь не найден");
     }
 
-    res.json({ success: true, data: sanitizeUser(user) });
+    // If the JWT carries a stale role (happens when the role was changed in
+    // a version that didn't reissue the token), hand back a fresh token so
+    // the client can swap it in without forcing a re-login.
+    const token = user.role !== req.user!.role ? signToken(user.id, user.role) : undefined;
+
+    res.json({ success: true, data: sanitizeUser(user), token });
   } catch (err) {
     next(err);
   }
@@ -134,7 +139,13 @@ router.patch("/me", requireAuth, async (req, res, next) => {
       data,
     });
 
-    res.json({ success: true, data: sanitizeUser(user) });
+    // If role changed, the caller's JWT is stale — mint a new one so their
+    // next authorised request (e.g. claiming a help request as a volunteer)
+    // passes the role gate instead of being denied on an old "resident" claim.
+    const roleChanged = data.role !== undefined && data.role !== req.user!.role;
+    const token = roleChanged ? signToken(user.id, user.role) : undefined;
+
+    res.json({ success: true, data: sanitizeUser(user), token });
   } catch (err) {
     next(err);
   }
