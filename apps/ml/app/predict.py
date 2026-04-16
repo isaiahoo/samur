@@ -379,8 +379,20 @@ class Predictor:
                     "historical-imports": after_hist - after_live,
                     "climatology": after_stats - after_hist,
                 }
-                source = max(fills, key=lambda k: fills[k])
-                self._last_inputs_source[station_id] = source if fills[source] > 0 else "unknown"
+                # Source reflects the BEST available data, not the most rows.
+                # If we have ≥7 days of live observations the AI is running
+                # on fresh data even if climatology filled the older tail of
+                # the 45-day feature window.
+                MIN_LIVE = 7
+                if fills["live-observations"] >= MIN_LIVE:
+                    source = "live-observations"
+                elif fills["historical-imports"] >= MIN_LIVE:
+                    source = "historical-imports"
+                elif any(v > 0 for v in fills.values()):
+                    source = "climatology"
+                else:
+                    source = "unknown"
+                self._last_inputs_source[station_id] = source
         except (httpx.ConnectError, httpx.ConnectTimeout):
             # Express API is unreachable — skip it for all remaining stations
             logger.warning("Express API unreachable, skipping water level fetch for remaining stations")

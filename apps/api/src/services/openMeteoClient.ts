@@ -66,10 +66,13 @@ export async function fetchDischargeForStations(
   const lats = calibrated.map((s) => s.openMeteoLat!).join(",");
   const lngs = calibrated.map((s) => s.openMeteoLng!).join(",");
 
+  // past_days raised from 7 to 60 so every cycle persists enough historical
+  // context for the ML feature window (lags at t-7, t-14 + rolling sums
+  // across t-14). 60 days is well within Open-Meteo's free-tier cap of 92.
   const url =
     `${FLOOD_API_BASE}?latitude=${lats}&longitude=${lngs}` +
     `&daily=river_discharge,river_discharge_mean,river_discharge_max,river_discharge_median,river_discharge_min,river_discharge_p25,river_discharge_p75` +
-    `&past_days=7&forecast_days=7`;
+    `&past_days=60&forecast_days=7`;
 
   log.info({ stationCount: calibrated.length, url }, "Fetching Open-Meteo discharge data");
 
