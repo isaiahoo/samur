@@ -20,12 +20,23 @@ logger = logging.getLogger("samur-ai.predict")
 
 HORIZONS = [1, 3, 7]
 
+# Model version — bump on retraining. Surfaced on /health + prediction
+# responses so ops can correlate a forecast with a specific weight set.
+MODEL_VERSION = "2026-04-14-xgboost-v1"
+
 # NSE thresholds used to gate user-facing forecasts. A horizon whose
 # evaluation NSE falls below MIN_NSE_SERVING is dropped from responses
 # entirely (worse than predicting the historical mean — actively
 # misleading). skill_tier classifies the best *served* horizon for a
 # station so the PWA can show an accuracy badge.
 MIN_NSE_SERVING = 0.3
+
+# An input feature is flagged as out-of-distribution when its live value
+# exceeds the station's training-data maximum by more than this factor.
+# XGBoost cannot extrapolate past its training range — in a true flood,
+# an OOD precipitation or water-level input means the forecast silently
+# caps at the training ceiling and is not trustworthy.
+OOD_THRESHOLD = 1.2
 
 def _skill_tier(best_nse: float | None) -> str:
     if best_nse is None:
@@ -64,14 +75,62 @@ class Predictor:
         self.models: dict[str, dict[int, xgb.Booster]] = {}
         self.rmse: dict[str, dict[int, float]] = {}  # station → horizon → RMSE
         self.nse: dict[str, dict[int, float]] = {}   # station → horizon → NSE
+        self.feature_max: dict[str, dict[str, float]] = {}  # station → feature → max
         self.data_dir = data_dir
         self._express_reachable = True  # reset per predict cycle
-        # inputs_source is set during _get_recent_data and read after the
-        # prediction finishes. Keyed by station_id to survive the per-cycle
-        # loop in /predict/all.
+        # inputs_source + ood violations are set during predict() and read
+        # after the prediction finishes. Keyed by station_id so they survive
+        # parallel /predict/all calls.
         self._last_inputs_source: dict[str, str] = {}
+        self._last_ood: dict[str, list[dict]] = {}
         self._load_models(model_dir)
         self._load_metrics(model_dir)
+        self._load_feature_bounds()
+
+    def _load_feature_bounds(self):
+        """Compute per-station training-data max for each raw feature.
+
+        Used at inference to flag out-of-distribution inputs (XGBoost
+        cannot extrapolate past its training ceiling).
+        """
+        raw_features = DAILY_VARS + ["water_level_cm"]
+        for station_id in STATION_META:
+            csv_path = self.data_dir / "time_series" / f"{station_id}.csv"
+            if not csv_path.exists():
+                continue
+            try:
+                df = pd.read_csv(csv_path)
+                bounds: dict[str, float] = {}
+                for col in raw_features:
+                    if col not in df.columns:
+                        continue
+                    maxval = df[col].max()
+                    if pd.notna(maxval):
+                        bounds[col] = float(maxval)
+                self.feature_max[station_id] = bounds
+            except Exception as e:
+                logger.warning("Failed to load feature bounds for %s: %s", station_id, e)
+        logger.info("Loaded feature bounds for %d stations", len(self.feature_max))
+
+    def _check_input_bounds(self, station_id: str, row: pd.Series) -> list[dict]:
+        """Return a list of OOD features for the latest input row."""
+        bounds = self.feature_max.get(station_id, {})
+        violations: list[dict] = []
+        for col, max_val in bounds.items():
+            if col not in row.index:
+                continue
+            val = row[col]
+            if pd.isna(val):
+                continue
+            threshold = max_val * OOD_THRESHOLD
+            if val > threshold:
+                violations.append({
+                    "feature": col,
+                    "value": round(float(val), 2),
+                    "training_max": round(max_val, 2),
+                    "ratio": round(float(val) / max_val, 2) if max_val > 0 else None,
+                })
+        return violations
 
     def _load_models(self, model_dir: Path):
         """Load all XGBoost model files."""
@@ -144,6 +203,12 @@ class Predictor:
         latest = features.iloc[-1:]
         feature_cols = self._feature_columns()
 
+        # OOD check on the raw features the model actually used
+        ood = self._check_input_bounds(station_id, features.iloc[-1])
+        self._last_ood[station_id] = ood
+        if ood:
+            logger.warning("OOD inputs for %s: %s", station_id, ood)
+
         forecasts = []
         today = datetime.now(timezone.utc).date()
 
@@ -200,6 +265,9 @@ class Predictor:
 
     def last_inputs_source(self, station_id: str) -> str:
         return self._last_inputs_source.get(station_id, "unknown")
+
+    def last_ood(self, station_id: str) -> list[dict]:
+        return self._last_ood.get(station_id, [])
 
     def _get_recent_data(self, station_id: str, meta: dict) -> pd.DataFrame | None:
         """Get recent weather + water level data.

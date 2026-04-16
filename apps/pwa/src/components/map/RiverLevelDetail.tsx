@@ -50,7 +50,11 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState(false);
   const [aiForecastData, setAiForecastData] = useState<AiForecastPoint[]>([]);
-  const [aiMeta, setAiMeta] = useState<{ tier?: "high" | "medium" | "low" | "none"; source?: "live-observations" | "historical-imports" | "climatology" | "training-csv" | "unknown" }>({});
+  const [aiMeta, setAiMeta] = useState<{
+    tier?: "high" | "medium" | "low" | "none";
+    source?: "live-observations" | "historical-imports" | "climatology" | "training-csv" | "unknown";
+    ood?: import("../../services/api.js").AiOodWarning[];
+  }>({});
 
   const tier = computeTier(r);
   const arrow = trendArrow(r.trend);
@@ -121,7 +125,7 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
         setAiForecastData(stationData);
         const key = `${r.riverName}::${r.stationName}`;
         const meta = res.meta?.skills?.[key];
-        if (meta) setAiMeta({ tier: meta.tier, source: meta.source });
+        if (meta) setAiMeta({ tier: meta.tier, source: meta.source, ood: meta.ood });
         else setAiMeta({});
       })
       .catch(() => {});
@@ -282,6 +286,7 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
           dangerLevelCm={r.dangerLevelCm}
           skillTier={aiMeta.tier}
           inputsSource={aiMeta.source}
+          ood={aiMeta.ood}
         />
       )}
 

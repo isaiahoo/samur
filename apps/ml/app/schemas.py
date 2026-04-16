@@ -17,6 +17,10 @@ class ForecastPoint(BaseModel):
 class PredictResponse(BaseModel):
     station_id: str
     model: str
+    model_version: str | None = None
     generated_at: str
     forecasts: list[ForecastPoint]
     metrics: dict | None = None
+    skill_tier: str | None = None
+    inputs_source: str | None = None
+    ood_warnings: list[dict] | None = None

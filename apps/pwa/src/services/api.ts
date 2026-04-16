@@ -349,10 +349,18 @@ export interface AiForecastPoint {
 
 export type AiSkillTier = "high" | "medium" | "low" | "none";
 export type AiInputsSource = "live-observations" | "historical-imports" | "climatology" | "training-csv" | "unknown";
+export interface AiOodWarning {
+  feature: string;
+  value: number;
+  training_max: number;
+  ratio: number | null;
+}
 export interface AiStationMeta {
   tier: AiSkillTier;
   bestNse: number | null;
   source: AiInputsSource;
+  ood?: AiOodWarning[];
+  modelVersion?: string | null;
 }
 
 export interface AiForecastResponse extends ApiResponse<AiForecastPoint[]> {

@@ -32,14 +32,23 @@ interface MlForecastPoint {
   upper_90: number | null;
 }
 
+interface MlOodWarning {
+  feature: string;
+  value: number;
+  training_max: number;
+  ratio: number | null;
+}
+
 interface MlPredictAllResponse {
   generated_at: string;
+  model_version?: string;
   data: Array<{
     station_id: string;
     forecasts?: MlForecastPoint[];
     skill_tier?: "high" | "medium" | "low" | "none";
     best_nse?: number | null;
     inputs_source?: "live-observations" | "historical-imports" | "climatology" | "training-csv" | "unknown";
+    ood_warnings?: MlOodWarning[];
     error?: string;
   }>;
 }
@@ -49,6 +58,8 @@ export interface AiStationMeta {
   tier: "high" | "medium" | "low" | "none";
   bestNse: number | null;
   source: "live-observations" | "historical-imports" | "climatology" | "training-csv" | "unknown";
+  ood: MlOodWarning[];
+  modelVersion: string | null;
 }
 const aiStationMeta = new Map<string, AiStationMeta>();
 export function getAiStationMeta(riverName: string, stationName: string): AiStationMeta | undefined {
@@ -107,11 +118,13 @@ export async function fetchAndStorePredictions(): Promise<{
         ? "falling"
         : "stable";
 
-    // Cache skill + source for the /ai-forecast route
+    // Cache skill + source + OOD for the /ai-forecast route
     aiStationMeta.set(`${stationInfo.riverName}::${stationInfo.stationName}`, {
       tier: stationResult.skill_tier ?? "none",
       bestNse: stationResult.best_nse ?? null,
       source: stationResult.inputs_source ?? "unknown",
+      ood: stationResult.ood_warnings ?? [],
+      modelVersion: result.model_version ?? null,
     });
 
     // Tag the data source so the PWA can flag climatology-fallback forecasts

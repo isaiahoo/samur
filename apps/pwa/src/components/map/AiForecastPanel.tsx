@@ -6,13 +6,14 @@
  */
 
 import { useMemo } from "react";
-import type { AiForecastPoint, AiSkillTier, AiInputsSource } from "../../services/api.js";
+import type { AiForecastPoint, AiSkillTier, AiInputsSource, AiOodWarning } from "../../services/api.js";
 
 interface AiForecastPanelProps {
   data: AiForecastPoint[];
   dangerLevelCm: number | null;
   skillTier?: AiSkillTier;
   inputsSource?: AiInputsSource;
+  ood?: AiOodWarning[];
 }
 
 const SKILL_LABELS: Record<AiSkillTier, string> = {
@@ -20,6 +21,18 @@ const SKILL_LABELS: Record<AiSkillTier, string> = {
   medium: "Средняя",
   low: "Низкая",
   none: "—",
+};
+
+const FEATURE_LABELS_RU: Record<string, string> = {
+  precipitation_sum: "осадки",
+  temperature_2m_max: "макс. темп.",
+  temperature_2m_min: "мин. темп.",
+  snowfall_sum: "снегопад",
+  snow_depth_mean: "толщина снега",
+  soil_moisture_0_to_7cm_mean: "влажность почвы",
+  et0_fao_evapotranspiration: "испарение",
+  rain_sum: "дождь",
+  water_level_cm: "уровень воды",
 };
 
 /** Classify a predicted level into a risk tier */
@@ -55,9 +68,10 @@ function trendText(data: AiForecastPoint[]): string {
   return diff > 0 ? "рост" : "снижение";
 }
 
-export function AiForecastPanel({ data, dangerLevelCm, skillTier, inputsSource }: AiForecastPanelProps) {
+export function AiForecastPanel({ data, dangerLevelCm, skillTier, inputsSource, ood }: AiForecastPanelProps) {
   const danger = dangerLevelCm ?? 0;
   const isClimatology = inputsSource === "climatology" || inputsSource === "training-csv";
+  const oodList = ood ?? [];
 
   const analysis = useMemo(() => {
     if (data.length === 0) return null;
@@ -169,6 +183,21 @@ export function AiForecastPanel({ data, dangerLevelCm, skillTier, inputsSource }
               Прогноз по сезонной норме — свежих измерений нет
             </span>
           )}
+        </div>
+      )}
+
+      {/* Out-of-distribution input warning */}
+      {oodList.length > 0 && (
+        <div className="ai-panel-ood" role="note">
+          <strong>Необычные условия:</strong>{" "}
+          {oodList.map((v, i) => (
+            <span key={v.feature}>
+              {i > 0 && ", "}
+              {FEATURE_LABELS_RU[v.feature] ?? v.feature}
+              {v.ratio && v.ratio > 0 ? ` (×${v.ratio.toFixed(1)} от макс.)` : ""}
+            </span>
+          ))}
+          . Прогноз может недооценить пик.
         </div>
       )}
 

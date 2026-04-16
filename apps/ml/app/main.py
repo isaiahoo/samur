@@ -4,8 +4,10 @@
 FastAPI microservice serving XGBoost water level forecasts.
 """
 
+import asyncio
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -13,7 +15,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 
 from .schemas import PredictRequest, PredictResponse, ForecastPoint
-from .predict import Predictor
+from .predict import Predictor, MODEL_VERSION
 
 logger = logging.getLogger("samur-ai")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
@@ -53,6 +55,7 @@ async def health():
         "status": "ok" if predictor and len(stations) > 0 else "degraded",
         "loaded_stations": stations,
         "model": "xgboost",
+        "model_version": MODEL_VERSION,
     }
 
 
@@ -86,9 +89,13 @@ async def predict(req: PredictRequest):
     return PredictResponse(
         station_id=req.station_id,
         model=req.model,
+        model_version=MODEL_VERSION,
         generated_at=datetime.now(timezone.utc).isoformat(),
         forecasts=forecasts,
         metrics=station_metrics,
+        skill_tier=predictor.skill_tier(req.station_id),
+        inputs_source=predictor.last_inputs_source(req.station_id),
+        ood_warnings=predictor.last_ood(req.station_id),
     )
 
 
@@ -100,22 +107,37 @@ async def predict_all():
     # Reset Express API reachability flag for this cycle
     predictor._express_reachable = True
 
-    results = []
-    for station_id in predictor.loaded_stations():
-        try:
-            forecasts = predictor.predict(station_id)
-            results.append({
-                "station_id": station_id,
-                "forecasts": [f.model_dump() for f in forecasts],
-                "skill_tier": predictor.skill_tier(station_id),
-                "best_nse": predictor.best_nse(station_id),
-                "inputs_source": predictor.last_inputs_source(station_id),
-            })
-        except Exception as e:
-            logger.warning("Prediction failed for %s: %s", station_id, e)
-            results.append({"station_id": station_id, "error": str(e)})
+    station_ids = predictor.loaded_stations()
 
-    return {"generated_at": datetime.now(timezone.utc).isoformat(), "data": results}
+    def run_one(sid: str) -> dict:
+        try:
+            forecasts = predictor.predict(sid)
+            return {
+                "station_id": sid,
+                "forecasts": [f.model_dump() for f in forecasts],
+                "skill_tier": predictor.skill_tier(sid),
+                "best_nse": predictor.best_nse(sid),
+                "inputs_source": predictor.last_inputs_source(sid),
+                "ood_warnings": predictor.last_ood(sid),
+            }
+        except Exception as e:
+            logger.warning("Prediction failed for %s: %s", sid, e)
+            return {"station_id": sid, "error": str(e)}
+
+    # Run per-station predictions in parallel. XGBoost inference and pandas
+    # feature building are sync-but-fast; the slow part is HTTP fetches for
+    # weather + water levels. A small thread pool lets those overlap.
+    loop = asyncio.get_running_loop()
+    with ThreadPoolExecutor(max_workers=min(6, len(station_ids) or 1)) as ex:
+        results = await asyncio.gather(
+            *[loop.run_in_executor(ex, run_one, sid) for sid in station_ids]
+        )
+
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "model_version": MODEL_VERSION,
+        "data": list(results),
+    }
 
 
 @app.get("/skill")
