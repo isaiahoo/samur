@@ -363,6 +363,25 @@ a { color: var(--color-primary); text-decoration: none; }
   gap: 8px;
   margin-bottom: 16px;
 }
+/* On phones, 2-col is much more tappable and keeps long labels
+   ("Медикаменты", "Оборудование") from clipping. Trades one extra row for
+   50% wider tiles. */
+@media (max-width: 480px) {
+  .category-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .category-card {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .category-card-label {
+    text-align: left !important;
+    font-size: 13px !important;
+  }
+}
 .category-card {
   display: flex;
   flex-direction: column;
@@ -584,6 +603,47 @@ a { color: var(--color-primary); text-decoration: none; }
   color: #71717a;
   margin: -8px 0 12px;
 }
+.qf-hint--muted {
+  margin: 4px 2px 10px;
+  color: #a1a1aa;
+  font-style: italic;
+}
+
+/* Inline validation error (e.g. phone too short) */
+.qf-inline-input--error {
+  border-color: #f87171 !important;
+  background: #fef2f2 !important;
+}
+.qf-inline-input--error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12) !important;
+}
+.qf-field-error {
+  font-size: 12px;
+  color: #dc2626;
+  margin: -4px 2px 10px;
+}
+
+/* Description + character counter */
+.qf-description-wrap {
+  position: relative;
+  margin-bottom: 12px;
+}
+.qf-description-wrap .qf-description {
+  margin-bottom: 0;
+}
+.qf-description-counter {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #a1a1aa;
+  background: rgba(255, 255, 255, 0.85);
+  padding: 1px 6px;
+  border-radius: 6px;
+  pointer-events: none;
+}
+.qf-description-counter--warn { color: #dc2626; }
 
 .qf-submit {
   width: 100%;
@@ -5283,6 +5343,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .qf-inline-input:focus { background: #27272a; }
   .qf-inline-input::placeholder { color: #71717a; }
   .qf-hint { color: #a1a1aa; }
+  .qf-hint--muted { color: #71717a; }
+  .qf-inline-input--error {
+    border-color: #fca5a5 !important;
+    background: rgba(239, 68, 68, 0.12) !important;
+  }
+  .qf-field-error { color: #fca5a5; }
+  .qf-description-counter { background: rgba(24, 24, 27, 0.85); color: #71717a; }
+  .qf-description-counter--warn { color: #fca5a5; }
   .qf-submit:disabled:not(.btn-primary) { background: #3f3f46; color: #71717a; }
 
   /* Form elements */

@@ -10,6 +10,16 @@ import { useGeolocation } from "../hooks/useGeolocation.js";
 import { compressImage } from "../utils/compressImage.js";
 import { CategoryIcon } from "./CategoryIcon.js";
 
+const DESC_MAX = 2000;
+const DESC_WARN = 1800; // show counter in red after this
+
+function digitsOnly(phone: string): string {
+  return phone.replace(/[\s\-\(\)\+]/g, "");
+}
+function isValidPhone(phone: string): boolean {
+  return digitsOnly(phone).length >= 7;
+}
+
 const URGENCY_OPTIONS = [
   { value: "normal",   label: "Обычная",     sub: "в течение дня" },
   { value: "urgent",   label: "Срочная",     sub: "в ближайший час" },
@@ -78,6 +88,15 @@ export function HelpFormSheet({ tab, onClose }: Props) {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = prev; };
   }, []);
+
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
 
   // Auto-fill from user
   useEffect(() => {
@@ -267,13 +286,21 @@ export function HelpFormSheet({ tab, onClose }: Props) {
           </div>
 
           {/* Description — friendly, no label */}
-          <textarea
-            className="qf-description"
-            rows={2}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder={tab === "need" ? "Что случилось? Опишите кратко..." : "Чем можете помочь?"}
-          />
+          <div className="qf-description-wrap">
+            <textarea
+              className="qf-description"
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value.slice(0, DESC_MAX))}
+              placeholder={tab === "need" ? "Что случилось? Опишите кратко..." : "Чем можете помочь?"}
+              maxLength={DESC_MAX}
+            />
+            {description.length > 0 && (
+              <span className={`qf-description-counter${description.length > DESC_WARN ? " qf-description-counter--warn" : ""}`}>
+                {description.length} / {DESC_MAX}
+              </span>
+            )}
+          </div>
 
           {/* Urgency pills */}
           <div className="urgency-pills" role="radiogroup" aria-label="Срочность">
@@ -391,39 +418,59 @@ export function HelpFormSheet({ tab, onClose }: Props) {
               </svg>
             </button>
           ) : (
-            <div className="qf-contact-row">
-              <input
-                className="qf-inline-input"
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
-                placeholder="Имя"
-              />
-              <input
-                className="qf-inline-input"
-                type="tel"
-                value={contactPhone}
-                onChange={(e) => setContactPhone(e.target.value)}
-                placeholder="Телефон"
-                onBlur={() => { if (contactName || contactPhone) setEditingContact(false); }}
-              />
-            </div>
+            <>
+              <div className="qf-contact-row">
+                <input
+                  className="qf-inline-input"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  placeholder="Имя"
+                />
+                <input
+                  className={`qf-inline-input${contactPhone && !isValidPhone(contactPhone) ? " qf-inline-input--error" : ""}`}
+                  type="tel"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  placeholder="Телефон"
+                  onBlur={() => { if (contactName || contactPhone) setEditingContact(false); }}
+                  aria-invalid={contactPhone && !isValidPhone(contactPhone) ? "true" : undefined}
+                />
+              </div>
+              {contactPhone && !isValidPhone(contactPhone) && (
+                <div className="qf-field-error">Минимум 7 цифр</div>
+              )}
+              {!contactName.trim() && !contactPhone.trim() && (
+                <div className="qf-hint qf-hint--muted">
+                  Без контактов — заявка будет анонимной
+                </div>
+              )}
+            </>
           )}
         </div>
 
         <div className="sheet-form-footer">
-          <button
-            className={`btn btn-lg qf-submit ${category ? "btn-primary" : ""}`}
-            onClick={handleSubmit}
-            disabled={!category || submitting}
-          >
-            {submitting
-              ? photos.length > 0
-                ? "Загрузка фото..."
-                : "Отправляем..."
-              : category
-                ? tab === "offer" ? "Предложить помощь" : "Запросить помощь"
-                : "Выберите категорию"}
-          </button>
+          {(() => {
+            const phoneInvalid = !!contactPhone && !isValidPhone(contactPhone);
+            const disabled = !category || submitting || phoneInvalid;
+            const primary = !!category && !phoneInvalid;
+            return (
+              <button
+                className={`btn btn-lg qf-submit ${primary ? "btn-primary" : ""}`}
+                onClick={handleSubmit}
+                disabled={disabled}
+              >
+                {submitting
+                  ? photos.length > 0
+                    ? "Загрузка фото..."
+                    : "Отправляем..."
+                  : phoneInvalid
+                    ? "Проверьте телефон"
+                    : category
+                      ? tab === "offer" ? "Предложить помощь" : "Запросить помощь"
+                      : "Выберите категорию"}
+              </button>
+            );
+          })()}
         </div>
       </div>
     </div>,
