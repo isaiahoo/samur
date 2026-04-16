@@ -31,6 +31,16 @@ function formatPct(pct: number): string {
   return `на ${Math.abs(diff)}% ниже нормы`;
 }
 
+/** Ring priority: pulse (tier 3+) > upstream-ring > ai-ring. At most one
+ *  decoration ring is applied so the marker never stacks three concentric
+ *  rings for a single station. */
+function decorationClass(tier: GaugeTier, upstream?: UpstreamWarning | null, hasAi?: boolean): string {
+  if (tier.tier >= 3 && tier.hasData) return "gauge-pulse";
+  if (upstream) return "gauge-upstream-ring";
+  if (hasAi) return "gauge-ai-ring";
+  return "";
+}
+
 /** Inline SVG for trend direction. `trend` is "rising" | "falling" | "stable". */
 function trendIconHTML(trend: string): string {
   const attrs = 'width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
@@ -49,14 +59,29 @@ export function variantForZoom(zoom: number): MarkerVariant {
   return "card";
 }
 
+/**
+ * Per-marker variant chooser. Uses variantForZoom as a base, then downgrades
+ * low-priority stations (tier-1 "Норма" and stations with no data) to a dot
+ * while in the mid-zoom pill band, so that elevated / dangerous stations
+ * dominate when they're visible and the map doesn't turn into a wall of
+ * overlapping green labels.
+ */
+export function variantForMarker(zoom: number, tierNumber: number, hasData: boolean): MarkerVariant {
+  const base = variantForZoom(zoom);
+  if (base !== "pill") return base;
+  // In the pill zone (zoom 7-9.99): hide the label for quiet stations at
+  // lower zooms — they return as a pill at zoom 8.5+ where the map can breathe.
+  if (zoom < 8.5 && (tierNumber <= 1 || !hasData)) return "dot";
+  return base;
+}
+
 // ── Dot marker (zoom < 7) ──────────────────────────────────────────────────
 
 function createDotElement(tier: GaugeTier, upstream?: UpstreamWarning | null, hasAi?: boolean): HTMLDivElement {
   const el = document.createElement("div");
-  el.className = tier.hasData ? `gauge-dot tier-${tier.tier}` : "gauge-dot tier-nodata";
-  if (tier.tier >= 3 && tier.hasData) el.className += " gauge-pulse";
-  if (upstream) el.className += " gauge-upstream-ring";
-  if (hasAi) el.className += " gauge-ai-ring";
+  const tierCls = tier.hasData ? `tier-${tier.tier}` : "tier-nodata";
+  const decor = decorationClass(tier, upstream, hasAi);
+  el.className = `gauge-dot ${tierCls}${decor ? ` ${decor}` : ""}`;
   return el;
 }
 
@@ -90,16 +115,12 @@ function createPillElement(
   const wrap = document.createElement("div");
   wrap.className = "gauge-marker gauge-marker--pill";
 
-  const pillClasses = ["gauge-pill"];
-  pillClasses.push(tier.hasData ? `tier-${tier.tier}` : "tier-nodata");
-  if (tier.tier >= 3 && tier.hasData) pillClasses.push("gauge-pulse");
-  if (upstream) pillClasses.push("gauge-upstream-ring");
-  if (hasAi) pillClasses.push("gauge-ai-ring");
+  const tierCls = tier.hasData ? `tier-${tier.tier}` : "tier-nodata";
+  const decor = decorationClass(tier, upstream, hasAi);
+  const pillCls = `gauge-pill ${tierCls}${decor ? ` ${decor}` : ""}`;
+  const dotCls = `gauge-anchor-dot ${tierCls}`;
 
-  const dotClasses = ["gauge-anchor-dot"];
-  dotClasses.push(tier.hasData ? `tier-${tier.tier}` : "tier-nodata");
-
-  wrap.innerHTML = `<div class="${pillClasses.join(" ")}">${pillInnerHTML(riverName, trend, tier, forecast, upstream)}</div><div class="${dotClasses.join(" ")}"></div>`;
+  wrap.innerHTML = `<div class="${pillCls}">${pillInnerHTML(riverName, trend, tier, forecast, upstream)}</div><div class="${dotCls}"></div>`;
   return wrap;
 }
 
@@ -147,16 +168,12 @@ function createCardElement(
   const wrap = document.createElement("div");
   wrap.className = "gauge-marker gauge-marker--card";
 
-  const cardClasses = ["gauge-card"];
-  cardClasses.push(tier.hasData ? `tier-${tier.tier}` : "tier-nodata");
-  if (tier.tier >= 3 && tier.hasData) cardClasses.push("gauge-pulse");
-  if (upstream) cardClasses.push("gauge-upstream-ring");
-  if (hasAi) cardClasses.push("gauge-ai-ring");
+  const tierCls = tier.hasData ? `tier-${tier.tier}` : "tier-nodata";
+  const decor = decorationClass(tier, upstream, hasAi);
+  const cardCls = `gauge-card ${tierCls}${decor ? ` ${decor}` : ""}`;
+  const dotCls = `gauge-anchor-dot ${tierCls}`;
 
-  const dotClasses = ["gauge-anchor-dot"];
-  dotClasses.push(tier.hasData ? `tier-${tier.tier}` : "tier-nodata");
-
-  wrap.innerHTML = `<div class="${cardClasses.join(" ")}">${cardInnerHTML(riverName, stationName, trend, tier, forecast, upstream, hasAi, aiSummary)}</div><div class="${dotClasses.join(" ")}"></div>`;
+  wrap.innerHTML = `<div class="${cardCls}">${cardInnerHTML(riverName, stationName, trend, tier, forecast, upstream, hasAi, aiSummary)}</div><div class="${dotCls}"></div>`;
   return wrap;
 }
 
@@ -200,22 +217,20 @@ export function updateMarkerElement(
   if (newVariant !== currentVariant) return true;
 
   const tierClass = data.tier.hasData ? `tier-${data.tier.tier}` : "tier-nodata";
-  const pulseClass = data.tier.tier >= 3 && data.tier.hasData ? " gauge-pulse" : "";
-  const upClass = data.upstream ? " gauge-upstream-ring" : "";
-  const aiClass = data.hasAiForecast ? " gauge-ai-ring" : "";
+  const decor = decorationClass(data.tier, data.upstream, data.hasAiForecast);
+  const decorSuffix = decor ? ` ${decor}` : "";
 
   if (newVariant === "dot") {
-    existing.className = `gauge-dot ${tierClass}${pulseClass}${upClass}${aiClass}`;
+    existing.className = `gauge-dot ${tierClass}${decorSuffix}`;
     return false;
   }
 
-  // Pill + card: update wrapper + inner markup
   const innerPill = newVariant === "pill";
   const inner = innerPill
     ? pillInnerHTML(data.riverName, data.trend, data.tier, data.forecast, data.upstream)
     : cardInnerHTML(data.riverName, data.stationName, data.trend, data.tier, data.forecast, data.upstream, data.hasAiForecast, data.aiSummary);
   const mainClass = innerPill ? "gauge-pill" : "gauge-card";
   existing.className = `gauge-marker gauge-marker--${newVariant}`;
-  existing.innerHTML = `<div class="${mainClass} ${tierClass}${pulseClass}${upClass}${aiClass}">${inner}</div><div class="gauge-anchor-dot ${tierClass}"></div>`;
+  existing.innerHTML = `<div class="${mainClass} ${tierClass}${decorSuffix}">${inner}</div><div class="gauge-anchor-dot ${tierClass}"></div>`;
   return false;
 }

@@ -1073,14 +1073,18 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .gauge-card.tier-nodata { background: #fafafa; border-left-color: #a1a1aa; opacity: 0.85; }
 .gauge-card.tier-nodata .gauge-card-tier { color: #71717a; }
 
-/* No-data pill: outline only, subdued */
+/* No-data pill: quiet — thin outline, smaller padding, lighter weight */
 .gauge-pill.tier-nodata {
-  background: rgba(255, 255, 255, 0.92);
-  color: #52525b;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.88);
+  color: #71717a;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  opacity: 0.85;
 }
-.gauge-anchor-dot.tier-nodata { opacity: 0.6; }
+.gauge-anchor-dot.tier-nodata { opacity: 0.55; }
 
 /* Pulse animation for danger tiers (3+) — uses outline to preserve box-shadow */
 @keyframes gauge-pulse {

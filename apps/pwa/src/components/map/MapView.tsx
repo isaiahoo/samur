@@ -33,7 +33,7 @@ import { computeTier, checkUpstreamDanger, type GaugeTier } from "./gaugeUtils.j
 import {
   createMarkerElement,
   updateMarkerElement,
-  variantForZoom,
+  variantForMarker,
   type GaugeMarkerData,
   type MarkerVariant,
 } from "./GaugeMarker.js";
@@ -850,13 +850,14 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
 
     const existing = gaugeMarkersRef.current;
     const activeKeys = new Set<string>();
-    const variant = variantForZoom(currentZoomRef.current);
+    const zoom = currentZoomRef.current;
 
     for (const r of riverLevels) {
       const key = `${r.riverName}::${r.stationName}`;
       activeKeys.add(key);
 
       const tier = computeTier(r);
+      const variant = variantForMarker(zoom, tier.tier, tier.hasData);
       const upstream = checkUpstreamDanger(r.riverName, r.stationName, tier, riverLevels);
       const hasAi = aiStationKeys?.has(key) ?? false;
       const markerData: GaugeMarkerData = {
@@ -925,15 +926,16 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
 
     const onZoom = () => {
       const zoom = map.getZoom();
-      const newVariant = variantForZoom(zoom);
-      const oldVariant = variantForZoom(currentZoomRef.current);
       currentZoomRef.current = zoom;
 
-      if (newVariant === oldVariant) return;
-
-      // Rebuild all markers with new variant
+      // Rebuild only the markers whose variant actually changed — per-marker
+      // variants (tier-1 downgraded to dot at mid-zoom) mean we can no longer
+      // skip the whole set on a single equality check.
       const existing = gaugeMarkersRef.current;
       for (const [key, entry] of existing) {
+        const newVariant = variantForMarker(zoom, entry.data.tier.tier, entry.data.tier.hasData);
+        if (newVariant === entry.variant) continue;
+
         const newEl = createMarkerElement(entry.data, newVariant);
         const lngLat = entry.marker.getLngLat();
         newEl.addEventListener("click", () => {
