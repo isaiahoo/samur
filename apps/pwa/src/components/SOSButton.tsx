@@ -21,9 +21,11 @@ export function SOSButton() {
   const [location, setLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [sentId, setSentId] = useState<string | null>(null);
+  const [hintVisible, setHintVisible] = useState(false);
 
   const holdStartRef = useRef<number>(0);
   const holdRafRef = useRef<number>(0);
+  const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoSendTimerRef = useRef<ReturnType<typeof setTimeout>>(0 as unknown as ReturnType<typeof setTimeout>);
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval>>(0 as unknown as ReturnType<typeof setInterval>);
   // Keep location in a ref so async callbacks always see the latest value
@@ -110,12 +112,20 @@ export function SOSButton() {
     const elapsed = performance.now() - holdStartRef.current;
     // Quick tap (< 250ms) → show discovery hint so users learn the gesture
     if (elapsed < 250 && holdProgress < 1) {
-      showToast("Удерживайте SOS 1 секунду", "info");
+      setHintVisible(true);
+      if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+      hintTimerRef.current = setTimeout(() => setHintVisible(false), 1500);
     }
     if (holdProgress < 1) {
       setHoldProgress(0);
     }
-  }, [holdProgress, showToast]);
+  }, [holdProgress]);
+
+  useEffect(() => {
+    return () => {
+      if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    };
+  }, []);
 
   // Auto-send countdown when in situation picker
   useEffect(() => {
@@ -189,28 +199,36 @@ export function SOSButton() {
     const r = 34;
     const circ = 2 * Math.PI * r;
     return (
-      <button
-        className={classes.join(" ")}
-        onPointerDown={onHoldStart}
-        onPointerUp={onHoldEnd}
-        onPointerLeave={onHoldEnd}
-        onPointerCancel={onHoldEnd}
-        aria-label="SOS — удерживайте для отправки сигнала"
-      >
-        <svg className="sos-fab-ring" viewBox="0 0 72 72" aria-hidden="true">
-          <circle
-            cx="36" cy="36" r={r}
-            fill="none"
-            stroke="#fff"
-            strokeWidth="3"
-            strokeDasharray={circ}
-            strokeDashoffset={circ * (1 - holdProgress)}
-            strokeLinecap="round"
-            transform="rotate(-90 36 36)"
-          />
-        </svg>
-        <span className="sos-fab-text">SOS</span>
-      </button>
+      <>
+        <button
+          className={classes.join(" ")}
+          onPointerDown={onHoldStart}
+          onPointerUp={onHoldEnd}
+          onPointerLeave={onHoldEnd}
+          onPointerCancel={onHoldEnd}
+          onContextMenu={(e) => e.preventDefault()}
+          aria-label="SOS — удерживайте для отправки сигнала"
+        >
+          <svg className="sos-fab-ring" viewBox="0 0 72 72" aria-hidden="true">
+            <circle
+              cx="36" cy="36" r={r}
+              fill="none"
+              stroke="#fff"
+              strokeWidth="3"
+              strokeDasharray={circ}
+              strokeDashoffset={circ * (1 - holdProgress)}
+              strokeLinecap="round"
+              transform="rotate(-90 36 36)"
+            />
+          </svg>
+          <span className="sos-fab-text">SOS</span>
+        </button>
+        {hintVisible && (
+          <div className="sos-hint" role="status" aria-live="polite">
+            Удерживайте 1 сек
+          </div>
+        )}
+      </>
     );
   }
 
