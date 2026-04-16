@@ -127,11 +127,11 @@ export function MapLegends({
 
       {layers.earthquakes && hasEarthquakes && (
         <div className="eq-legend">
-          <div className="eq-legend-title">Землетрясения</div>
+          <div className="eq-legend-title">Магнитуда</div>
           <div className="eq-legend-items">
-            <span className="eq-legend-dot eq-legend-dot--sm" /> M3.5
-            <span className="eq-legend-dot eq-legend-dot--md" /> M4.5
-            <span className="eq-legend-dot eq-legend-dot--lg" /> M5.5+
+            <span className="eq-legend-dot eq-legend-dot--sm" /> 3.5
+            <span className="eq-legend-dot eq-legend-dot--md" /> 4.5
+            <span className="eq-legend-dot eq-legend-dot--lg" /> 5.5+
           </div>
         </div>
       )}

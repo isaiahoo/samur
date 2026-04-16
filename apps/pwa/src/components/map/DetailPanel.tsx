@@ -132,7 +132,10 @@ export function DetailPanel({ type, data, allRiverLevels, soilMoisture }: Detail
     return (
       <div className="detail-panel">
         <div className="detail-header">
-          <h3 className="eq-detail-mag">M {eq.magnitude}</h3>
+          <h3 className="eq-detail-mag">
+            <span className="eq-detail-mag-value">{eq.magnitude}</span>
+            <span className="eq-detail-mag-unit">Магнитуда</span>
+          </h3>
           <span className={`eq-detail-badge eq-detail-badge--${eq.magnitude >= 5.0 ? "danger" : eq.magnitude >= 4.5 ? "warning" : "info"}`}>
             {eq.magnitude >= 5.0 ? "Сильное" : eq.magnitude >= 4.5 ? "Ощутимое" : "Слабое"}
           </span>
@@ -146,7 +149,7 @@ export function DetailPanel({ type, data, allRiverLevels, soilMoisture }: Detail
           <p className="eq-detail-info">Ощутили: ~{eq.felt} чел.</p>
         )}
         {eq.mmi !== null && eq.mmi > 0 && (
-          <p className="eq-detail-info">Интенсивность (MMI): {eq.mmi}</p>
+          <p className="eq-detail-info">Интенсивность: {Math.round(eq.mmi)} баллов</p>
         )}
         <p className="eq-detail-source">
           Источник: {eq.source === "usgs" ? "USGS" : "EMSC"} · ID: {eq.usgsId}

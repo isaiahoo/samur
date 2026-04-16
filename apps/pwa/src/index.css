@@ -4053,11 +4053,12 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .eq-marker-label {
   color: #fff;
   font-size: var(--eq-label-size);
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: -0.3px;
   line-height: 1;
   user-select: none;
   -webkit-user-select: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .eq-marker:hover .eq-marker-core {
@@ -4067,47 +4068,49 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 /* Magnitude → color + size. Richter-band palette (gray → yellow → orange →
    red → dark red). Sizes scale ~ quadratically with magnitude. */
+/* Sizes tuned so the full "3.5" / "4.2" / "5.1" label always fits inside the
+   core without clipping. Cores grow ~quadratically with magnitude. */
 .eq-marker[data-mag-class="tiny"] {
   color: #71717a;
-  --eq-ring-size: 22px;
-  --eq-core-size: 16px;
-  --eq-label-size: 8px;
+  --eq-ring-size: 28px;
+  --eq-core-size: 20px;
+  --eq-label-size: 9.5px;
   --eq-ring-fill: rgba(113, 113, 122, 0.14);
 }
 .eq-marker[data-mag-class="small"] {
   color: #ca8a04;
-  --eq-ring-size: 28px;
-  --eq-core-size: 18px;
-  --eq-label-size: 9px;
-  --eq-ring-fill: rgba(234, 179, 8, 0.18);
+  --eq-ring-size: 34px;
+  --eq-core-size: 24px;
+  --eq-label-size: 10.5px;
+  --eq-ring-fill: rgba(234, 179, 8, 0.2);
 }
 .eq-marker[data-mag-class="moderate"] {
   color: #ea580c;
-  --eq-ring-size: 36px;
-  --eq-core-size: 22px;
-  --eq-label-size: 10px;
-  --eq-ring-fill: rgba(249, 115, 22, 0.22);
+  --eq-ring-size: 42px;
+  --eq-core-size: 28px;
+  --eq-label-size: 11.5px;
+  --eq-ring-fill: rgba(249, 115, 22, 0.24);
 }
 .eq-marker[data-mag-class="strong"] {
   color: #dc2626;
-  --eq-ring-size: 46px;
-  --eq-core-size: 26px;
-  --eq-label-size: 11px;
-  --eq-ring-fill: rgba(239, 68, 68, 0.22);
+  --eq-ring-size: 52px;
+  --eq-core-size: 32px;
+  --eq-label-size: 12.5px;
+  --eq-ring-fill: rgba(239, 68, 68, 0.24);
 }
 .eq-marker[data-mag-class="major"] {
   color: #b91c1c;
-  --eq-ring-size: 56px;
-  --eq-core-size: 32px;
-  --eq-label-size: 12px;
-  --eq-ring-fill: rgba(185, 28, 28, 0.24);
+  --eq-ring-size: 62px;
+  --eq-core-size: 38px;
+  --eq-label-size: 13.5px;
+  --eq-ring-fill: rgba(185, 28, 28, 0.26);
 }
 .eq-marker[data-mag-class="great"] {
   color: #7f1d1d;
-  --eq-ring-size: 72px;
-  --eq-core-size: 38px;
-  --eq-label-size: 13px;
-  --eq-ring-fill: rgba(127, 29, 29, 0.28);
+  --eq-ring-size: 78px;
+  --eq-core-size: 44px;
+  --eq-label-size: 15px;
+  --eq-ring-fill: rgba(127, 29, 29, 0.3);
 }
 
 /* Depth encoding: shallow gets an extra halo (more dangerous); deep is a
@@ -4246,9 +4249,26 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 /* ── Earthquake detail panel ─────────────────────────────────────────── */
 
 .eq-detail-mag {
-  font-size: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  margin: 0;
+  line-height: 1;
+}
+.eq-detail-mag-value {
+  font-size: 32px;
   font-weight: 800;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.8px;
+  line-height: 1;
+}
+.eq-detail-mag-unit {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-top: 2px;
 }
 
 .eq-detail-badge {

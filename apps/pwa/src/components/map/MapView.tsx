@@ -1060,7 +1060,7 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
         '<span class="eq-marker-pulse" aria-hidden="true"></span>'
         + '<span class="eq-marker-ring" aria-hidden="true"></span>'
         + '<span class="eq-marker-core">'
-        +   `<span class="eq-marker-label">M${eq.magnitude.toFixed(1)}</span>`
+        +   `<span class="eq-marker-label">${eq.magnitude.toFixed(1)}</span>`
         + '</span>';
 
       el.addEventListener("click", () => {
