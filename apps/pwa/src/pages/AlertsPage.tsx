@@ -39,7 +39,7 @@ export function AlertsPage() {
 
     if (alert.urgency === "critical" && "Notification" in window) {
       if (Notification.permission === "granted") {
-        new Notification("Самур — КРИТИЧЕСКОЕ", {
+        new Notification("Кунак — КРИТИЧЕСКОЕ", {
           body: alert.title,
           icon: "/icons/icon-192.png",
           tag: alert.id,
@@ -47,7 +47,7 @@ export function AlertsPage() {
       } else if (Notification.permission !== "denied") {
         Notification.requestPermission().then((perm) => {
           if (perm === "granted") {
-            new Notification("Самур — КРИТИЧЕСКОЕ", {
+            new Notification("Кунак — КРИТИЧЕСКОЕ", {
               body: alert.title,
               icon: "/icons/icon-192.png",
               tag: alert.id,

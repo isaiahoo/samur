@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * AI Forecast Panel — displays Самур AI predictions in a clear,
+ * AI Forecast Panel — displays Кунак AI predictions in a clear,
  * actionable format inspired by UK Environment Agency, Google Flood Hub,
  * and Varsom.no patterns.
  */
@@ -203,7 +203,7 @@ export function AiForecastPanel({ data, dangerLevelCm, skillTier, inputsSource, 
 
       {/* Disclaimer */}
       <p className="ai-panel-disclaimer">
-        Автоматический прогноз Самур AI. Фактические уровни могут отличаться.
+        Автоматический прогноз Кунак AI. Фактические уровни могут отличаться.
       </p>
     </div>
   );

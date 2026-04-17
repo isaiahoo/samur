@@ -471,7 +471,7 @@ export function MapPage() {
           ) : !window.isSecureContext ? (
             <>
               <span className="geo-banner-text">
-                Геолокация недоступна — сайт открыт по HTTP. Откройте <b>https://samurchs.ru</b> для полного доступа.
+                Геолокация недоступна — сайт открыт по HTTP. Откройте <b>https://mykunak.ru</b> для полного доступа.
               </span>
             </>
           ) : (

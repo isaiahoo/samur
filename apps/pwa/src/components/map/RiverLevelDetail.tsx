@@ -273,7 +273,7 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
           </div>
           <p className="chart-mode-hint">
             {aiMode
-              ? "Прогноз уровня воды от Самур AI"
+              ? "Прогноз уровня воды от Кунак AI"
               : "Текущий расход воды по данным GloFAS (спутниковая модель)"}
           </p>
         </div>

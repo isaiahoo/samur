@@ -56,7 +56,7 @@ services:
       TILE_PROVIDER: "${TILE_PROVIDER:-maptiler}"
       MAPTILER_API_KEY: "${MAPTILER_API_KEY}"
       GREENSMS_TOKEN: "${GREENSMS_TOKEN}"
-      CORS_ORIGINS: "${CORS_ORIGINS:-https://samurchs.ru,http://72.56.8.247}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-https://mykunak.ru,https://samurchs.ru,http://72.56.9.176}"
     depends_on:
       postgres:
         condition: service_healthy

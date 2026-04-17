@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * Client for the Самур AI ML prediction service (FastAPI).
+ * Client for the Кунак AI ML prediction service (FastAPI).
  * Fetches water level forecasts and stores them as RiverLevel records.
  */
 

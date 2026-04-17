@@ -278,7 +278,7 @@ router.get("/historical/:riverName/:stationName", async (req, res, next) => {
   }
 });
 
-// ── Самур AI predictions ──────────────────────────────────────────────
+// ── Кунак AI predictions ──────────────────────────────────────────────
 
 router.get("/ai-forecast", async (_req, res, next) => {
   try {

@@ -80,7 +80,7 @@ export default function HelpFormPanel({ id, goBack }: Props) {
       // Offer to share on VK wall
       if (kind === "need") {
         const catLabel = HELP_CATEGORY_LABELS[category] ?? category;
-        const text = `Моим соседям нужна помощь: ${catLabel}${description ? ` — ${description.slice(0, 100)}` : ""}. Откройте приложение Самур!`;
+        const text = `Моим соседям нужна помощь: ${catLabel}${description ? ` — ${description.slice(0, 100)}` : ""}. Откройте приложение Кунак!`;
         try {
           await shareToWall(text, "https://vk.com/app"); // app link placeholder
         } catch {

@@ -1,7 +1,7 @@
 # HTTP → HTTPS redirect + ACME challenge
 server {
     listen 80;
-    server_name samurchs.ru;
+    server_name mykunak.ru samurchs.ru;
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
@@ -16,7 +16,7 @@ server {
 server {
     listen 443 ssl;
     http2 on;
-    server_name samurchs.ru;
+    server_name mykunak.ru samurchs.ru;
 
     # SSL certificates (managed by certbot)
     ssl_certificate /etc/letsencrypt/live/samur/fullchain.pem;

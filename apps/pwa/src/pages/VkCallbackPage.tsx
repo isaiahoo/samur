@@ -78,7 +78,7 @@ export function VkCallbackPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-header">
-          <h2>Самур</h2>
+          <h2>Кунак</h2>
         </div>
         <p className="vk-callback-loading">Вход через VK...</p>
       </div>

@@ -110,7 +110,7 @@ export function Layout() {
       <header className="app-header">
         <h1 className="app-title">
           <img src="/icons/icon-192.png?v=4" alt="" className="app-logo" width="48" height="48" />
-          Самур
+          Кунак
         </h1>
         <div className="header-right">
           {online && <span className={`conn-dot ${socketConnected ? "conn-dot--ok" : "conn-dot--off"}`} title={socketConnected ? "Подключено" : "Нет связи с сервером"} />}

@@ -153,7 +153,7 @@ function createTooltip(mode: "cm" | "discharge", meanVal: number, dangerVal: num
         )}
         {point.aiForecast !== null && (
           <div className="gauge-chart-tooltip-ai">
-            Самур AI: {point.aiForecast.toFixed(1)} см
+            Кунак AI: {point.aiForecast.toFixed(1)} см
             {point.aiLower !== null && point.aiUpper !== null && (
               <> ({point.aiLower.toFixed(0)}–{point.aiUpper.toFixed(0)})</>
             )}
@@ -586,7 +586,7 @@ export const GaugeChart = memo(function GaugeChart({
         )}
         {hasAiForecast && (
           <span className="gauge-chart-legend-item">
-            <span className="gauge-chart-legend-dot" style={{ background: "#14b8a6" }} /> Самур AI
+            <span className="gauge-chart-legend-dot" style={{ background: "#14b8a6" }} /> Кунак AI
           </span>
         )}
       </div>

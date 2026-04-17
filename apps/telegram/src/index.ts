@@ -25,7 +25,7 @@ redis.connect().catch((err) => {
 
 const bot = new TelegramBot(config.TG_BOT_TOKEN, { polling: true });
 
-console.log("Starting Samur Telegram bot...");
+console.log("Starting Kunak Telegram bot...");
 
 // Register command handlers
 registerStartHandler(bot);
@@ -178,7 +178,7 @@ bot
   .then(() => console.log("Bot commands menu set"))
   .catch((err) => console.error("Failed to set commands:", err));
 
-console.log("Samur Telegram bot is running");
+console.log("Kunak Telegram bot is running");
 
 // Graceful shutdown
 function shutdown(signal: string): void {

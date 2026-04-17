@@ -60,7 +60,7 @@ export function MapLegends({
           {hasAiForecasts && (
             <div className="ai-legend-inline">
               <span className="ai-legend-ring" />
-              <span className="ai-legend-text">Самур AI</span>
+              <span className="ai-legend-text">Кунак AI</span>
             </div>
           )}
         </div>

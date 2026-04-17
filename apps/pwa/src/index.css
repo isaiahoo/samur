@@ -3829,7 +3829,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .gauge-dot.gauge-upstream-ring { border-radius: 50%; }
 .gauge-pill.gauge-upstream-ring { outline-offset: 2px; }
 
-/* Самур AI indicator ring — solid teal */
+/* Кунак AI indicator ring — solid teal */
 .gauge-ai-ring {
   outline: 2px solid #14b8a6;
   outline-offset: 3px;
@@ -4917,7 +4917,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .eq-legend-dot--md { width: 12px; height: 12px; background: #f97316; }
 .eq-legend-dot--lg { width: 16px; height: 16px; background: #ef4444; }
 
-/* ── Самур AI legend (inline inside flood legend) ────────────────── */
+/* ── Кунак AI legend (inline inside flood legend) ────────────────── */
 
 .ai-legend-inline {
   display: flex;
