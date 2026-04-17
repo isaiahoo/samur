@@ -46,6 +46,7 @@ export function MapPage() {
     peakDate: string;
     skill: "high" | "medium";
     above: boolean;
+    rising: boolean;
   } | null>(null);
   const [showReport, _setShowReport] = useState(false);
   const setReportFormOpen = useUIStore((s) => s.setReportFormOpen);
@@ -188,6 +189,7 @@ export function MapPage() {
         riverName: string; stationName: string;
         peakCm: number; dangerCm: number; peakDate: string;
         skill: "high" | "medium"; above: boolean; pct: number;
+        rising: boolean;
       };
       let worst: Threat | null = null;
 
@@ -220,6 +222,7 @@ export function MapPage() {
         }
 
         if (tier !== "high" && tier !== "medium") continue;
+        const rising = lastLevel > firstLevel * 1.02;
         for (const p of points) {
           const danger = p.dangerLevelCm ?? 0;
           if (danger <= 0) continue;
@@ -236,6 +239,7 @@ export function MapPage() {
               skill: tier,
               above: upper >= danger,
               pct,
+              rising,
             };
           }
         }
@@ -251,6 +255,7 @@ export function MapPage() {
         peakDate: worst.peakDate,
         skill: worst.skill,
         above: worst.above,
+        rising: worst.rising,
       } : null);
     } catch { /* ignore — AI overlay is enhancement */ }
   }, []);

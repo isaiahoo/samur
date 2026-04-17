@@ -4229,24 +4229,28 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .forecast-banner-return:hover { background: rgba(255, 255, 255, 0.25); }
 
 /* ── AI Alert Chip ──────────────────────────────────────────────────── */
-/* Compact top-center pill for the single most-concerning AI forecast.
-   Replaces a full-width banner that was fighting the app header for
-   visual dominance. Tap → fly + open the station's detail sheet. */
+/* Glanceable mini-gauge pill. Dark backdrop lets the map read through;
+   a thin colored accent (border + text) encodes severity; the inline
+   fill bar visualises % of danger so the info doesn't need a tap to
+   be legible. Still tappable — clicking flies + opens detail. */
 .ai-alert-chip {
   position: absolute;
-  top: 10px;
+  top: 12px;
   left: 50%;
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px 6px 10px;
-  border: 0;
+  gap: 8px;
+  padding: 7px 12px;
+  background: rgba(15, 17, 22, 0.82);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid transparent;
   border-radius: 999px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
   font-family: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
@@ -4254,38 +4258,61 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   animation: ai-alert-chip-appear 280ms ease-out;
 }
 .ai-alert-chip--elevated {
-  background: #f59e0b;
-  color: #fff;
+  border-color: rgba(245, 158, 11, 0.55);
+  color: #fcd34d;
 }
 .ai-alert-chip--critical {
-  background: #dc2626;
-  color: #fff;
-  /* Gentle pulse when something is above danger — not so loud as to
-     compete with the live SOS button, but visible in peripheral vision. */
-  animation: ai-alert-chip-appear 280ms ease-out, ai-alert-chip-pulse 2.4s ease-in-out 280ms infinite;
+  border-color: rgba(239, 68, 68, 0.65);
+  color: #fca5a5;
+  /* Subtle pulse draws peripheral attention to an above-danger forecast
+     without competing with the live SOS button's prominence. */
+  animation: ai-alert-chip-appear 280ms ease-out, ai-alert-chip-pulse 2.6s ease-in-out 280ms infinite;
 }
-.ai-alert-chip-icon {
-  font-size: 14px;
-  line-height: 1;
-}
-.ai-alert-chip-label {
+.ai-alert-chip-name {
+  color: #f4f4f5;
+  font-weight: 700;
   letter-spacing: 0.01em;
+}
+.ai-alert-chip-pct {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.ai-alert-chip-gauge {
+  position: relative;
+  width: 44px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.ai-alert-chip-gauge-fill {
+  display: block;
+  height: 100%;
+  background: currentColor;
+  border-radius: 2px;
+  transition: width 320ms ease-out;
+}
+.ai-alert-chip-trend {
+  display: inline-flex;
+  margin-left: -2px;
 }
 .ai-alert-chip:hover,
 .ai-alert-chip:focus-visible {
-  filter: brightness(1.08);
+  background: rgba(20, 22, 28, 0.9);
+  outline: none;
 }
 @keyframes ai-alert-chip-appear {
   from { opacity: 0; transform: translate(-50%, -6px); }
   to   { opacity: 1; transform: translate(-50%, 0); }
 }
 @keyframes ai-alert-chip-pulse {
-  0%, 100% { box-shadow: 0 3px 10px rgba(220, 38, 38, 0.35); }
-  50%      { box-shadow: 0 3px 14px rgba(220, 38, 38, 0.7); }
+  0%, 100% { box-shadow: 0 4px 14px rgba(239, 68, 68, 0.25); }
+  50%      { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.6); }
 }
 @media (prefers-reduced-motion: reduce) {
   .ai-alert-chip,
   .ai-alert-chip--critical { animation: none; }
+  .ai-alert-chip-gauge-fill { transition: none; }
 }
 
 /* Crisis mode: use red accent for the banner + active pill */
