@@ -138,6 +138,12 @@ export function getMe() {
   return request<ApiResponse & { token?: string }>("/auth/me");
 }
 
+// Per-user action record — helpsCompleted / requestsResolved / joinedAt /
+// etc. Returned as the `data` field. Foundation for the achievements layer.
+export function getUserStats(id: string) {
+  return request<ApiResponse>(`/users/${encodeURIComponent(id)}/stats`);
+}
+
 export function updateProfile(data: { name?: string; role?: string }) {
   // Backend returns a fresh JWT alongside the user whenever the role
   // actually changed — callers should swap it into the auth store.

@@ -57,6 +57,37 @@ function formatRole(role?: string): string {
   return ELEVATED_ROLE_LABELS[role] ?? "";
 }
 
+// Compact record line under the responder's name. The foundation of the
+// trust signal that will later be enriched with achievement badges.
+// Intentionally minimal on zero-activity users so "new to the platform"
+// doesn't read as a negative signal.
+const MONTHS_RU = [
+  "янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек",
+];
+function formatJoined(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `с ${MONTHS_RU[d.getMonth()]} ${d.getFullYear()}`;
+}
+function statsLine(stats?: { helpsCompleted: number; requestsResolved: number; joinedAt: string }): string {
+  if (!stats) return "";
+  const bits: string[] = [];
+  if (stats.helpsCompleted > 0) {
+    bits.push(
+      stats.helpsCompleted === 1
+        ? "1 помощь"
+        : stats.helpsCompleted < 5
+          ? `${stats.helpsCompleted} помощи`
+          : `${stats.helpsCompleted} помощей`,
+    );
+  }
+  if (stats.requestsResolved > 0) {
+    bits.push(`${stats.requestsResolved} заявок закрыто`);
+  }
+  bits.push(formatJoined(stats.joinedAt));
+  return bits.filter(Boolean).join(" · ");
+}
+
 // Colored circle with 1-2 letter initials — used next to responder names.
 function Avatar({ name, size = 32 }: { name?: string | null; size?: number }) {
   const initial = (name ?? "?").trim().charAt(0).toUpperCase() || "?";
@@ -263,11 +294,14 @@ export function HelpDetailSheet({
                         <div className="detail-responder-meta">
                           {(() => {
                             const role = formatRole(r.user?.role);
-                            // Elevated role (if any) · time-ago. Regular users
-                            // just show the time — no generic "Волонтёр" label.
                             return role ? `${role} · ${formatRelativeTime(r.updatedAt)}` : formatRelativeTime(r.updatedAt);
                           })()}
                         </div>
+                        {r.user?.stats && statsLine(r.user.stats) && (
+                          <div className="detail-responder-stats">
+                            {statsLine(r.user.stats)}
+                          </div>
+                        )}
                       </div>
                       <span className={RESPONSE_STATUS_CLASS[r.status]}>
                         {RESPONSE_STATUS_LABELS[r.status]}

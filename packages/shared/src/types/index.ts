@@ -92,11 +92,22 @@ export interface Incident {
   deletedAt: string | null;
 }
 
+export interface UserStats {
+  helpsCompleted: number;
+  helpsActive: number;
+  requestsResolved: number;
+  requestsActive: number;
+  joinedAt: string;
+}
+
 export interface HelpRequestParty {
   id: string;
   name: string | null;
   role: string;
   phone?: string | null;
+  // Foundation for the achievements layer — populated server-side for
+  // responders on the list / detail / respond endpoints.
+  stats?: UserStats;
 }
 
 export interface HelpResponse {

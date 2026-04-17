@@ -4,8 +4,8 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useUIStore } from "../store/ui.js";
 import { useAuthStore } from "../store/auth.js";
 import { useOnline } from "../hooks/useOnline.js";
-import { getMe } from "../services/api.js";
-import type { User } from "@samur/shared";
+import { getMe, getUserStats } from "../services/api.js";
+import type { User, UserStats } from "@samur/shared";
 import { BottomSheet } from "./BottomSheet.js";
 import { Toast } from "./Toast.js";
 import { SOSButton } from "./SOSButton.js";
@@ -63,6 +63,19 @@ export function Layout() {
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const [myStats, setMyStats] = useState<UserStats | null>(null);
+
+  // Fetch stats once on login and whenever the profile menu opens — the
+  // latter keeps them fresh after the user completes a help (helpsCompleted
+  // goes up) without requiring a reload.
+  useEffect(() => {
+    if (!loggedIn || !user?.id) { setMyStats(null); return; }
+    let cancelled = false;
+    getUserStats(user.id)
+      .then((res) => { if (!cancelled) setMyStats(res.data as UserStats | null); })
+      .catch(() => { /* silent — stats are a nicety, not critical */ });
+    return () => { cancelled = true; };
+  }, [loggedIn, user?.id, profileOpen]);
 
   // Close profile menu on outside click
   useEffect(() => {
@@ -125,14 +138,29 @@ export function Layout() {
                 <div className="profile-menu-header">
                   <span className="profile-menu-name">{user?.name || "Пользователь"}</span>
                   {user?.phone && <span className="profile-menu-phone">{user.phone}</span>}
-                  {/* Show the role label only for elevated roles (coordinator / admin)
-                      — for regular users, the resident/volunteer distinction no
-                      longer matters and would just clutter the menu. Trust
-                      signals (stats, achievements) will replace this later. */}
                   {(user?.role === "coordinator" || user?.role === "admin") && (
                     <span className="profile-menu-role profile-menu-role--elevated">
                       {user.role === "coordinator" ? "Координатор" : "Администратор"}
                     </span>
+                  )}
+                  {myStats && (
+                    <div className="profile-menu-stats">
+                      <span className="profile-menu-stat">
+                        <strong>{myStats.helpsCompleted}</strong>
+                        <small>помощей</small>
+                      </span>
+                      <span className="profile-menu-stat">
+                        <strong>{myStats.requestsResolved}</strong>
+                        <small>закрыто</small>
+                      </span>
+                      <span className="profile-menu-stat profile-menu-stat--joined">
+                        {(() => {
+                          const m = ["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"];
+                          const d = new Date(myStats.joinedAt);
+                          return `с ${m[d.getMonth()]} ${d.getFullYear()}`;
+                        })()}
+                      </span>
+                    </div>
                   )}
                 </div>
                 <div className="profile-menu-divider" />

@@ -24,6 +24,7 @@ import {
   emitHelpMessageCreated,
   emitSOSCreated,
 } from "../lib/emitter.js";
+import { computeUserStats, type UserStats } from "../lib/userStats.js";
 import { paramId } from "../lib/params.js";
 import {
   checkSosRateLimit,
@@ -81,6 +82,34 @@ function filterPhones<T extends HelpRequestWithParties>(row: T, caller: Caller |
 }
 function getCaller(req: { user?: { sub: string; role: string } }): Caller | null {
   return req.user ? { sub: req.user.sub, role: req.user.role } : null;
+}
+
+// Attach a UserStats object to every responder.user across a batch of
+// help-request rows. Replaces the role-as-identity signal ("Волонтёр")
+// with a record of what the person has actually done, which is also the
+// foundation for the future achievements layer.
+async function attachResponderStats<T extends { responses?: Array<{ user?: { id: string; stats?: UserStats } | null }> | null }>(
+  rows: T[],
+): Promise<void> {
+  const userIds: string[] = [];
+  for (const row of rows) {
+    if (!Array.isArray(row.responses)) continue;
+    for (const r of row.responses) {
+      if (r.user?.id) userIds.push(r.user.id);
+    }
+  }
+  if (userIds.length === 0) return;
+
+  const stats = await computeUserStats(userIds);
+  for (const row of rows) {
+    if (!Array.isArray(row.responses)) continue;
+    for (const r of row.responses) {
+      if (r.user?.id) {
+        const s = stats.get(r.user.id);
+        if (s) r.user.stats = s;
+      }
+    }
+  }
 }
 
 // Enrich each help-request row with per-caller activity fields: the
@@ -232,6 +261,8 @@ router.get(
       const filtered = items.map((row) =>
         filterPhones(row as unknown as HelpRequestWithParties, caller)
       );
+
+      await attachResponderStats(filtered as never);
 
       // Per-caller helpers so the PWA can surface "Мои отклики" + unread
       // badges without a second round-trip. Only fetched when there's an
@@ -386,6 +417,7 @@ router.get("/:id", optionalAuth, async (req, res, next) => {
 
     const caller = getCaller(req as never);
     const filtered = filterPhones(hr as unknown as HelpRequestWithParties, caller);
+    await attachResponderStats([filtered as never]);
     const enriched = caller
       ? (await attachCallerActivity([filtered as unknown as { id: string }], caller.sub))[0]
       : filtered;
@@ -572,6 +604,7 @@ router.post(
       });
       const caller = getCaller(req as never);
       const filtered = filterPhones(updated as unknown as HelpRequestWithParties, caller);
+      await attachResponderStats([filtered as never]);
       // Same enrichment as the list/detail endpoints so the client's state
       // swap includes myResponseStatus and unreadMessages — otherwise the
       // just-claimed card won't pass the "Мои отклики" filter until the
@@ -631,6 +664,7 @@ router.patch(
       });
       const caller = getCaller(req as never);
       const filtered = filterPhones(hr as unknown as HelpRequestWithParties, caller);
+      await attachResponderStats([filtered as never]);
       const enriched = caller
         ? (await attachCallerActivity(
             [filtered as unknown as { id: string }],

@@ -125,6 +125,49 @@ a { color: var(--color-primary); text-decoration: none; }
   color: #71717a;
   margin-top: 2px;
 }
+.profile-menu-role--elevated {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #dbeafe;
+  color: #1e40af;
+  font-weight: 600;
+  font-size: 11px;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+.profile-menu-stats {
+  display: flex;
+  gap: 14px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e4e4e7;
+  align-items: baseline;
+}
+.profile-menu-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+.profile-menu-stat strong {
+  font-size: 18px;
+  font-weight: 700;
+  color: #059669;
+}
+.profile-menu-stat small {
+  font-size: 10px;
+  color: #71717a;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-top: 2px;
+}
+.profile-menu-stat--joined {
+  margin-left: auto;
+  font-size: 11px;
+  color: #94a3b8;
+  align-self: center;
+}
 
 .profile-menu-divider {
   height: 1px;
@@ -2903,6 +2946,12 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   font-size: 11px;
   color: var(--color-muted);
   margin-top: 2px;
+}
+.detail-responder-stats {
+  font-size: 11px;
+  color: #059669;
+  margin-top: 3px;
+  font-weight: 500;
 }
 .detail-responder-phone {
   display: inline-block;
@@ -6244,6 +6293,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .detail-responder--mine { background: rgba(14,165,233,0.12); border-color: rgba(14,165,233,0.32); }
   .detail-responder-name { color: #f4f4f5; }
   .detail-responder-meta { color: #a1a1aa; }
+  .detail-responder-stats { color: #34d399; }
   .response-pill--responded { background: rgba(67,56,202,0.25);  color: #c7d2fe; }
   .response-pill--on-way    { background: rgba(146,64,14,0.28);  color: #fde68a; }
   .response-pill--arrived   { background: rgba(21,94,117,0.25);  color: #a5f3fc; }
@@ -6495,6 +6545,11 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   }
   .profile-menu-name { color: var(--color-text); }
   .profile-menu-phone { color: #a1a1aa; }
+  .profile-menu-role--elevated { background: rgba(59,130,246,0.18); color: #bfdbfe; }
+  .profile-menu-stats { border-top-color: var(--color-border); }
+  .profile-menu-stat strong { color: #34d399; }
+  .profile-menu-stat small { color: #a1a1aa; }
+  .profile-menu-stat--joined { color: #71717a; }
   .profile-menu-divider { background: var(--color-border); }
   .profile-menu-item { color: #d4d4d8; }
   .profile-menu-item:active { background: rgba(255, 255, 255, 0.05); }
