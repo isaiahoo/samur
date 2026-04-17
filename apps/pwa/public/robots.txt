@@ -1,0 +1,21 @@
+# Kunak — Координация взаимопомощи при наводнении
+# https://mykunak.ru
+
+User-agent: *
+Allow: /
+Allow: /login
+
+# Authenticated areas — no value in indexing these
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /auth/
+Disallow: /profile/
+Disallow: /api/
+
+# Uploaded user media (photos attached to help requests) is not for crawlers
+Disallow: /api/v1/uploads/
+
+# Crawl politeness
+Crawl-delay: 2
+
+Sitemap: https://mykunak.ru/sitemap.xml

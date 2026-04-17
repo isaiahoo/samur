@@ -31,6 +31,30 @@
     <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <link rel="canonical" href="https://mykunak.ru" />
     <title>Кунак</title>
+
+    <!-- Structured data — helps search engines render Kunak as a civic
+         platform rather than a generic web app, and signals geographic
+         scope so regional queries surface the right result. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Кунак",
+      "alternateName": "Kunak",
+      "url": "https://mykunak.ru",
+      "logo": "https://mykunak.ru/icons/icon-512.png",
+      "description": "Платформа координации взаимопомощи при наводнении на Северном Кавказе.",
+      "inLanguage": "ru",
+      "areaServed": [
+        { "@type": "AdministrativeArea", "name": "Республика Дагестан" },
+        { "@type": "AdministrativeArea", "name": "Северный Кавказ" }
+      ],
+      "sameAs": [
+        "https://mykunak.ru",
+        "https://samurchs.ru"
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
