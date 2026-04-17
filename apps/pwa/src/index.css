@@ -1351,8 +1351,12 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   pointer-events: auto;
   transition: transform 0.15s, box-shadow 0.15s;
   border-left: 4px solid #a1a1aa;
-  min-width: 140px;
-  max-width: 200px;
+  min-width: 160px;
+  max-width: 260px;
+  /* overflow: hidden clips ornamental children but doesn't truncate text
+     because the content uses its own word-wrap/ellipsis rules below.
+     It's here so a long phrase can't visually escape the rounded card. */
+  overflow: hidden;
 }
 .gauge-marker--card .gauge-card:hover {
   transform: translateX(-50%) scale(1.03);
@@ -1369,7 +1373,18 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.gauge-card-body { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+/* Body wraps when the descriptor runs long ("на 41% выше нормы",
+   "Опасный уровень достигнут"). Tier label stays on the left and
+   never shrinks; the phrase sits to the right and wraps to a second
+   line instead of bleeding past the card's rounded right edge. */
+.gauge-card-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 2px;
+  flex-wrap: wrap;
+}
 .gauge-card-tier {
   display: inline-flex;
   align-items: center;
@@ -1377,11 +1392,17 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .gauge-card-pct {
   font-size: 11px;
   color: #52525b;
-  white-space: nowrap;
+  line-height: 1.35;
+  text-align: right;
+  flex: 1 1 auto;
+  min-width: 0;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* Tier fill colours — used on dots, pills, anchor dots. Softened tier-2 to a
