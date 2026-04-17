@@ -161,6 +161,7 @@ export async function runAiAlertCheck(): Promise<{ created: number; skipped: num
         data: {
           authorId,
           urgency,
+          source: "ai_forecast",
           title,
           body,
           // AI alerts stay in-app only: the telegram/sms/meshtastic

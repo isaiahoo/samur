@@ -340,6 +340,7 @@ async function checkAndTriggerAlert(
       data: {
         authorId: systemUser.id,
         urgency: "critical",
+        source: "river",
         title: `⚠️ ${station.riverName}: уровень воды превысил опасную отметку`,
         body: alertBody!.join("\n"),
         channels: ["pwa", "telegram", "sms", "meshtastic"],

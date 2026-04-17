@@ -52,6 +52,7 @@ export type HelpResponseStatus =
   | "cancelled";
 
 export type AlertUrgency = "info" | "warning" | "critical";
+export type AlertSource = "manual" | "river" | "seismic" | "ai_forecast" | "news";
 
 export type ShelterStatus = "open" | "full" | "closed";
 
@@ -173,6 +174,7 @@ export interface Alert {
   id: string;
   authorId: string;
   urgency: AlertUrgency;
+  source: AlertSource;
   title: string;
   body: string;
   geoBounds: unknown | null;

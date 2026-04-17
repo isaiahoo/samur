@@ -86,6 +86,14 @@ enum AlertUrgency {
   critical
 }
 
+enum AlertSource {
+  manual        // coordinator/admin composed via AlertComposer
+  river         // auto from riverScraper: observed level crossed danger
+  seismic       // auto from earthquakeClient: M5+ event
+  ai_forecast   // auto from aiAlertGenerator: AI forecast peak crosses 75% of danger
+  news          // reserved — not wired yet (Phase 5 context feed)
+}
+
 enum ShelterStatus {
   open
   full
@@ -282,6 +290,9 @@ model Alert {
   id        String       @id @default(cuid())
   authorId  String       @map("author_id")
   urgency   AlertUrgency
+  /// Which pipeline produced this alert. Drives the icon + label on the
+  /// alert card and lets the feed be filtered by origin.
+  source    AlertSource  @default(manual)
   title     String
   body      String
   geoBounds Unsupported("geometry(Polygon, 4326)")? @map("geo_bounds")
@@ -295,6 +306,7 @@ model Alert {
 
   @@index([authorId])
   @@index([urgency])
+  @@index([source])
   @@index([sentAt])
   @@index([expiresAt])
   @@index([deletedAt])

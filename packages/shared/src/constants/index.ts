@@ -62,6 +62,22 @@ export const ALERT_URGENCY_LABELS: Record<string, string> = {
   critical: "Критическое",
 };
 
+export const ALERT_SOURCE_LABELS: Record<string, string> = {
+  manual: "Координатор",
+  river: "Датчик реки",
+  seismic: "Сейсмособытие",
+  ai_forecast: "Кунак AI",
+  news: "Новости",
+};
+
+export const ALERT_SOURCE_ICONS: Record<string, string> = {
+  manual: "📢",
+  river: "🌊",
+  seismic: "🌋",
+  ai_forecast: "🤖",
+  news: "📰",
+};
+
 export const SHELTER_STATUS_LABELS: Record<string, string> = {
   open: "Открыт",
   full: "Заполнен",

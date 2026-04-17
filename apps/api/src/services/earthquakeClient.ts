@@ -518,6 +518,7 @@ async function checkAndTriggerEarthquakeAlert(event: EarthquakeEvent): Promise<v
         data: {
           authorId: systemUser.id,
           urgency: event.magnitude >= 6.0 ? "critical" : "warning",
+          source: "seismic",
           title: `🔴 Землетрясение M${event.magnitude} — ${event.place}`,
           body: bodyLines.join("\n"),
           channels: ["pwa", "telegram", "sms", "meshtastic"],

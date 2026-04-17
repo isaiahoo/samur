@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useEffect, useCallback } from "react";
 import type { Alert } from "@samur/shared";
-import { ALERT_URGENCY_LABELS, ALERT_URGENCY_COLORS } from "@samur/shared";
+import { ALERT_URGENCY_LABELS, ALERT_URGENCY_COLORS, ALERT_SOURCE_LABELS, ALERT_SOURCE_ICONS } from "@samur/shared";
 import { formatRelativeTime } from "@samur/shared";
 import { getAlerts, getAlertsSituation } from "../services/api.js";
 import type { AlertsSituation } from "../services/api.js";
@@ -82,8 +82,11 @@ export function AlertsPage() {
       {criticalAlerts.map((a) => (
         <div key={a.id} className="alert-banner alert-banner--critical">
           <div className="alert-banner-content">
-            <span className="alert-urgency-icon">⚠️</span>
+            <span className="alert-urgency-icon" aria-hidden="true">
+              {ALERT_SOURCE_ICONS[a.source] ?? "⚠️"}
+            </span>
             <div className="alert-banner-body">
+              <span className="alert-banner-source">{ALERT_SOURCE_LABELS[a.source] ?? "Оповещение"}</span>
               <strong>{a.title}</strong>
               <p>{a.body}</p>
               <small>{formatRelativeTime(a.sentAt)}</small>
@@ -121,9 +124,16 @@ function AlertCard({ alert }: { alert: Alert }) {
         ? "alert-card--warning"
         : "alert-card--info";
 
+  const sourceIcon = ALERT_SOURCE_ICONS[alert.source] ?? "📢";
+  const sourceLabel = ALERT_SOURCE_LABELS[alert.source] ?? "Оповещение";
+
   return (
     <div className={`alert-card ${colorClass}`}>
       <div className="alert-card-header">
+        <span className={`alert-source alert-source--${alert.source}`} title={sourceLabel}>
+          <span className="alert-source-icon" aria-hidden="true">{sourceIcon}</span>
+          <span className="alert-source-label">{sourceLabel}</span>
+        </span>
         <span
           className="alert-urgency-badge"
           style={{ backgroundColor: ALERT_URGENCY_COLORS[alert.urgency] }}

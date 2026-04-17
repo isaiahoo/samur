@@ -3633,7 +3633,41 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .alert-card--critical { border-left-color: #ef4444; }
 .alert-card--warning { border-left-color: #f59e0b; }
 .alert-card--info { border-left-color: #3b82f6; }
-.alert-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.alert-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.alert-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 6px;
+  background: #f4f4f5;
+  border: 1px solid #e4e4e7;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #52525b;
+  white-space: nowrap;
+}
+.alert-source-icon { font-size: 12px; line-height: 1; }
+.alert-source--river       { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+.alert-source--seismic     { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+.alert-source--ai_forecast { background: #ecfeff; border-color: #a5f3fc; color: #0e7490; }
+.alert-source--news        { background: #fefce8; border-color: #fde68a; color: #854d0e; }
+.alert-time { margin-left: auto; }
+.alert-banner-source {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #b91c1c;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
 .alert-urgency-badge {
   display: inline-block;
   padding: 2px 8px;

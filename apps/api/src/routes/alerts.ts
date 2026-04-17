@@ -151,6 +151,7 @@ router.post(
         data: {
           authorId: req.user!.sub,
           urgency,
+          source: "manual",
           title,
           body,
           channels,
