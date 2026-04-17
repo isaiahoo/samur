@@ -11,6 +11,7 @@ import { UrgencyBadge } from "./UrgencyBadge.js";
 import { ImageLightbox } from "./ImageLightbox.js";
 import { HelpChat } from "./HelpChat.js";
 import { HelpProgressRail } from "./HelpProgressRail.js";
+import { useSocketEvent } from "../hooks/useSocket.js";
 
 const categoryIcons: Record<string, string> = {
   rescue: "🆘", shelter: "🏠", food: "🍞", water: "💧",
@@ -79,6 +80,13 @@ export function HelpDetailSheet({
   item, isNeed, currentUserId, onClaim, onUpdateResponse, onClose,
 }: Props) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  // Tab state: "details" is the default, "chat" focuses the thread on the
+  // full sheet height. Each tab gets all of .sheet-content's vertical space
+  // so a long chat no longer forces the user to scroll past the meta.
+  const [activeTab, setActiveTab] = useState<"details" | "chat">("details");
+  // Local unread counter — bumps on socket events while we're not on the
+  // chat tab, resets when the user visits it.
+  const [newSinceDetails, setNewSinceDetails] = useState(0);
   const photos = item.photoUrls ?? [];
 
   const isAuthorMe = !!currentUserId && item.userId === currentUserId;
@@ -103,6 +111,24 @@ export function HelpDetailSheet({
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = prev; };
   }, []);
+
+  // Bump unread counter when a message arrives while the user is off the
+  // chat tab. Reset when they switch to it — HelpChat itself marks-read
+  // on mount, so the server watermark also advances.
+  useSocketEvent("help_message:created", (msg) => {
+    if (msg.helpRequestId !== item.id) return;
+    if (msg.authorId === currentUserId) return; // don't badge your own sends
+    if (activeTab !== "chat") setNewSinceDetails((n) => n + 1);
+  });
+  const goToChat = () => {
+    setNewSinceDetails(0);
+    setActiveTab("chat");
+  };
+  // Combined unread: server-computed baseline (what we didn't see before
+  // opening the sheet) + anything that arrived while in details view.
+  const initialUnread = item.unreadMessages ?? 0;
+  const chatBadge = activeTab === "chat" ? 0 : initialUnread + newSinceDetails;
+  const totalMessages = initialUnread + newSinceDetails; // for the tab counter when no unread
 
   // Advance-state logic.
   const nextStatus: HelpResponseStatus | null = (() => {
@@ -163,6 +189,47 @@ export function HelpDetailSheet({
           )}
         </div>
 
+        {/* Tabs — Details / Chat. Chat gets full sheet height on tap so
+            long threads don't force the user to scroll past the meta. */}
+        <div className="detail-tabs" role="tablist">
+          <button
+            role="tab"
+            aria-selected={activeTab === "details"}
+            className={`detail-tab ${activeTab === "details" ? "detail-tab--active" : ""}`}
+            onClick={() => setActiveTab("details")}
+          >
+            Детали
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === "chat"}
+            className={`detail-tab ${activeTab === "chat" ? "detail-tab--active" : ""}`}
+            onClick={goToChat}
+          >
+            Обсуждение
+            {totalMessages > 0 && activeTab === "chat" && (
+              <span className="detail-tab-count"> · {totalMessages}</span>
+            )}
+            {chatBadge > 0 && (
+              <span className="detail-tab-badge" aria-label={`${chatBadge} непрочитанных`}>
+                {chatBadge > 9 ? "9+" : chatBadge}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {activeTab === "chat" ? (
+          <div className="sheet-content sheet-content--chat">
+            {currentUserId && (
+              <HelpChat
+                requestId={item.id}
+                currentUserId={currentUserId}
+                canParticipate={!!(isAuthorMe || myActive)}
+                fullHeight
+              />
+            )}
+          </div>
+        ) : (
         <div className="sheet-content" style={{ paddingTop: 8 }}>
           {photos.length > 0 && (
             <div className="detail-photos">
@@ -259,14 +326,23 @@ export function HelpDetailSheet({
             </div>
           )}
 
-          {currentUserId && (
-            <HelpChat
-              requestId={item.id}
-              currentUserId={currentUserId}
-              canParticipate={!!(isAuthorMe || myActive)}
-            />
+          {/* Light-weight preview: if there's a chat, nudge the user to the
+              Обсуждение tab. Avoids duplicating the thread in the Details view. */}
+          {currentUserId && (initialUnread + newSinceDetails > 0) && (
+            <button
+              className="detail-chat-jump"
+              onClick={goToChat}
+              aria-label="Перейти к обсуждению"
+            >
+              <span className="detail-chat-jump-dot" aria-hidden="true" />
+              <span>
+                {initialUnread + newSinceDetails} новых в обсуждении
+              </span>
+              <span className="detail-chat-jump-arrow" aria-hidden="true">›</span>
+            </button>
           )}
         </div>
+        )}
 
         {/* Sticky bottom action bar — always visible regardless of scroll.
             Primary CTA is the state-advance button or "Откликнуться". The
