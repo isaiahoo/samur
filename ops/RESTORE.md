@@ -20,6 +20,29 @@ sshpass -p '<ssh password>' ssh \
 
 > The SSH password is in the team password store; not in this file.
 
+## First thing after SSH — set the compose overlay
+
+Prod runs from **two** compose files. The base `docker-compose.yml` only
+defines api/pwa/telegram/nginx/postgres/redis/pgadmin; `docker-compose.prod.yml`
+adds `ml`, `pg-backup`, and the monitoring stack (`prometheus`, `grafana`,
+exporters), and overrides api/pwa/nginx with production settings (restart
+policy, memory limits, healthchecks, `uploads` volume).
+
+Running `docker compose <cmd>` without the overlay silently targets the base
+file only — it misses `ml` and `pg-backup` entirely, and recreates api
+without its prod settings. Export `COMPOSE_FILE` once per session so every
+subsequent `docker compose` command picks up both files:
+
+```bash
+cd /opt/samur
+export COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+
+# Sanity check — should list ml + pg-backup + prometheus etc.
+docker compose config --services
+```
+
+All commands below assume this is set. If you open a fresh shell, re-export.
+
 ## Inventory + health check
 
 ```bash

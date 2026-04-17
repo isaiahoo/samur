@@ -79,8 +79,11 @@ docker logs samur-postgres --tail 30
 docker exec samur-nginx nginx -t
 docker logs samur-nginx --tail 30
 
-# 6. Common recovery:
-cd /opt/samur && docker compose restart api
+# 6. Common recovery (always export COMPOSE_FILE first on prod — base
+# compose omits ml/pg-backup and drops prod-only api settings):
+cd /opt/samur
+export COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+docker compose restart api
 # or: docker compose up -d --force-recreate api
 ```
 
