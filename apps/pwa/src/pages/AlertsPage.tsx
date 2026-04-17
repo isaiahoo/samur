@@ -3,35 +3,43 @@ import { useState, useEffect, useCallback } from "react";
 import type { Alert } from "@samur/shared";
 import { ALERT_URGENCY_LABELS, ALERT_URGENCY_COLORS } from "@samur/shared";
 import { formatRelativeTime } from "@samur/shared";
-import { getAlerts } from "../services/api.js";
+import { getAlerts, getAlertsSituation } from "../services/api.js";
+import type { AlertsSituation } from "../services/api.js";
 import { Spinner } from "../components/Spinner.js";
+import { SituationSummary } from "../components/alerts/SituationSummary.js";
+import { AlertActions } from "../components/alerts/AlertActions.js";
 import { useSocketEvent } from "../hooks/useSocket.js";
 import { useUIStore } from "../store/ui.js";
 
 export function AlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [situation, setSituation] = useState<AlertsSituation | null>(null);
   const [loading, setLoading] = useState(true);
   const [dismissedCritical, setDismissedCritical] = useState<Set<string>>(new Set());
 
   const resetUnread = useUIStore((s) => s.resetUnread);
   const incrementUnread = useUIStore((s) => s.incrementUnread);
 
-  const fetchAlerts = useCallback(async () => {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getAlerts({ active: true, limit: 50, sort: "sent_at", order: "desc" });
-      setAlerts((res.data ?? []) as Alert[]);
+      const [alertsRes, situationRes] = await Promise.all([
+        getAlerts({ active: true, limit: 50, sort: "sent_at", order: "desc" }),
+        getAlertsSituation().catch(() => null),
+      ]);
+      setAlerts((alertsRes.data ?? []) as Alert[]);
+      if (situationRes?.data) setSituation(situationRes.data);
     } catch {
-      // silent
+      // silent — overlay failures don't block the page
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchAlerts();
+    fetchAll();
     resetUnread();
-  }, [fetchAlerts, resetUnread]);
+  }, [fetchAll, resetUnread]);
 
   useSocketEvent("alert:broadcast", (alert) => {
     setAlerts((prev) => [alert, ...prev]);
@@ -69,14 +77,17 @@ export function AlertsPage() {
 
   return (
     <div className="alerts-page">
+      {situation && <SituationSummary data={situation} />}
+
       {criticalAlerts.map((a) => (
         <div key={a.id} className="alert-banner alert-banner--critical">
           <div className="alert-banner-content">
             <span className="alert-urgency-icon">⚠️</span>
-            <div>
+            <div className="alert-banner-body">
               <strong>{a.title}</strong>
               <p>{a.body}</p>
               <small>{formatRelativeTime(a.sentAt)}</small>
+              <AlertActions alert={a} />
             </div>
           </div>
           <button
@@ -90,9 +101,7 @@ export function AlertsPage() {
       ))}
 
       {alerts.length === 0 ? (
-        <div className="empty-state">
-          <p>Нет активных оповещений</p>
-        </div>
+        <div className="alerts-empty-note">Новых оповещений нет — следите за ситуацией выше.</div>
       ) : (
         <div className="alerts-list">
           {otherAlerts.map((a) => (
@@ -125,6 +134,7 @@ function AlertCard({ alert }: { alert: Alert }) {
       </div>
       <h3 className="alert-title">{alert.title}</h3>
       <p className="alert-body">{alert.body}</p>
+      <AlertActions alert={alert} />
     </div>
   );
 }

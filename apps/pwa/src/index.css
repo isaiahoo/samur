@@ -3644,7 +3644,108 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .alert-time { font-size: 12px; color: #71717a; }
 .alert-title { font-size: 16px; margin-bottom: 4px; }
-.alert-body { font-size: 14px; color: #52525b; line-height: 1.5; }
+.alert-body { font-size: 14px; color: #52525b; line-height: 1.5; white-space: pre-line; }
+.alert-banner-body { display: flex; flex-direction: column; gap: 2px; }
+.alerts-empty-note {
+  padding: 16px 20px;
+  text-align: center;
+  font-size: 13px;
+  color: #71717a;
+}
+
+/* ── Situation summary (Alerts tab header) ────────────────────────────── */
+.situation-summary {
+  padding: 14px 16px 8px;
+  background: #fafafa;
+  border-bottom: 1px solid #e4e4e7;
+}
+.situation-summary-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #71717a;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+.situation-summary-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.situation-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  border-left: 3px solid #a1a1aa;
+  border-radius: 8px;
+  font-family: inherit;
+  min-width: 110px;
+  text-align: left;
+  cursor: default;
+}
+.situation-chip--tappable {
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.situation-chip--tappable:hover,
+.situation-chip--tappable:focus-visible {
+  background: #f4f4f5;
+  outline: none;
+}
+.situation-chip--ok      { border-left-color: #16a34a; }
+.situation-chip--caution { border-left-color: #f59e0b; }
+.situation-chip--danger  { border-left-color: #dc2626; }
+.situation-chip-label {
+  font-size: 11px;
+  color: #71717a;
+  font-weight: 500;
+}
+.situation-chip-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #27272a;
+  line-height: 1.2;
+}
+.situation-chip--danger .situation-chip-value { color: #b91c1c; }
+.situation-chip--caution .situation-chip-value { color: #b45309; }
+
+/* ── Alert actions (deep-link buttons on cards) ───────────────────────── */
+.alert-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+.alert-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+  color: #1d4ed8;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.alert-action-btn:hover,
+.alert-action-btn:focus-visible {
+  background: rgba(59, 130, 246, 0.14);
+  outline: none;
+}
+.alert-action-arrow {
+  font-size: 15px;
+  opacity: 0.7;
+}
 
 .info-page { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); }
 .emergency-info { padding: 16px; }

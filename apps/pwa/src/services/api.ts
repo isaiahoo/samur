@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import type { ApiResponse, PaginatedResponse } from "@samur/shared";
+import type { ApiResponse, PaginatedResponse, RiverLevel } from "@samur/shared";
 
 const BASE = "/api/v1";
 
@@ -280,6 +280,17 @@ export function markHelpMessagesRead(id: string) {
 
 export function deleteHelpRequest(id: string) {
   return request<ApiResponse>(`/help-requests/${id}`, { method: "DELETE" });
+}
+
+export interface AlertsSituation {
+  riverLevels: RiverLevel[];
+  incidents: { active: number };
+  helpRequests: { urgent: number; critical: number };
+  earthquakes: { last24h: number; last24hStrong: number };
+  generatedAt: string;
+}
+export function getAlertsSituation() {
+  return request<ApiResponse<AlertsSituation>>("/alerts/situation");
 }
 
 export function getAlerts(params?: Record<string, string | number | boolean>) {

@@ -11,6 +11,7 @@ import { fetchSnowGrid, isSnowCacheStale } from "./snowClient.js";
 import { computeRunoffGrid } from "./runoffClient.js";
 import { fetchEarthquakes, isEarthquakeCacheStale, cleanupOldEarthquakes } from "./earthquakeClient.js";
 import { fetchAndStorePredictions } from "./mlClient.js";
+import { runAiAlertCheck } from "./aiAlertGenerator.js";
 
 const log = logger.child({ service: "scheduler" });
 
@@ -118,6 +119,17 @@ async function runMlPredict(): Promise<void> {
   await withLock("ml-predict", 300, async () => {
     const result = await fetchAndStorePredictions();
     log.info({ stored: result.stored, errors: result.errors.length }, "ML predictions updated");
+    // After each predict cycle, evaluate whether any station's forecast
+    // crossed a danger threshold and needs a DB alert. Deduped per
+    // station per day by aiAlertGenerator.
+    try {
+      const aiAlerts = await runAiAlertCheck();
+      if (aiAlerts.created > 0 || aiAlerts.skipped > 0) {
+        log.info(aiAlerts, "AI alert check completed");
+      }
+    } catch (err) {
+      log.error({ err }, "AI alert check failed");
+    }
   }).catch((err) => log.error({ err }, "ML prediction failed"));
 }
 

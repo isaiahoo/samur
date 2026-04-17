@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { Router } from "express";
-import { prisma } from "@samur/db";
-import type { Prisma } from "@prisma/client";
-import { optionalAuth, requireAuth, requireRole } from "../middleware/auth.js";
+import { prisma, Prisma } from "@samur/db";
+import { requireAuth, requireRole } from "../middleware/auth.js";
 import { validateBody, validateQuery } from "../middleware/validate.js";
 import {
   CreateAlertSchema,
@@ -15,6 +14,64 @@ import { emitAlertBroadcast } from "../lib/emitter.js";
 import { paramId } from "../lib/params.js";
 
 const router = Router();
+
+// Situation summary — served to the Alerts tab so the page has a reason
+// to exist even when no critical broadcast is active. Returns aggregate
+// counts for incidents/help/quakes plus the latest RiverLevel rows so
+// the frontend can bucketize by tier using the shared computeTier.
+router.get("/situation", async (_req, res, next) => {
+  try {
+    const DAY = 24 * 60 * 60 * 1000;
+    const since = new Date(Date.now() - DAY);
+
+    const latestLevelsPromise = prisma.$queryRaw<Array<Record<string, unknown>>>`
+      SELECT DISTINCT ON (river_name, station_name)
+        river_name as "riverName", station_name as "stationName",
+        lat, lng, level_cm as "levelCm", danger_level_cm as "dangerLevelCm",
+        discharge_cubic_m as "dischargeCubicM",
+        discharge_mean as "dischargeMean",
+        discharge_max as "dischargeMax",
+        discharge_annual_mean as "dischargeAnnualMean",
+        data_source as "dataSource",
+        is_forecast as "isForecast",
+        trend, measured_at as "measuredAt"
+      FROM river_levels
+      WHERE deleted_at IS NULL AND is_forecast = false
+      ORDER BY river_name, station_name, measured_at DESC
+    `;
+
+    const [latestLevels, incidentsActive, helpUrgent, helpCritical, quakes24h, quakesStrong24h] = await Promise.all([
+      latestLevelsPromise,
+      prisma.incident.count({
+        where: {
+          deletedAt: null,
+          status: { notIn: ["resolved", "false_report"] },
+        },
+      }),
+      prisma.helpRequest.count({
+        where: { deletedAt: null, urgency: "urgent", status: { notIn: ["completed", "cancelled"] } },
+      }),
+      prisma.helpRequest.count({
+        where: { deletedAt: null, urgency: "critical", status: { notIn: ["completed", "cancelled"] } },
+      }),
+      prisma.earthquake.count({ where: { time: { gte: since } } }),
+      prisma.earthquake.count({ where: { time: { gte: since }, magnitude: { gte: 4.5 } } }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        riverLevels: latestLevels,
+        incidents: { active: incidentsActive },
+        helpRequests: { urgent: helpUrgent, critical: helpCritical },
+        earthquakes: { last24h: quakes24h, last24hStrong: quakesStrong24h },
+        generatedAt: new Date().toISOString(),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get(
   "/",
