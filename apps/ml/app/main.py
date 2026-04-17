@@ -142,15 +142,19 @@ async def predict_all():
 
 @app.get("/skill")
 async def skill():
-    """Per-station model skill classification. Used by the API to label
-    AI forecasts with "высокая / средняя / низкая" accuracy in the UI."""
+    """Per-station model skill classification — MODEL QUALITY ONLY.
+
+    Uses the hold-out NSE from training, NOT input-data quality. Surfaced
+    on admin dashboards to track model drift. The user-facing skill tier
+    is returned inline from /predict and cascades input-data quality on
+    top — see Predictor.skill_tier vs model_skill_tier."""
     if not predictor:
         raise HTTPException(503, "Models not loaded")
     return {
         "data": {
             sid: {
                 "best_nse": predictor.best_nse(sid),
-                "tier": predictor.skill_tier(sid),
+                "tier": predictor.model_skill_tier(sid),
             }
             for sid in predictor.loaded_stations()
         }

@@ -47,6 +47,13 @@ def _skill_tier(best_nse: float | None) -> str:
         return "medium"
     return "low"
 
+# Inputs sources whose forecasts are seasonal-baseline projections rather
+# than responses to current conditions. The *model* may have excellent NSE
+# on training data, but if its lagged water-level inputs are day-of-year
+# averages, the forecast is a seasonal expectation wearing AI clothing.
+# Calling that "high skill" to users is dishonest — downgrade to "none".
+SEASONAL_SOURCES = {"climatology", "training-csv", "unknown"}
+
 # Station metadata (mirrors gaugeStations.ts)
 STATION_META = {
     "samur_usuhchaj": {"river": "Самур", "station": "Усухчай", "lat": 41.425, "lng": 47.925},
@@ -292,7 +299,21 @@ class Predictor:
         served = [v for v in horizons.values() if v >= MIN_NSE_SERVING]
         return max(served) if served else None
 
+    def model_skill_tier(self, station_id: str) -> str:
+        """Skill tier based on the MODEL alone (hold-out NSE on training data).
+        Useful for the admin /skill endpoint — it's the model quality.
+        Do NOT surface this to end users — use skill_tier() which also
+        accounts for input-data quality."""
+        return _skill_tier(self.best_nse(station_id))
+
     def skill_tier(self, station_id: str) -> str:
+        """Effective skill tier: cascades input-data quality on top of
+        model NSE. A world-class model on seasonal-average inputs is still
+        just a seasonal projection — showing that as "high skill" to users
+        is misleading. Callers must have called predict() for this station
+        first so self._last_inputs_source is populated."""
+        if self._last_inputs_source.get(station_id) in SEASONAL_SOURCES:
+            return "none"
         return _skill_tier(self.best_nse(station_id))
 
     def last_inputs_source(self, station_id: str) -> str:

@@ -124,6 +124,12 @@ router.get("/history/:riverName/:stationName", async (req, res, next) => {
 
     const includeForecast = req.query.includeForecast === "true";
 
+    // When including forecasts, exclude samur-ai-climatology rows.
+    // Those are seasonal-baseline projections (lagged water-level inputs
+    // are day-of-year averages, not real measurements). Mixing them into
+    // the chart line would trip the "above danger" forecast warning on
+    // stations whose sensors are silent — a textbook false alarm. The
+    // AI panel still shows them via the dedicated /ai-forecast route.
     const readings = await prisma.riverLevel.findMany({
       where: {
         riverName,
@@ -131,6 +137,7 @@ router.get("/history/:riverName/:stationName", async (req, res, next) => {
         deletedAt: null,
         measuredAt: { gte: since },
         ...(!includeForecast && { isForecast: false }),
+        ...(includeForecast && { NOT: { dataSource: "samur-ai-climatology" } }),
       },
       orderBy: { measuredAt: "asc" },
       select: {

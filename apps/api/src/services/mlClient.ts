@@ -15,6 +15,11 @@ const log = logger.child({ service: "ml-client" });
 
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL ?? "http://ml:8000";
 
+// Inputs sources whose forecasts are seasonal-baseline projections rather
+// than responses to current conditions. Must match SEASONAL_SOURCES in
+// apps/ml/app/predict.py.
+const SEASONAL_SOURCES = new Set(["climatology", "training-csv", "unknown"]);
+
 // Basin ID → gauge station mapping
 const BASIN_TO_STATION: Record<string, { riverName: string; stationName: string }> = {
   samur_usuhchaj: { riverName: "Самур", stationName: "Усухчай" },
@@ -146,8 +151,12 @@ export async function fetchAndStorePredictions(): Promise<{
       modelVersion: result.model_version ?? null,
     });
 
-    // Tag the data source so the PWA can flag climatology-fallback forecasts
-    const dataSource = stationResult.inputs_source === "climatology"
+    // Tag the data source so the PWA can flag seasonal-baseline forecasts.
+    // climatology / training-csv / unknown all share the same problem:
+    // lagged water-level inputs are day-of-year averages, not real
+    // measurements — so the forecast is a seasonal projection regardless
+    // of how good the model is. Group them under a single UI tier.
+    const dataSource = SEASONAL_SOURCES.has(stationResult.inputs_source ?? "unknown")
       ? "samur-ai-climatology"
       : "samur-ai";
 
