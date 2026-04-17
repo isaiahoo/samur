@@ -2591,6 +2591,158 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   font-weight: 600;
 }
 
+/* Compact top bar: category + urgency + cancel, replacing the old
+   vertical header. Sits above the scrollable content so it's always
+   visible when scrolled. */
+.detail-topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 16px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+.detail-topbar .detail-icon { font-size: 20px; }
+.detail-topbar .detail-category { font-weight: 600; font-size: 15px; }
+.detail-cancel-link {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #dc2626;
+  font-size: 13px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.detail-cancel-link:hover { text-decoration: underline; }
+
+/* Progress rail — 4 dots with connectors. Replaces the large status banner. */
+.progress-rail {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px 4px 16px;
+  margin-bottom: 8px;
+  position: relative;
+}
+.progress-rail-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  min-width: 0;
+}
+.progress-rail-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  background: #e5e7eb;
+  color: #9ca3af;
+  border: 2px solid #e5e7eb;
+  z-index: 1;
+  transition: transform 0.2s;
+}
+.progress-rail-step--done .progress-rail-dot {
+  background: #10b981;
+  color: #fff;
+  border-color: #10b981;
+}
+.progress-rail-step--current .progress-rail-dot {
+  background: #3b82f6;
+  color: #fff;
+  border-color: #3b82f6;
+  transform: scale(1.08);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.18);
+}
+.progress-rail-label {
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: center;
+  margin-top: 6px;
+  color: #71717a;
+  padding: 0 2px;
+}
+.progress-rail-step--current .progress-rail-label {
+  color: #2563eb;
+  font-weight: 600;
+}
+.progress-rail-step--done .progress-rail-label {
+  color: #059669;
+}
+.progress-rail-connector {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  width: 100%;
+  height: 2px;
+  background: #e5e7eb;
+  z-index: 0;
+}
+.progress-rail-connector--done { background: #10b981; }
+
+/* Inline contact row in meta — replaces the separate "Контакт заявителя" block */
+.detail-meta-row--contact { font-weight: 500; }
+.detail-contact-inline-name { color: var(--color-text); font-weight: 600; }
+.detail-contact-inline-phone {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/* Avatar pill for responder rows */
+.responder-avatar {
+  display: inline-block;
+  color: #fff;
+  text-align: center;
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.detail-responders-hint {
+  font-weight: 400;
+  color: #94a3b8;
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Sticky bottom action bar — always visible, regardless of content scroll. */
+.sheet-footer-sticky {
+  display: flex;
+  gap: 10px;
+  padding: 10px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+  align-items: stretch;
+}
+.sheet-footer-primary {
+  flex: 1;
+  min-height: 48px;
+}
+.sheet-footer-phone {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  min-height: 48px;
+  border-radius: 10px;
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.sheet-footer-phone:hover { background: #bae6fd; }
+
 .detail-responders {
   border-top: 1px solid var(--color-border);
   padding-top: 12px;
@@ -5875,6 +6027,28 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .detail-contact-empty { color: #71717a; }
   .detail-contact-hint { color: #71717a; }
   .detail-status-count { background: rgba(67,56,202,0.22); color: #c7d2fe; }
+  .detail-topbar { border-color: var(--color-border); }
+  .detail-topbar .detail-category { color: #f4f4f5; }
+  .detail-cancel-link { color: #f87171; }
+  .progress-rail-dot { background: #3f3f46; border-color: #3f3f46; color: #71717a; }
+  .progress-rail-connector { background: #3f3f46; }
+  .progress-rail-label { color: #a1a1aa; }
+  .progress-rail-step--current .progress-rail-label { color: #60a5fa; }
+  .progress-rail-step--done .progress-rail-label    { color: #34d399; }
+  .detail-contact-inline-name { color: #e4e4e7; }
+  .detail-meta-row--contact { color: #e4e4e7; }
+  .detail-responders-hint { color: #71717a; }
+  .sheet-footer-sticky {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+  }
+  .sheet-footer-phone {
+    background: rgba(14, 165, 233, 0.15);
+    color: #7dd3fc;
+    border-color: rgba(14, 165, 233, 0.3);
+  }
+  .sheet-footer-phone:hover { background: rgba(14, 165, 233, 0.25); }
   .detail-responder { background: #27272a; border-color: var(--color-border); }
   .detail-responder--mine { background: rgba(14,165,233,0.12); border-color: rgba(14,165,233,0.32); }
   .detail-responder-name { color: #f4f4f5; }
