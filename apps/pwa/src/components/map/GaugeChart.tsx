@@ -262,6 +262,12 @@ export const GaugeChart = memo(function GaugeChart({
     return { chartData: points, dangerVal: danger, meanVal: mean, todayDate: today, elevatedVal: elevated, highVal: high };
   }, [history, mode, dangerLevelCm, dischargeMax, dischargeMean, histByDoy, aiByDate]);
 
+  // All hooks must run unconditionally — any early return must come AFTER
+  // the last hook, otherwise the hook-call count changes between renders
+  // (e.g. toggling into AI mode on a station whose model only served one
+  // forecast day, leaving chartData with a single point) and React throws.
+  const TooltipComponent = useMemo(() => createTooltip(mode, meanVal, dangerVal), [mode, meanVal, dangerVal]);
+
   if (chartData.length < 2) return null;
 
   const hasObserved = chartData.some((p) => p.value !== null);
@@ -277,8 +283,6 @@ export const GaugeChart = memo(function GaugeChart({
   const dataMax = Math.max(...allValues, dangerVal);
   const yMin = Math.max(0, Math.floor(Math.min(dataMin * 0.8, meanVal > 0 ? meanVal * 0.7 : dataMin) / 10) * 10);
   const yMax = Math.ceil(Math.max(dataMax * 1.15, dangerVal * 1.1));
-
-  const TooltipComponent = useMemo(() => createTooltip(mode, meanVal, dangerVal), [mode, meanVal, dangerVal]);
 
   return (
     <div className="gauge-chart-container">

@@ -281,7 +281,7 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
         />
       )}
 
-      {hasData && aiForecastData.length > 0 && aiForecastData.some((d) => (d.levelCm ?? 0) > 0) && (
+      {hasData && aiForecastData.filter((d) => (d.levelCm ?? 0) > 0).length >= 2 && (
         <div className="chart-mode-toggle">
           <div className="chart-mode-row">
             <button
