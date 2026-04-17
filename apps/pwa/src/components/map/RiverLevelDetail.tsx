@@ -8,8 +8,8 @@ import { DamageScenario } from "./DamageScenario.js";
 import { AiForecastPanel } from "./AiForecastPanel.js";
 import { computeScenarioAwareness } from "./scenarioAwareness.js";
 import { getScenariosForRiver } from "./floodScenarios.js";
-import { getRiverLevelHistory, getHistoricalStats, getHistoricalPeaks, getAiForecast } from "../../services/api.js";
-import type { HistoricalStat, HistoricalPeak, AiForecastPoint } from "../../services/api.js";
+import { getRiverLevelHistory, getHistoricalStats, getHistoricalPeaks, getAiForecast, getAiSkill } from "../../services/api.js";
+import type { HistoricalStat, HistoricalPeak, AiForecastPoint, AiSkillRow } from "../../services/api.js";
 import type { AiForecastPoint as ChartAiForecast } from "./GaugeChart.js";
 import type { SoilMoisturePoint } from "./geoJsonHelpers.js";
 
@@ -55,6 +55,10 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
     source?: "live-observations" | "historical-imports" | "climatology" | "training-csv" | "unknown";
     ood?: import("../../services/api.js").AiOodWarning[];
   }>({});
+  // Rolling accuracy — populated from /ai-skill when enough forecast
+  // snapshots have matured against observed values to be meaningful.
+  // Stays null for stations with no evaluation data yet.
+  const [aiSkillRow, setAiSkillRow] = useState<AiSkillRow | null>(null);
 
   const tier = computeTier(r);
   const arrow = trendArrow(r.trend);
@@ -67,6 +71,9 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
     [r.lat, r.lng, soilMoisture],
   );
   const [aiMode, setAiMode] = useState(false);
+  const aiIsSeasonal = aiMeta.source === "climatology"
+    || aiMeta.source === "training-csv"
+    || aiMeta.source === "unknown";
 
   const hasLevel = r.levelCm !== null && r.levelCm > 0;
   const hasDischarge = r.dischargeCubicM !== null && r.dischargeCubicM > 0;
@@ -129,6 +136,23 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
         else setAiMeta({});
       })
       .catch(() => {});
+    // Fetch rolling accuracy (/ai-skill). Pick the shortest-horizon row
+    // with enough paired observations to be meaningful — t+1 if
+    // available, else the best-n row. Never display a skill line backed
+    // by fewer than 10 observations.
+    getAiSkill(30)
+      .then((res) => {
+        const rows = (res.data ?? []).filter(
+          (d) => d.riverName === r.riverName && d.stationName === r.stationName,
+        );
+        if (rows.length === 0) { setAiSkillRow(null); return; }
+        const t1 = rows.find((d) => d.horizonDays === 1 && d.n >= 10);
+        if (t1) { setAiSkillRow(t1); return; }
+        const bestN = rows.reduce<AiSkillRow | null>((best, d) =>
+          d.n >= 10 && (!best || d.n > best.n) ? d : best, null);
+        setAiSkillRow(bestN);
+      })
+      .catch(() => setAiSkillRow(null));
   }, [r.riverName, r.stationName]);
 
   const todayStats = useMemo(() => {
@@ -253,7 +277,24 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
       {/* Technical details */}
       {hasData && <p className="detail-tech">{techText}</p>}
 
-      {/* Chart mode toggle */}
+      {/* AI forecast panel — always visible when forecast data is
+          available. The panel self-describes its confidence, source, and
+          seasonal-vs-responsive framing, so promoting it to always-on is
+          safe: seasonal-source predictions carry their own warnings. */}
+      {aiForecastData.length > 0 && (
+        <AiForecastPanel
+          data={aiForecastData}
+          dangerLevelCm={r.dangerLevelCm}
+          skillTier={aiMeta.tier}
+          inputsSource={aiMeta.source}
+          ood={aiMeta.ood}
+          skillRow={aiSkillRow}
+        />
+      )}
+
+      {/* Chart mode toggle — now secondary to the always-visible AI
+          panel above. Controls only the chart rendering (discharge m³/s
+          vs predicted cm), not whether AI data is shown. */}
       {hasData && aiForecastData.length > 0 && aiForecastData.some((d) => (d.levelCm ?? 0) > 0) && (
         <div className="chart-mode-toggle">
           <div className="chart-mode-row">
@@ -273,21 +314,12 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
           </div>
           <p className="chart-mode-hint">
             {aiMode
-              ? "Прогноз уровня воды от Кунак AI"
-              : "Текущий расход воды по данным GloFAS (спутниковая модель)"}
+              ? (aiIsSeasonal
+                  ? "График показывает сезонную норму — датчик молчит"
+                  : "График показывает прогноз уровня от Кунак AI")
+              : "График показывает текущий расход по данным GloFAS"}
           </p>
         </div>
-      )}
-
-      {/* AI forecast panel — shown in AI mode */}
-      {aiMode && aiForecastData.length > 0 && (
-        <AiForecastPanel
-          data={aiForecastData}
-          dangerLevelCm={r.dangerLevelCm}
-          skillTier={aiMeta.tier}
-          inputsSource={aiMeta.source}
-          ood={aiMeta.ood}
-        />
       )}
 
       {/* Chart */}

@@ -6,6 +6,7 @@ import { MapView, type MapViewHandle, type MarkerType } from "../components/map/
 import { LayerToggle } from "../components/map/LayerToggle.js";
 import { ForecastPicker } from "../components/map/ForecastPicker.js";
 import { ForecastBanner } from "../components/map/ForecastBanner.js";
+import { AiAlertBanner } from "../components/map/AiAlertBanner.js";
 import { ReportForm } from "../components/map/ReportForm.js";
 import { DetailPanel } from "../components/map/DetailPanel.js";
 import { MapLegends } from "../components/map/MapLegends.js";
@@ -33,6 +34,19 @@ export function MapPage() {
   const [earthquakes, setEarthquakes] = useState<EarthquakeEvent[]>([]);
   const [aiStationKeys, setAiStationKeys] = useState<Set<string>>(new Set());
   const [aiSummaries, setAiSummaries] = useState<Map<string, string>>(new Map());
+
+  // Top AI threat — the single most concerning non-seasonal forecast,
+  // used to render a map-wide alert banner. null when no station crosses
+  // the 75%-of-danger threshold in the next 7 days.
+  const [topAiThreat, setTopAiThreat] = useState<{
+    riverName: string;
+    stationName: string;
+    peakCm: number;
+    dangerCm: number;
+    peakDate: string;
+    skill: "high" | "medium";
+    above: boolean;
+  } | null>(null);
   const [showReport, _setShowReport] = useState(false);
   const setReportFormOpen = useUIStore((s) => s.setReportFormOpen);
   const setShowReport = useCallback((open: boolean) => {
@@ -203,6 +217,57 @@ export function MapPage() {
 
       setAiStationKeys(keys);
       setAiSummaries(summaries);
+
+      // Compute top threat across non-seasonal, skill ≥ medium stations.
+      // A "threat" is any forecast point whose UPPER bound reaches ≥75%
+      // of the station's danger level in the next 7 days. We pick the
+      // most severe (by % of danger, with ties broken by earliest).
+      // Seasonal-source stations are already filtered above (tier=none
+      // after Phase 1 cascade) so this naturally excludes them.
+      type Threat = {
+        riverName: string; stationName: string;
+        peakCm: number; dangerCm: number; peakDate: string;
+        skill: "high" | "medium"; above: boolean; pct: number;
+      };
+      let worst: Threat | null = null;
+      for (const [key, points] of byStation) {
+        if (!keys.has(key)) continue;
+        const tier = skills[key]?.tier;
+        if (tier !== "high" && tier !== "medium") continue;
+        for (const p of points) {
+          const danger = p.dangerLevelCm ?? 0;
+          if (danger <= 0) continue;
+          const upper = p.predictionUpper ?? p.levelCm ?? 0;
+          const pct = upper / danger;
+          if (pct < 0.75) continue;
+          const candidate: Threat = {
+            riverName: p.riverName,
+            stationName: p.stationName,
+            peakCm: p.levelCm ?? upper,
+            dangerCm: danger,
+            peakDate: p.measuredAt,
+            skill: tier,
+            above: upper >= danger,
+            pct,
+          };
+          if (!worst || candidate.pct > worst.pct) {
+            worst = candidate;
+          }
+        }
+      }
+      if (worst) {
+        setTopAiThreat({
+          riverName: worst.riverName,
+          stationName: worst.stationName,
+          peakCm: worst.peakCm,
+          dangerCm: worst.dangerCm,
+          peakDate: worst.peakDate,
+          skill: worst.skill,
+          above: worst.above,
+        });
+      } else {
+        setTopAiThreat(null);
+      }
     } catch { /* ignore — AI overlay is enhancement */ }
   }, []);
 
@@ -542,6 +607,21 @@ export function MapPage() {
         hasEarthquakes={earthquakes.length > 0}
         hasAiForecasts={aiStationKeys.size > 0}
       />
+
+      {topAiThreat && (
+        <AiAlertBanner
+          {...topAiThreat}
+          onOpen={() => {
+            const match = effectiveRiverLevelsRef.current.find(
+              (r) => r.riverName === topAiThreat.riverName && r.stationName === topAiThreat.stationName,
+            );
+            if (match) {
+              mapViewRef.current?.flyTo(match.lng, match.lat, 12);
+              handleMarkerClick("riverLevel", match);
+            }
+          }}
+        />
+      )}
 
       {(() => {
         // Top-of-map banner when the user is viewing a future day. Provides

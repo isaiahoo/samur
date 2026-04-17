@@ -2334,6 +2334,22 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .ai-panel-skill-badge--high   { background: #dcfce7; color: #166534; }
 .ai-panel-skill-badge--medium { background: #fef3c7; color: #92400e; }
 .ai-panel-skill-badge--low    { background: #fee2e2; color: #b91c1c; }
+.ai-panel-skill-stats {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #334155;
+  border-radius: 10px;
+}
+.ai-panel-skill-stats-sub {
+  font-weight: 400;
+  color: #64748b;
+  font-size: 10px;
+}
 .ai-panel-skill-note {
   font-size: 11px;
   color: #b45309;
@@ -2361,6 +2377,50 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   color: #a1a1aa;
   text-align: center;
   font-style: italic;
+}
+
+/* ── Seasonal-baseline treatment (climatology / training-csv / unknown) ── */
+.ai-panel--seasonal .ai-panel-peak-value { color: #78716c; }
+.ai-panel--seasonal .ai-panel-peak-unit { color: #a8a29e; }
+.ai-panel--seasonal .ai-panel-sentence { color: #57534e; }
+.ai-panel--seasonal .ai-strip-block {
+  background: #e7e5e4 !important;
+  color: #57534e !important;
+  font-weight: 500;
+}
+
+.ai-panel-seasonal-banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.13), rgba(245, 158, 11, 0.06));
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-left: 4px solid #f59e0b;
+  border-radius: 8px;
+  color: #78350f;
+}
+.ai-panel-seasonal-banner-icon {
+  font-size: 18px;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+.ai-panel-seasonal-banner-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.ai-panel-seasonal-banner-body strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ai-panel-summary--seasonal {
+  border-left-color: #a8a29e !important;
+  background: linear-gradient(135deg, rgba(168, 162, 158, 0.08), rgba(168, 162, 158, 0.03)) !important;
 }
 
 /* ── Historical data section ────────────────────────────────────────────── */
@@ -4167,6 +4227,78 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   flex-shrink: 0;
 }
 .forecast-banner-return:hover { background: rgba(255, 255, 255, 0.25); }
+
+/* ── AI Alert Banner ─────────────────────────────────────────────────── */
+/* Map-wide alert banner for the most concerning Кунак AI forecast.
+   Positioned above the map, below any other top-of-map chrome. */
+.ai-alert-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  z-index: 13;
+  max-width: calc(100% - 100px);
+  min-width: 280px;
+}
+.ai-alert-banner--elevated {
+  background: #f59e0b;
+  color: #fff;
+}
+.ai-alert-banner--critical {
+  background: #dc2626;
+  color: #fff;
+}
+.ai-alert-banner-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.ai-alert-banner-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.ai-alert-banner-title {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ai-alert-banner-sub {
+  font-size: 12px;
+  opacity: 0.92;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ai-alert-banner-skill {
+  opacity: 0.8;
+  font-size: 11px;
+}
+.ai-alert-banner-chevron {
+  font-size: 22px;
+  font-weight: 700;
+  opacity: 0.85;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.ai-alert-banner:hover,
+.ai-alert-banner:focus-visible {
+  filter: brightness(1.06);
+}
 
 /* Crisis mode: use red accent for the banner + active pill */
 .crisis-mode .forecast-banner { background: rgba(127, 29, 29, 0.95); }
@@ -6335,11 +6467,34 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .ai-panel-skill-badge--high   { background: rgba(34, 197, 94, 0.18); color: #86efac; }
   .ai-panel-skill-badge--medium { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
   .ai-panel-skill-badge--low    { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+  .ai-panel-skill-stats {
+    background: rgba(71, 85, 105, 0.22);
+    color: #cbd5e1;
+  }
+  .ai-panel-skill-stats-sub { color: #94a3b8; }
   .ai-panel-skill-note { color: #fbbf24; }
   .ai-panel-ood {
     background: rgba(239, 68, 68, 0.14);
     border-color: rgba(239, 68, 68, 0.35);
     color: #fca5a5;
+  }
+
+  /* Seasonal treatment — dark mode */
+  .ai-panel--seasonal .ai-panel-peak-value { color: #a1a1aa; }
+  .ai-panel--seasonal .ai-panel-peak-unit { color: #71717a; }
+  .ai-panel--seasonal .ai-panel-sentence { color: #a1a1aa; }
+  .ai-panel--seasonal .ai-strip-block {
+    background: rgba(113, 113, 122, 0.2) !important;
+    color: #a1a1aa !important;
+  }
+  .ai-panel-seasonal-banner {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.08));
+    border-color: rgba(245, 158, 11, 0.45);
+    color: #fcd34d;
+  }
+  .ai-panel-summary--seasonal {
+    border-left-color: #52525b !important;
+    background: linear-gradient(135deg, rgba(82, 82, 91, 0.2), rgba(82, 82, 91, 0.08)) !important;
   }
 
   /* Historical section — dark mode */
