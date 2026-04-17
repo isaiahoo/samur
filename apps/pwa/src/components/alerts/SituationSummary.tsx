@@ -86,7 +86,6 @@ export function SituationSummary({ data }: Props) {
 
   return (
     <div className="situation-summary" role="region" aria-label="Ситуация в регионе">
-      <div className="situation-summary-title">Сейчас в регионе</div>
       <div className="situation-summary-chips">
         {visible.map((c) => {
           const Tag = c.onTap ? "button" : "div";

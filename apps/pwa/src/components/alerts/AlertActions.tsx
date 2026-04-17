@@ -11,13 +11,21 @@
 import { useNavigate } from "react-router-dom";
 import type { Alert } from "@samur/shared";
 
-function extractStationName(body: string): string | null {
-  const m = body.match(/Станция:\s*(.+?)(?:\n|$)/);
-  return m ? m[1].trim() : null;
+function extractStationName(alert: Alert): string | null {
+  // AI-alert titles have "на станции X" — check there first since
+  // the modern AI body no longer includes a "Станция:" header.
+  const titleMatch = alert.title.match(/на станции\s+([^,\n]+?)\s*$/);
+  if (titleMatch) return titleMatch[1].trim();
+  // Legacy / river-alert pattern — "Станция: X" is in the body.
+  const bodyMatch = alert.body.match(/Станция:\s*(.+?)(?:\n|$)/);
+  return bodyMatch ? bodyMatch[1].trim() : null;
 }
 
 function isRiverOrAiAlert(alert: Alert): boolean {
-  return /Станция:/.test(alert.body);
+  return alert.source === "river"
+    || alert.source === "ai_forecast"
+    || /Станция:/.test(alert.body)
+    || /на станции/.test(alert.title);
 }
 
 function isEarthquakeAlert(alert: Alert): boolean {
@@ -33,7 +41,7 @@ export function AlertActions({ alert }: Props) {
   const actions: Array<{ label: string; onTap: () => void }> = [];
 
   if (isRiverOrAiAlert(alert)) {
-    const station = extractStationName(alert.body);
+    const station = extractStationName(alert);
     if (station) {
       actions.push({
         label: `Показать ${station} на карте`,

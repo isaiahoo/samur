@@ -141,20 +141,20 @@ export async function runAiAlertCheck(): Promise<{ created: number; skipped: num
 
     const pctRounded = Math.round(peak.pct * 100);
     const dateRu = peak.peakAt.toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "UTC" });
+    // Title drops the "Кунак AI:" prefix — the source chip on the
+    // alert card already brands it, and the emoji 🌊 inside the title
+    // was one of three redundant brand mentions on the same screen.
     const title = isAbove
-      ? `🌊 Кунак AI: ${peak.riverName} — возможно превышение опасного уровня на станции ${peak.stationName}`
-      : `🌊 Кунак AI: ${peak.riverName} — приближение к опасному уровню на станции ${peak.stationName}`;
-    const body = [
-      `Станция: ${peak.stationName}`,
-      `Прогноз пика: ${Math.round(peak.upper)} см (${pctRounded}% от опасного)`,
-      `Опасный уровень: ${peak.danger} см`,
-      `Ожидается: ${dateRu}`,
-      `Точность модели: ${meta.tier === "high" ? "высокая" : "средняя"}`,
-      "",
-      isAbove
-        ? "Возможно превышение опасной отметки. Следите за обстановкой и будьте готовы к эвакуации."
-        : "Уровень приближается к опасной отметке. Следите за обстановкой.",
-    ].join("\n");
+      ? `${peak.riverName} — возможно превышение опасного уровня на станции ${peak.stationName}`
+      : `${peak.riverName} — приближение к опасному уровню на станции ${peak.stationName}`;
+    // Body compressed from six structured label-value lines to one
+    // prose line plus an action. AlertActions still extracts the
+    // station name from the title's "на станции X" pattern, so we
+    // don't need a "Станция: X" header here.
+    const stats = `Пик ${Math.round(peak.upper)} см (${pctRounded}% от опасного уровня ${peak.danger} см) ожидается ${dateRu}.`;
+    const body = isAbove
+      ? `${stats}\nВозможно превышение опасной отметки. Будьте готовы к эвакуации.`
+      : `${stats}\nСледите за обстановкой.`;
 
     try {
       const alert = await prisma.alert.create({

@@ -51,24 +51,30 @@ export function ContextFeed() {
     <section className="context-feed" aria-label="Контекст">
       <div className="context-feed-header">Что происходило · 48 часов</div>
       <ul className="context-feed-list">
-        {items.map((it) => (
-          <li key={it.id}>
-            <button
-              type="button"
-              className={`context-row context-row--${it.kind}`}
-              onClick={() => it.navigateTo && navigate(it.navigateTo)}
-              disabled={!it.navigateTo}
-            >
-              <span className="context-row-icon" aria-hidden="true">{it.icon}</span>
-              <span className="context-row-body">
-                <span className="context-row-title">{it.title}</span>
-                {it.subtitle && <span className="context-row-subtitle">{it.subtitle}</span>}
-              </span>
-              <span className="context-row-time">{formatRelativeTime(it.timestamp)}</span>
-              {it.navigateTo && <span className="context-row-chevron" aria-hidden="true">›</span>}
-            </button>
-          </li>
-        ))}
+        {items.map((it) => {
+          // News rows carry a low-signal subtitle (feed id like "tass"),
+          // which clutters without informing. Non-news rows keep their
+          // subtitle since it carries real context (place + depth for
+          // quakes, address for help, peak date for AI-watch).
+          const showSubtitle = it.kind !== "news" && Boolean(it.subtitle);
+          return (
+            <li key={it.id}>
+              <button
+                type="button"
+                className={`context-row context-row--${it.kind}`}
+                onClick={() => it.navigateTo && navigate(it.navigateTo)}
+                disabled={!it.navigateTo}
+              >
+                <span className="context-row-icon" aria-hidden="true">{it.icon}</span>
+                <span className="context-row-body">
+                  <span className="context-row-title">{it.title}</span>
+                  {showSubtitle && <span className="context-row-subtitle">{it.subtitle}</span>}
+                </span>
+                <span className="context-row-time">{formatRelativeTime(it.timestamp)}</span>
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

@@ -3608,7 +3608,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .lightbox-dot--active { background: #fff; }
 
-.alerts-page { padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 24px); }
+/* Bottom padding leaves room for the floating SOS button (64px + its
+   own safe-area offset) so the context feed doesn't hide underneath. */
+.alerts-page { padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 96px); }
 .alert-banner {
   padding: 12px 16px;
   display: flex;
@@ -3755,12 +3757,6 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   flex-shrink: 0;
   white-space: nowrap;
 }
-.context-row-chevron {
-  font-size: 16px;
-  color: #a1a1aa;
-  flex-shrink: 0;
-  line-height: 1;
-}
 /* Per-kind tint: a subtle left-edge accent so the eye can group without
    the feed looking as loud as the alert cards above. */
 .context-row--news     { border-left: 3px solid #fde68a; padding-left: 7px; }
@@ -3824,38 +3820,36 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 
 /* ── Situation summary (Alerts tab header) ────────────────────────────── */
+/* Single horizontal scrollable strip — no wrap, no section label. The
+   chips speak for themselves. Kept light so they don't outweigh the
+   alert cards below. */
 .situation-summary {
-  padding: 14px 16px 8px;
+  padding: 10px 12px;
   background: #fafafa;
   border-bottom: 1px solid #e4e4e7;
 }
-.situation-summary-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: #71717a;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 8px;
-}
 .situation-summary-chips {
   display: flex;
-  flex-wrap: wrap;
   gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+.situation-summary-chips::-webkit-scrollbar { display: none; }
 .situation-chip {
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 8px 12px;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 10px;
   background: #fff;
   border: 1px solid #e4e4e7;
   border-left: 3px solid #a1a1aa;
-  border-radius: 8px;
+  border-radius: 6px;
   font-family: inherit;
-  min-width: 110px;
   text-align: left;
   cursor: default;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .situation-chip--tappable {
   cursor: pointer;
@@ -3875,7 +3869,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   font-weight: 500;
 }
 .situation-chip-value {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: #27272a;
   line-height: 1.2;
