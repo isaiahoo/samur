@@ -4018,38 +4018,168 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .severity-medium { background: #b45309; }
 .severity-low { background: #2563eb; }
 
-/* ── Timeline Slider (base positioning) ───────────────────────────────── */
+/* ── Forecast picker + banner (replaces the old bottom timeline) ────── */
 
-.timeline-slider {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  pointer-events: auto;
+.forecast-picker {
+  position: relative; /* popover anchor */
 }
-@media (max-width: 768px) {
-  .timeline-slider {
-    bottom: 8px;
-  }
-}
-
-.timeline-track-wrapper {
-  flex: 1;
+.forecast-picker-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
   position: relative;
-  height: 32px;
 }
-
-.timeline-ticks {
+.forecast-picker-btn:hover { background: #fff; }
+.forecast-picker-btn--future {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e40af;
+}
+.forecast-picker-badge {
   position: absolute;
-  top: 18px;
-  left: 0;
-  right: 0;
-  height: 14px;
-  pointer-events: none;
+  top: -4px;
+  right: -4px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 8px;
+  white-space: nowrap;
+  line-height: 1.2;
 }
+.forecast-picker-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 240px;
+  padding: 12px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  z-index: 50;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+.forecast-picker-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.forecast-picker-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.forecast-picker-date {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+.forecast-picker-pills {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.forecast-pill {
+  padding: 8px 4px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.forecast-pill:hover { background: #f1f5f9; }
+.forecast-pill--active {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+.forecast-picker-animate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px dashed #cbd5e1;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.forecast-picker-animate:hover { background: #f8fafc; color: #334155; }
 
-/* Visual styles for timeline controls moved to NERV section below */
+.forecast-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: rgba(30, 58, 138, 0.95);
+  color: #fff;
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  font-size: 13px;
+  z-index: 12;
+  max-width: calc(100% - 100px);
+}
+.forecast-banner-icon {
+  display: inline-flex;
+  color: #bfdbfe;
+  flex-shrink: 0;
+}
+.forecast-banner-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.forecast-banner-sub { opacity: 0.75; font-size: 12px; }
+.forecast-banner-return {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.forecast-banner-return:hover { background: rgba(255, 255, 255, 0.25); }
+
+/* Crisis mode: use red accent for the banner + active pill */
+.crisis-mode .forecast-banner { background: rgba(127, 29, 29, 0.95); }
+.crisis-mode .forecast-picker-btn--future {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+.crisis-mode .forecast-picker-badge { background: #dc2626; }
+.crisis-mode .forecast-pill--active {
+  background: #dc2626;
+  border-color: #dc2626;
+}
 
 /* ── Upstream Warning ─────────────────────────────────────────────────── */
 
@@ -4817,117 +4947,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
 }
 
-/* ── NERV Controls: Timeline Slider ───────────────────────────────────────── */
-.timeline-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px 10px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.5) 10%, rgba(0, 0, 0, 0.35) 60%, transparent 100%);
-  backdrop-filter: blur(4px);
-  border-top: none;
-  padding-top: 16px;
-}
-.timeline-play-btn {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 2px;
-  border: 1px solid rgba(6, 182, 212, 0.5);
-  background: transparent;
-  color: #06B6D4;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-.timeline-play-btn:active { background: rgba(6, 182, 212, 0.15); }
-
-.timeline-range {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 3px;
-  border-radius: 0;
-  background: rgba(156, 163, 175, 0.3);
-  outline: none;
-  margin-top: 6px;
-}
-.timeline-range::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 2px;
-  background: #06B6D4;
-  cursor: pointer;
-  border: 1px solid #06B6D4;
-  box-shadow: 0 0 4px rgba(6, 182, 212, 0.3);
-}
-.timeline-range::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border-radius: 2px;
-  background: #06B6D4;
-  cursor: pointer;
-  border: 1px solid #06B6D4;
-  box-shadow: 0 0 4px rgba(6, 182, 212, 0.3);
-}
-
-.timeline-tick {
-  position: absolute;
-  transform: translateX(-50%);
-  font-family: "Courier New", Courier, monospace;
-  font-size: 9px;
-  color: rgba(156, 163, 175, 0.8);
-  white-space: nowrap;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.timeline-tick--today {
-  font-weight: 700;
-  color: #06B6D4;
-}
-.timeline-tick--active {
-  color: #06B6D4;
-  font-weight: 700;
-}
-
-.timeline-banner {
-  text-align: center;
-  padding: 3px 12px;
-  background: rgba(0, 0, 0, 0.55);
-  color: #F59E0B;
-  font-family: "Courier New", Courier, monospace;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  backdrop-filter: blur(4px);
-  border-bottom: none;
-}
-
-/* Crisis overrides for timeline */
-.crisis-mode .timeline-controls {
-  background: linear-gradient(to top, rgba(50, 0, 0, 0.6) 0%, rgba(30, 0, 0, 0.35) 70%, transparent 100%);
-}
-.crisis-mode .timeline-play-btn {
-  border-color: rgba(239, 68, 68, 0.5);
-  color: #EF4444;
-}
-.crisis-mode .timeline-play-btn:active { background: rgba(239, 68, 68, 0.15); }
-.crisis-mode .timeline-range::-webkit-slider-thumb {
-  background: #EF4444;
-  border-color: #EF4444;
-  box-shadow: 0 0 4px rgba(239, 68, 68, 0.3);
-}
-.crisis-mode .timeline-range::-moz-range-thumb {
-  background: #EF4444;
-  border-color: #EF4444;
-  box-shadow: 0 0 4px rgba(239, 68, 68, 0.3);
-}
-.crisis-mode .timeline-tick--today,
-.crisis-mode .timeline-tick--active { color: #EF4444; }
+/* (Old timeline-scrubber styles removed — see forecast-picker block above.) */
 
 /* ── Earthquake markers ──────────────────────────────────────────────── */
 
@@ -6823,4 +6843,34 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
   /* Social login loading text */
   .social-login-loading { color: #a1a1aa; }
+
+  /* Forecast picker + banner */
+  .forecast-picker-btn {
+    background: rgba(39, 39, 42, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #e4e4e7;
+  }
+  .forecast-picker-btn:hover { background: #27272a; }
+  .forecast-picker-btn--future {
+    background: rgba(59,130,246,0.18);
+    border-color: rgba(59,130,246,0.35);
+    color: #bfdbfe;
+  }
+  .forecast-picker-panel {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+  }
+  .forecast-picker-title { color: #f4f4f5; }
+  .forecast-picker-date { color: #a1a1aa; }
+  .forecast-pill {
+    background: #27272a;
+    border-color: var(--color-border);
+    color: #d4d4d8;
+  }
+  .forecast-pill:hover { background: #3f3f46; }
+  .forecast-picker-animate {
+    border-color: #3f3f46;
+    color: #a1a1aa;
+  }
+  .forecast-picker-animate:hover { background: rgba(255, 255, 255, 0.03); color: #d4d4d8; }
 }

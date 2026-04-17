@@ -4,7 +4,8 @@ import { createPortal } from "react-dom";
 import type { Incident, HelpRequest, Shelter, RiverLevel, EarthquakeEvent } from "@samur/shared";
 import { MapView, type MapViewHandle, type MarkerType } from "../components/map/MapView.js";
 import { LayerToggle } from "../components/map/LayerToggle.js";
-import { TimelineSlider } from "../components/map/TimelineSlider.js";
+import { ForecastPicker } from "../components/map/ForecastPicker.js";
+import { ForecastBanner } from "../components/map/ForecastBanner.js";
 import { ReportForm } from "../components/map/ReportForm.js";
 import { DetailPanel } from "../components/map/DetailPanel.js";
 import { MapLegends } from "../components/map/MapLegends.js";
@@ -522,6 +523,13 @@ export function MapPage() {
           open={layerMenuOpen}
           onOpenChange={setLayerMenuOpen}
         />
+        {timelineDates.length >= 2 && (
+          <ForecastPicker
+            dates={timelineDates}
+            selectedIndex={timelineIndex}
+            onIndexChange={handleTimelineChange}
+          />
+        )}
       </div>
 
       <MapLegends
@@ -535,13 +543,24 @@ export function MapPage() {
         hasAiForecasts={aiStationKeys.size > 0}
       />
 
-      {timelineDates.length >= 2 && (
-        <TimelineSlider
-          dates={timelineDates}
-          selectedIndex={timelineIndex}
-          onIndexChange={handleTimelineChange}
-        />
-      )}
+      {(() => {
+        // Top-of-map banner when the user is viewing a future day. Provides
+        // an unambiguous "this isn't live" signal + one-tap escape back.
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const selectedDate = timelineDates[timelineIndex];
+        if (!selectedDate || selectedDate <= todayStr || timelineDates.length < 2) return null;
+        const offset = Math.round(
+          (new Date(selectedDate).getTime() - new Date(todayStr).getTime()) / 86_400_000,
+        );
+        const todayIdx = timelineDates.indexOf(todayStr);
+        return (
+          <ForecastBanner
+            dateStr={selectedDate}
+            offsetDays={offset}
+            onReturnToNow={() => handleTimelineChange(todayIdx >= 0 ? todayIdx : 0)}
+          />
+        );
+      })()}
 
       {!showReport && (
         <button
