@@ -7,7 +7,7 @@ import {
   SHELTER_STATUS_LABELS,
   formatRelativeTime,
 } from "@samur/shared";
-import { computeTier, TIER_LABELS, TIER_COLORS } from "./gaugeUtils.js";
+import { computeTier, TIER_LABELS, TIER_COLORS, pctForMarker } from "./gaugeUtils.js";
 import type { MarkerType } from "./MapView.js";
 import { useUIStore } from "../../store/ui.js";
 import { haversineMeters, formatDistance } from "../../utils/distance.js";
@@ -433,11 +433,15 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
                       {dist && ` · ${dist}`}
                     </span>
                   </span>
-                  {tier.hasData && (tier.pctOfDanger !== null || tier.pctOfMean !== null) && (
-                    <span className="ep-row-pill" style={{ background: `${color}1a`, color }}>
-                      {tier.pctOfDanger ?? tier.pctOfMean}%
-                    </span>
-                  )}
+                  {(() => {
+                    const label = pctForMarker(tier);
+                    if (!label) return null;
+                    return (
+                      <span className="ep-row-pill" style={{ background: `${color}1a`, color }}>
+                        {label}
+                      </span>
+                    );
+                  })()}
                 </button>
               );
             })}

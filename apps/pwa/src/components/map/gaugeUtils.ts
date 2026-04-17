@@ -98,22 +98,17 @@ export function computeTier(r: RiverLevel): GaugeTier {
   if (discharge !== null && discharge > 0 && mean && mean > 0) {
     const ratio = discharge / mean;
     const pctOfMean = Math.round(ratio * 100);
-    // dischargeMax stands in as the danger threshold where no per-station
-    // dangerDischarge is surfaced to the row; it's the historical max for
-    // the day-of-year, so crossing it is a genuine anomaly signal.
-    const dangerDischarge = r.dischargeMax;
-    const pctOfDanger = (dangerDischarge && dangerDischarge > 0)
-      ? Math.round((discharge / dangerDischarge) * 100)
-      : null;
+    // Discharge-mode stations don't surface a reliable danger threshold
+    // to this row: dischargeMax is the ensemble max from the GloFAS
+    // forecast, which in practice equals today's discharge (~100% every
+    // time) — not a flood line. We rely on the ratio thresholds below
+    // for tier classification and leave pctOfDanger null.
     const qBase = {
       pctOfMean,
-      pctOfDanger,
+      pctOfDanger: null,
       referenceMode: "mean" as const,
       hasData: true,
     };
-    if (dangerDischarge && dangerDischarge > 0 && discharge > dangerDischarge) {
-      return { tier: 4, label: TIER_LABELS[4], color: TIER_COLORS[4], ...qBase };
-    }
     if (ratio > 2.5) return { tier: 4, label: TIER_LABELS[4], color: TIER_COLORS[4], ...qBase };
     if (ratio > 1.5) return { tier: 3, label: TIER_LABELS[3], color: TIER_COLORS[3], ...qBase };
     if (ratio > 1.15) return { tier: 2, label: TIER_LABELS[2], color: TIER_COLORS[2], ...qBase };
@@ -131,13 +126,12 @@ export function computeTier(r: RiverLevel): GaugeTier {
 // ── Reference-aware framing ───────────────────────────────────────────────
 
 /**
- * Compact numeric label for a gauge marker — a single percentage, no units.
- * Returns null when no reference is available and the UI should fall back
- * to the tier label alone. For CM-mode stations the number is % of the
- * danger threshold (so 71 → "71%"); for discharge stations with a mean
- * reference it is % of the seasonal mean (so 150 → "150%"). The two
- * denominators are deliberately different — readers glance at the colour
- * for severity, the number is just one extra glyph of context.
+ * Compact numeric label for a gauge marker. Returns null when no
+ * reference is available. Format is reference-aware:
+ *   - danger mode (CM stations): "71%" — fraction toward the flood line
+ *   - mean mode   (discharge):   "+39%" / "−18%" — signed delta vs. the
+ *     seasonal mean, so users don't mistake the raw 139% for "at danger"
+ * Two labels, one consistent mental model: how far from the baseline.
  */
 export function pctForMarker(tier: GaugeTier): string | null {
   if (!tier.hasData) return null;
@@ -145,7 +139,10 @@ export function pctForMarker(tier: GaugeTier): string | null {
     return `${tier.pctOfDanger}%`;
   }
   if (tier.referenceMode === "mean" && tier.pctOfMean !== null) {
-    return `${tier.pctOfMean}%`;
+    const diff = Math.round(tier.pctOfMean - 100);
+    if (diff === 0) return "норма";
+    const sign = diff > 0 ? "+" : "−";
+    return `${sign}${Math.abs(diff)}%`;
   }
   return null;
 }
