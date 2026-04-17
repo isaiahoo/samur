@@ -2648,30 +2648,40 @@ textarea.form-input { resize: vertical; min-height: 80px; }
    take the full content height without fighting the meta blocks. */
 .detail-tabs {
   display: flex;
-  padding: 0 16px;
+  padding: 0;
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
+  background: #f8fafc;
 }
 .detail-tab {
   flex: 1;
-  padding: 10px 12px;
+  padding: 12px 14px;
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
-  font-size: 14px;
+  border-bottom: 3px solid transparent;
+  font-size: 14.5px;
   font-weight: 600;
-  color: var(--color-muted);
+  color: #475569;
   cursor: pointer;
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: 42px;
+  gap: 6px;
+  min-height: 46px;
+}
+.detail-tab + .detail-tab {
+  border-left: 1px solid var(--color-border);
 }
 .detail-tab--active {
   color: var(--color-primary);
   border-bottom-color: var(--color-primary);
+  background: #fff;
+}
+.detail-tab-icon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.85;
 }
 .detail-tab-count { font-size: 12px; font-weight: 500; color: inherit; }
 .detail-tab-badge {
@@ -6262,9 +6272,10 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .detail-contact-empty { color: #71717a; }
   .detail-contact-hint { color: #71717a; }
   .detail-status-count { background: rgba(67,56,202,0.22); color: #c7d2fe; }
-  .detail-tabs { border-bottom-color: var(--color-border); }
-  .detail-tab { color: #a1a1aa; }
-  .detail-tab--active { color: var(--color-primary); }
+  .detail-tabs { border-bottom-color: var(--color-border); background: #1f1f23; }
+  .detail-tab { color: #d4d4d8; }
+  .detail-tab--active { color: var(--color-primary); background: var(--color-surface); }
+  .detail-tab + .detail-tab { border-left-color: var(--color-border); }
   .help-chat--fullheight .help-chat-list { border-bottom-color: var(--color-border); }
   .help-chat--fullheight .help-chat-composer {
     background: var(--color-surface);
