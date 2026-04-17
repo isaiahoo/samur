@@ -125,9 +125,15 @@ export function Layout() {
                 <div className="profile-menu-header">
                   <span className="profile-menu-name">{user?.name || "Пользователь"}</span>
                   {user?.phone && <span className="profile-menu-phone">{user.phone}</span>}
-                  <span className="profile-menu-role">
-                    {user?.role === "volunteer" ? "Волонтёр" : user?.role === "coordinator" ? "Координатор" : user?.role === "admin" ? "Администратор" : "Житель"}
-                  </span>
+                  {/* Show the role label only for elevated roles (coordinator / admin)
+                      — for regular users, the resident/volunteer distinction no
+                      longer matters and would just clutter the menu. Trust
+                      signals (stats, achievements) will replace this later. */}
+                  {(user?.role === "coordinator" || user?.role === "admin") && (
+                    <span className="profile-menu-role profile-menu-role--elevated">
+                      {user.role === "coordinator" ? "Координатор" : "Администратор"}
+                    </span>
+                  )}
                 </div>
                 <div className="profile-menu-divider" />
                 <button className="profile-menu-item profile-menu-logout" onClick={handleLogout}>

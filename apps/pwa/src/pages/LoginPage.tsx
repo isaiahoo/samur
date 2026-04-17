@@ -38,7 +38,6 @@ export function LoginPage() {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
-  const [role, setRole] = useState<"resident" | "volunteer">("resident");
   const [step, setStep] = useState<"phone" | "code" | "profile">("phone");
   const [submitting, setSubmitting] = useState(false);
   const [tgLoading, setTgLoading] = useState(false);
@@ -222,15 +221,19 @@ export function LoginPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const data: { name?: string; role: string } = { role };
+      // Role is no longer chosen at signup — every user can both request and
+      // offer help. We only send the name now.
+      const data: { name?: string } = {};
       if (name.trim()) data.name = name.trim();
+      if (!data.name) {
+        // Nothing to save — skip the API call and proceed.
+        navigate("/");
+        return;
+      }
 
       const res = await updateProfile(data);
       const updatedUser = res.data as User;
 
-      // When the role changes, the backend mints a new JWT with the updated
-      // role claim and returns it alongside the user. Swap it in so the next
-      // authorised request (e.g. claiming a help request) uses the fresh role.
       const nextToken = res.token ?? useAuthStore.getState().token;
       if (nextToken) setAuth(nextToken, updatedUser);
 
@@ -300,7 +303,7 @@ export function LoginPage() {
         {step === "profile" && (
           <form onSubmit={handleProfileComplete} className="profile-form">
             <p className="profile-welcome">
-              Вы успешно зарегистрировались! Расскажите немного о себе.
+              Вы успешно зарегистрировались! Как к вам обращаться?
             </p>
 
             <div className="form-group">
@@ -316,29 +319,10 @@ export function LoginPage() {
               />
             </div>
 
-            <div className="form-group">
-              <label>Я хочу</label>
-              <div className="role-select">
-                <button
-                  type="button"
-                  className={`role-option${role === "resident" ? " role-option--active" : ""}`}
-                  onClick={() => setRole("resident")}
-                >
-                  <span className="role-option-icon">🏠</span>
-                  <span className="role-option-label">Получать помощь</span>
-                  <span className="role-option-desc">Житель</span>
-                </button>
-                <button
-                  type="button"
-                  className={`role-option${role === "volunteer" ? " role-option--active" : ""}`}
-                  onClick={() => setRole("volunteer")}
-                >
-                  <span className="role-option-icon">🤝</span>
-                  <span className="role-option-label">Помогать</span>
-                  <span className="role-option-desc">Волонтёр</span>
-                </button>
-              </div>
-            </div>
+            <p className="profile-hint">
+              Вы сможете и просить помощь, и откликаться на чужие заявки —
+              одного аккаунта достаточно.
+            </p>
 
             <button
               className="btn btn-primary btn-lg"

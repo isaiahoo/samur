@@ -3500,6 +3500,19 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .role-option-label { font-size: 13px; font-weight: 600; color: #27272a; }
 .role-option-desc { font-size: 11px; color: #a1a1aa; }
 
+/* Soft hint under the profile name field — tells new users the app
+   is role-agnostic before they wonder why there's no 'I'm a volunteer' choice. */
+.profile-hint {
+  font-size: 12px;
+  color: #64748b;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0 0 14px;
+  line-height: 1.4;
+}
+
 /* Inline error in login forms */
 .login-error {
   margin: 0 0 12px;

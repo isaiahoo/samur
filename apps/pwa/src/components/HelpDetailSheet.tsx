@@ -27,11 +27,13 @@ interface Props {
   onClose: () => void;
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  volunteer: "Волонтёр",
+// Only elevated roles get a visible label — for regular users the
+// resident/volunteer distinction is meaningless (everyone can both
+// request and offer help). Trust in the future comes from action
+// history (stats / achievements), not a label picked at signup.
+const ELEVATED_ROLE_LABELS: Record<string, string> = {
   coordinator: "Координатор",
   admin: "Администратор",
-  resident: "Житель",
 };
 
 const RESPONSE_STATUS_LABELS: Record<HelpResponseStatus, string> = {
@@ -52,7 +54,7 @@ const RESPONSE_STATUS_CLASS: Record<HelpResponseStatus, string> = {
 
 function formatRole(role?: string): string {
   if (!role) return "";
-  return ROLE_LABELS[role] ?? role;
+  return ELEVATED_ROLE_LABELS[role] ?? "";
 }
 
 // Colored circle with 1-2 letter initials — used next to responder names.
@@ -257,9 +259,14 @@ export function HelpDetailSheet({
                     <div className="detail-responder-main">
                       <Avatar name={r.user?.name} size={32} />
                       <div className="detail-responder-body">
-                        <div className="detail-responder-name">{r.user?.name ?? "Волонтёр"}</div>
+                        <div className="detail-responder-name">{r.user?.name ?? "Участник"}</div>
                         <div className="detail-responder-meta">
-                          {formatRole(r.user?.role)} · {formatRelativeTime(r.updatedAt)}
+                          {(() => {
+                            const role = formatRole(r.user?.role);
+                            // Elevated role (if any) · time-ago. Regular users
+                            // just show the time — no generic "Волонтёр" label.
+                            return role ? `${role} · ${formatRelativeTime(r.updatedAt)}` : formatRelativeTime(r.updatedAt);
+                          })()}
                         </div>
                       </div>
                       <span className={RESPONSE_STATUS_CLASS[r.status]}>

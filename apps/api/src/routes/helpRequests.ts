@@ -519,17 +519,11 @@ router.post(
   async (req, res, next) => {
     try {
       const id = paramId(req);
-      const role = req.user!.role;
-      // Claim-able only by volunteers, coordinators, admins — mirrors the
-      // original volunteer-gate but with a specific error message.
-      if (role !== "volunteer" && role !== "coordinator" && role !== "admin") {
-        throw new AppError(
-          403,
-          "ROLE_REQUIRED",
-          "Откликаться могут только волонтёры — обновите свой профиль",
-        );
-      }
-
+      // Any authenticated user can respond. The old "only volunteers" gate
+      // treated role as a static identity (chosen at signup with no context)
+      // — in practice, the same person needs help one day and offers help
+      // the next. Trust now comes from action history (stats / achievements
+      // surfaced on the profile), not a self-declared role at signup.
       const existing = await prisma.helpRequest.findFirst({
         where: { id, deletedAt: null },
       });
