@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 
 interface Props {
   urls: string[];
@@ -67,12 +68,20 @@ export function ImageLightbox({ urls, initialIndex, onClose }: Props) {
     touchRef.current = null;
   }, [offsetX, index, urls.length]);
 
-  return (
+  // Portal to document.body — any transformed ancestor (e.g. the card's
+  // fade-in animation leaves transform:translateY(0) applied, which creates
+  // a containing block) would otherwise trap the fixed-position overlay
+  // inside the card and hide the close button.
+  return createPortal(
     <div className="lightbox" onClick={onClose}>
       <span className="lightbox-counter">
         {index + 1} / {urls.length}
       </span>
-      <button className="lightbox-close" onClick={onClose} aria-label="Закрыть">
+      <button
+        className="lightbox-close"
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        aria-label="Закрыть"
+      >
         ✕
       </button>
 
@@ -105,6 +114,7 @@ export function ImageLightbox({ urls, initialIndex, onClose }: Props) {
           ))}
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
