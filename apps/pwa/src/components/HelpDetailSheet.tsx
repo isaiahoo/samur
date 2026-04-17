@@ -9,6 +9,7 @@ import {
 import { formatRelativeTime } from "@samur/shared";
 import { UrgencyBadge } from "./UrgencyBadge.js";
 import { ImageLightbox } from "./ImageLightbox.js";
+import { HelpChat } from "./HelpChat.js";
 
 const categoryIcons: Record<string, string> = {
   rescue: "🆘", shelter: "🏠", food: "🍞", water: "💧",
@@ -225,6 +226,17 @@ export function HelpDetailSheet({
                 })}
               </ul>
             </div>
+          )}
+
+          {/* In-app group chat — visible to the author, any non-cancelled
+              responder, and coordinators/admins. Non-participants see the
+              thread empty-state and a hint to respond first. */}
+          {currentUserId && (
+            <HelpChat
+              requestId={item.id}
+              currentUserId={currentUserId}
+              canParticipate={!!(isAuthorMe || myActive)}
+            />
           )}
 
           {/* Actions — structured so the most important next step is the

@@ -84,6 +84,10 @@ export const CreateHelpResponseSchema = z.object({
   note: z.string().max(500).optional(),
 });
 
+export const CreateHelpMessageSchema = z.object({
+  body: z.string().trim().min(1, "Сообщение не может быть пустым").max(2000),
+});
+
 export const AlertUrgencySchema = z.enum(["info", "warning", "critical"]);
 
 export const ShelterStatusSchema = z.enum(["open", "full", "closed"]);

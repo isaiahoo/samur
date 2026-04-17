@@ -11,8 +11,9 @@ import {
   CreateSOSSchema,
   CreateHelpResponseSchema,
   UpdateMyHelpResponseSchema,
+  CreateHelpMessageSchema,
 } from "@samur/shared";
-import type { HelpRequest, HelpRequestParty, HelpRequestStatus, HelpResponseStatus } from "@samur/shared";
+import type { HelpRequest, HelpRequestParty, HelpRequestStatus, HelpResponseStatus, HelpMessage } from "@samur/shared";
 import { AppError } from "../middleware/error.js";
 import { getIdsWithinRadius } from "../lib/spatial.js";
 import { getHelpRequestTransitionError } from "../lib/statusTransitions.js";
@@ -20,6 +21,7 @@ import {
   emitHelpRequestCreated,
   emitHelpRequestUpdated,
   emitHelpResponseChanged,
+  emitHelpMessageCreated,
   emitSOSCreated,
 } from "../lib/emitter.js";
 import { paramId } from "../lib/params.js";
@@ -568,6 +570,136 @@ router.delete("/:id/my-response", requireAuth, async (req, res, next) => {
 
     await emitResponseChanged(id, updated);
     res.json({ success: true, data: { id: mine.id, cancelled: true } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── In-app messaging ─────────────────────────────────────────────────────
+// Participants: request author, any non-cancelled responder, and
+// coordinator/admin. We check membership on every message endpoint rather
+// than caching a "thread member" table — it's cheap (one PK lookup + one
+// indexed lookup) and stays correct when a responder cancels mid-thread.
+async function assertCanAccessMessages(
+  helpRequestId: string,
+  user: { sub: string; role: string },
+): Promise<void> {
+  if (user.role === "coordinator" || user.role === "admin") return;
+  const hr = await prisma.helpRequest.findFirst({
+    where: { id: helpRequestId, deletedAt: null },
+    select: { userId: true },
+  });
+  if (!hr) throw new AppError(404, "NOT_FOUND", "Запрос помощи не найден");
+  if (hr.userId === user.sub) return;
+  const response = await prisma.helpResponse.findFirst({
+    where: { helpRequestId, userId: user.sub, status: { not: "cancelled" } },
+    select: { id: true },
+  });
+  if (response) return;
+  throw new AppError(
+    403,
+    "NOT_PARTICIPANT",
+    "Обсуждение доступно только автору и откликнувшимся",
+  );
+}
+
+// GET /:id/messages — paginated history (newest first via cursor).
+router.get("/:id/messages", requireAuth, async (req, res, next) => {
+  try {
+    const id = paramId(req);
+    await assertCanAccessMessages(id, req.user!);
+
+    const limit = Math.min(Math.max(parseInt(String(req.query.limit)) || 50, 1), 100);
+    const before = req.query.before ? new Date(String(req.query.before)) : null;
+
+    const messages = await prisma.helpMessage.findMany({
+      where: {
+        helpRequestId: id,
+        deletedAt: null,
+        ...(before ? { createdAt: { lt: before } } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      include: {
+        author: { select: { id: true, name: true, role: true } },
+      },
+    });
+
+    // Unread count: anything newer than my last-read watermark.
+    const read = await prisma.helpMessageRead.findUnique({
+      where: { helpRequestId_userId: { helpRequestId: id, userId: req.user!.sub } },
+      select: { lastReadAt: true },
+    });
+    const watermark = read?.lastReadAt ?? new Date(0);
+    const unread = await prisma.helpMessage.count({
+      where: {
+        helpRequestId: id,
+        deletedAt: null,
+        authorId: { not: req.user!.sub },
+        createdAt: { gt: watermark },
+      },
+    });
+
+    // Oldest-first for UI rendering.
+    res.json({
+      success: true,
+      data: messages.reverse(),
+      meta: { unread, lastReadAt: watermark.toISOString() },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /:id/messages — send a message to the thread.
+router.post(
+  "/:id/messages",
+  requireAuth,
+  validateBody(CreateHelpMessageSchema),
+  async (req, res, next) => {
+    try {
+      const id = paramId(req);
+      await assertCanAccessMessages(id, req.user!);
+
+      const message = await prisma.helpMessage.create({
+        data: {
+          helpRequestId: id,
+          authorId: req.user!.sub,
+          body: req.body.body,
+        },
+        include: { author: { select: { id: true, name: true, role: true } } },
+      });
+
+      // Author's own last-read moves forward to this message automatically —
+      // otherwise they'd see their own message as "unread".
+      await prisma.helpMessageRead.upsert({
+        where: { helpRequestId_userId: { helpRequestId: id, userId: req.user!.sub } },
+        update: { lastReadAt: message.createdAt },
+        create: { helpRequestId: id, userId: req.user!.sub, lastReadAt: message.createdAt },
+      });
+
+      emitHelpMessageCreated(message as unknown as HelpMessage);
+      res.status(201).json({ success: true, data: message });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// POST /:id/messages/read — advance the caller's last-read watermark to now.
+router.post("/:id/messages/read", requireAuth, async (req, res, next) => {
+  try {
+    const id = paramId(req);
+    await assertCanAccessMessages(id, req.user!);
+
+    const now = new Date();
+    await prisma.helpMessageRead.upsert({
+      where: { helpRequestId_userId: { helpRequestId: id, userId: req.user!.sub } },
+      update: { lastReadAt: now },
+      create: { helpRequestId: id, userId: req.user!.sub, lastReadAt: now },
+    });
+
+    res.json({ success: true, data: { lastReadAt: now.toISOString() } });
   } catch (err) {
     next(err);
   }

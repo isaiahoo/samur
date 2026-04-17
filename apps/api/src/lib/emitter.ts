@@ -7,6 +7,7 @@ import type {
   HelpRequestParty,
   HelpRequestStatus,
   HelpResponseStatus,
+  HelpMessage,
   Alert,
   RiverLevel,
   Shelter,
@@ -76,6 +77,16 @@ export function emitSOSCreated(request: HelpRequest): void {
  * who are looking at this request pick it up) — the payload carries no phone
  * numbers, so there's no per-viewer filter required.
  */
+/**
+ * Broadcast an in-app chat message for a help request. Broadcast-wide; the
+ * client filters by whether it's currently viewing the request and is a
+ * participant. The payload omits phones (messages carry no phone fields),
+ * so there's no leak vector on the socket.
+ */
+export function emitHelpMessageCreated(message: HelpMessage): void {
+  getIO().emit("help_message:created", message);
+}
+
 export function emitHelpResponseChanged(payload: {
   helpRequestId: string;
   responseId: string;

@@ -250,6 +250,28 @@ export function cancelMyHelpResponse(id: string) {
   });
 }
 
+// ── Help-request chat (Phase 2) ──────────────────────────────────────────
+export function getHelpMessages(id: string, opts?: { before?: string; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (opts?.before) qs.set("before", opts.before);
+  if (opts?.limit) qs.set("limit", String(opts.limit));
+  const suffix = qs.toString() ? `?${qs}` : "";
+  return request<ApiResponse & { meta?: { unread: number; lastReadAt: string } }>(
+    `/help-requests/${id}/messages${suffix}`,
+  );
+}
+export function sendHelpMessage(id: string, body: string) {
+  return request<ApiResponse>(`/help-requests/${id}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ body }),
+  });
+}
+export function markHelpMessagesRead(id: string) {
+  return request<ApiResponse>(`/help-requests/${id}/messages/read`, {
+    method: "POST",
+  });
+}
+
 export function deleteHelpRequest(id: string) {
   return request<ApiResponse>(`/help-requests/${id}`, { method: "DELETE" });
 }

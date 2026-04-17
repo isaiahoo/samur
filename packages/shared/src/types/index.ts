@@ -110,6 +110,16 @@ export interface HelpResponse {
   user?: HelpRequestParty;
 }
 
+export interface HelpMessage {
+  id: string;
+  helpRequestId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+  deletedAt?: string | null;
+  author?: HelpRequestParty;
+}
+
 export interface HelpRequest {
   id: string;
   userId: string | null;
@@ -308,6 +318,7 @@ export interface ServerToClientEvents {
     responseCount: number;
     derivedStatus: HelpRequestStatus;
   }) => void;
+  "help_message:created": (message: HelpMessage) => void;
   "alert:broadcast": (alert: Alert) => void;
   "river_level:updated": (level: RiverLevel) => void;
   "shelter:updated": (shelter: Shelter) => void;

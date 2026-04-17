@@ -140,6 +140,8 @@ model User {
   helpRequests      HelpRequest[] @relation("HelpRequestAuthor")
   claimedRequests   HelpRequest[] @relation("HelpRequestClaimer")
   helpResponses     HelpResponse[]
+  helpMessages      HelpMessage[]
+  helpMessageReads  HelpMessageRead[]
   alerts            Alert[]
 
   @@index([role])
@@ -208,10 +210,12 @@ model HelpRequest {
   updatedAt    DateTime          @updatedAt @map("updated_at")
   deletedAt    DateTime?         @map("deleted_at")
 
-  author    User?          @relation("HelpRequestAuthor", fields: [userId], references: [id], onDelete: SetNull)
-  claimer   User?          @relation("HelpRequestClaimer", fields: [claimedBy], references: [id], onDelete: SetNull)
-  incident  Incident?      @relation(fields: [incidentId], references: [id], onDelete: SetNull)
-  responses HelpResponse[]
+  author       User?             @relation("HelpRequestAuthor", fields: [userId], references: [id], onDelete: SetNull)
+  claimer      User?             @relation("HelpRequestClaimer", fields: [claimedBy], references: [id], onDelete: SetNull)
+  incident     Incident?         @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  responses    HelpResponse[]
+  messages     HelpMessage[]
+  messageReads HelpMessageRead[]
 
   @@index([userId])
   @@index([claimedBy])
@@ -241,6 +245,37 @@ model HelpResponse {
   @@index([helpRequestId, status])
   @@index([userId])
   @@map("help_responses")
+}
+
+model HelpMessage {
+  id            String    @id @default(cuid())
+  helpRequestId String    @map("help_request_id")
+  authorId      String    @map("author_id")
+  body          String    @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at")
+  deletedAt     DateTime? @map("deleted_at")
+
+  helpRequest HelpRequest @relation(fields: [helpRequestId], references: [id], onDelete: Cascade)
+  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([helpRequestId, createdAt])
+  @@index([authorId])
+  @@index([deletedAt])
+  @@map("help_messages")
+}
+
+model HelpMessageRead {
+  id            String   @id @default(cuid())
+  helpRequestId String   @map("help_request_id")
+  userId        String   @map("user_id")
+  lastReadAt    DateTime @map("last_read_at")
+
+  helpRequest HelpRequest @relation(fields: [helpRequestId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([helpRequestId, userId])
+  @@index([userId])
+  @@map("help_message_reads")
 }
 
 model Alert {
