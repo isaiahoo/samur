@@ -1,14 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-/**
- * Map-level AI alert banner. Surfaces the single most concerning station
- * whose Кунак AI forecast (non-seasonal, skill ≥ medium) is approaching or
- * exceeding its danger level within the next 7 days. Tapping the banner
- * flies the map to that station and opens its detail panel.
- *
- * Suppressed entirely when no station crosses the 75%-of-danger threshold.
- * Seasonal-source forecasts never trigger this banner — a climatology
- * "forecast" cannot legitimately justify a map-wide alert.
- */
+// Map-level AI threat banner. Seasonal-source forecasts never fire here —
+// a climatology baseline cannot legitimately justify a map-wide alert.
 
 interface AiAlertBannerProps {
   riverName: string;

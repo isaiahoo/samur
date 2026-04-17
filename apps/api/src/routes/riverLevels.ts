@@ -124,12 +124,9 @@ router.get("/history/:riverName/:stationName", async (req, res, next) => {
 
     const includeForecast = req.query.includeForecast === "true";
 
-    // When including forecasts, exclude samur-ai-climatology rows.
-    // Those are seasonal-baseline projections (lagged water-level inputs
-    // are day-of-year averages, not real measurements). Mixing them into
-    // the chart line would trip the "above danger" forecast warning on
-    // stations whose sensors are silent — a textbook false alarm. The
-    // AI panel still shows them via the dedicated /ai-forecast route.
+    // Exclude samur-ai-climatology from the history timeline. Seasonal
+    // baselines can sit above danger and would trip the forecast-warning
+    // banner for stations whose sensors are silent.
     const readings = await prisma.riverLevel.findMany({
       where: {
         riverName,
@@ -311,6 +308,9 @@ router.get("/ai-forecast", async (_req, res, next) => {
         dataSource: true,
       },
     });
+    // ML scheduler runs hourly; 5-min public cache amortises repeat
+    // fetches within a session (map load + detail panel opens).
+    res.set("Cache-Control", "public, max-age=300");
     res.json({
       success: true,
       data: predictions,
@@ -452,6 +452,9 @@ router.get("/ai-skill", async (req, res, next) => {
       return a.horizonDays - b.horizonDays;
     });
 
+    // Accuracy is computed from snapshots up to "today" (UTC midnight),
+    // so a 10-minute cache is plenty to absorb panel-open bursts.
+    res.set("Cache-Control", "public, max-age=600");
     res.json({
       success: true,
       data,

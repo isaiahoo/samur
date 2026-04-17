@@ -5,7 +5,7 @@ import { formatRelativeTime } from "@samur/shared";
 import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning, checkUpstreamDanger } from "./gaugeUtils.js";
 import { GaugeChart, type HistoryPoint } from "./GaugeChart.js";
 import { DamageScenario } from "./DamageScenario.js";
-import { AiForecastPanel } from "./AiForecastPanel.js";
+import { AiForecastPanel, isSeasonal } from "./AiForecastPanel.js";
 import { computeScenarioAwareness } from "./scenarioAwareness.js";
 import { getScenariosForRiver } from "./floodScenarios.js";
 import { getRiverLevelHistory, getHistoricalStats, getHistoricalPeaks, getAiForecast, getAiSkill } from "../../services/api.js";
@@ -71,9 +71,7 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
     [r.lat, r.lng, soilMoisture],
   );
   const [aiMode, setAiMode] = useState(false);
-  const aiIsSeasonal = aiMeta.source === "climatology"
-    || aiMeta.source === "training-csv"
-    || aiMeta.source === "unknown";
+  const aiIsSeasonal = isSeasonal(aiMeta.source);
 
   const hasLevel = r.levelCm !== null && r.levelCm > 0;
   const hasDischarge = r.dischargeCubicM !== null && r.dischargeCubicM > 0;
@@ -277,10 +275,6 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
       {/* Technical details */}
       {hasData && <p className="detail-tech">{techText}</p>}
 
-      {/* AI forecast panel — always visible when forecast data is
-          available. The panel self-describes its confidence, source, and
-          seasonal-vs-responsive framing, so promoting it to always-on is
-          safe: seasonal-source predictions carry their own warnings. */}
       {aiForecastData.length > 0 && (
         <AiForecastPanel
           data={aiForecastData}
@@ -292,9 +286,6 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
         />
       )}
 
-      {/* Chart mode toggle — now secondary to the always-visible AI
-          panel above. Controls only the chart rendering (discharge m³/s
-          vs predicted cm), not whether AI data is shown. */}
       {hasData && aiForecastData.length > 0 && aiForecastData.some((d) => (d.levelCm ?? 0) > 0) && (
         <div className="chart-mode-toggle">
           <div className="chart-mode-row">

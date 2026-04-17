@@ -1,24 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
- * AI Forecast Panel — displays Кунак AI predictions in a clear,
- * actionable format inspired by UK Environment Agency, Google Flood Hub,
- * and Varsom.no patterns.
- *
- * Two rendering modes based on `inputsSource`:
- *
- * 1. Live — the model had recent water-level measurements to anchor its
- *    lags. Show the forecast at full confidence, with risk tiers driven
- *    by predicted values and skill tier driven by the model's hold-out
- *    NSE.
- *
- * 2. Seasonal — measurements are unavailable, so the model's lagged
- *    inputs are day-of-year averages. The output is effectively a
- *    seasonal norm for this date, not a weather-responsive forecast.
- *    Rendering this as a "forecast" is dishonest and dangerous — a
- *    seasonal average can sit above danger in the snowmelt months and
- *    trigger false evacuation-style alerts. In this mode we downgrade
- *    the visual weight, label the values as "сезонная норма", cap the
- *    risk tier, and make it unmistakable that the sensor is silent.
+ * AI Forecast Panel. Seasonal mode (climatology/training-csv/unknown
+ * inputs) de-emphasises the rendering and caps the risk tier — a
+ * seasonal average can sit above danger in snowmelt months and would
+ * otherwise trigger false evacuation-style alerts.
  */
 
 import { useMemo } from "react";
@@ -54,13 +39,17 @@ const FEATURE_LABELS_RU: Record<string, string> = {
   water_level_cm: "уровень воды",
 };
 
+/** Inputs sources whose forecasts are seasonal-baseline projections —
+ * the model may have high NSE, but its lagged water-level inputs are
+ * day-of-year averages, not real measurements. Must match SEASONAL_SOURCES
+ * in apps/ml/app/predict.py and apps/api/src/services/mlClient.ts. */
 const SEASONAL_SOURCES = new Set<AiInputsSource>([
   "climatology",
   "training-csv",
   "unknown",
 ]);
 
-function isSeasonal(source?: AiInputsSource): boolean {
+export function isSeasonal(source?: AiInputsSource): boolean {
   return !!source && SEASONAL_SOURCES.has(source);
 }
 
@@ -186,9 +175,6 @@ export function AiForecastPanel({ data, dangerLevelCm, skillTier, inputsSource, 
 
   return (
     <div className={`ai-panel ${panelModifier}`}>
-      {/* Seasonal-mode header banner — must be visually unmistakable.
-          Placed above the summary card so users see the caveat before
-          the numbers. */}
       {seasonal && (
         <div className="ai-panel-seasonal-banner" role="alert">
           <span className="ai-panel-seasonal-banner-icon">⚠️</span>

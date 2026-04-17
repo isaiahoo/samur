@@ -181,22 +181,27 @@ export function MapPage() {
       const summaries = new Map<string, string>();
       const skills = res.meta?.skills ?? {};
 
+      // A threat is any forecast point whose upper-bound reaches ≥75% of
+      // the station's danger level. Seasonal-source stations get tier=none
+      // from the Phase-1 cascade so they're filtered out automatically.
+      type Threat = {
+        riverName: string; stationName: string;
+        peakCm: number; dangerCm: number; peakDate: string;
+        skill: "high" | "medium"; above: boolean; pct: number;
+      };
+      let worst: Threat | null = null;
+
       for (const [key, points] of byStation) {
-        // Filter out stations without usable AI predictions (levelCm must be > 0
-        // to match detail panel condition — otherwise ring shows but no AI section)
         const hasReal = points.some((p) => (p.levelCm ?? 0) > 0);
         if (!hasReal) continue;
 
-        // Don't show AI halo on stations whose best served horizon is below
-        // the "medium" skill bar — gating is already applied server-side at
-        // NSE < 0.3, so here we suppress the ring for stations that only made
-        // the cut with a "low" tier (0.3 ≤ NSE < 0.5).
         const tier = skills[key]?.tier;
+        // Suppress AI ring + threat scan for below-medium skill (NSE < 0.5);
+        // server-side gating already drops NSE < 0.3 entirely.
         if (tier === "low" || tier === "none") continue;
 
         keys.add(key);
 
-        // Compute summary: trend from first to last prediction
         const sorted = [...points].sort((a, b) => a.measuredAt.localeCompare(b.measuredAt));
         const first = sorted[0];
         const last = sorted[sorted.length - 1];
@@ -213,26 +218,7 @@ export function MapPage() {
         } else {
           summaries.set(key, `AI: ${Math.round(lastLevel)} см`);
         }
-      }
 
-      setAiStationKeys(keys);
-      setAiSummaries(summaries);
-
-      // Compute top threat across non-seasonal, skill ≥ medium stations.
-      // A "threat" is any forecast point whose UPPER bound reaches ≥75%
-      // of the station's danger level in the next 7 days. We pick the
-      // most severe (by % of danger, with ties broken by earliest).
-      // Seasonal-source stations are already filtered above (tier=none
-      // after Phase 1 cascade) so this naturally excludes them.
-      type Threat = {
-        riverName: string; stationName: string;
-        peakCm: number; dangerCm: number; peakDate: string;
-        skill: "high" | "medium"; above: boolean; pct: number;
-      };
-      let worst: Threat | null = null;
-      for (const [key, points] of byStation) {
-        if (!keys.has(key)) continue;
-        const tier = skills[key]?.tier;
         if (tier !== "high" && tier !== "medium") continue;
         for (const p of points) {
           const danger = p.dangerLevelCm ?? 0;
@@ -240,34 +226,32 @@ export function MapPage() {
           const upper = p.predictionUpper ?? p.levelCm ?? 0;
           const pct = upper / danger;
           if (pct < 0.75) continue;
-          const candidate: Threat = {
-            riverName: p.riverName,
-            stationName: p.stationName,
-            peakCm: p.levelCm ?? upper,
-            dangerCm: danger,
-            peakDate: p.measuredAt,
-            skill: tier,
-            above: upper >= danger,
-            pct,
-          };
-          if (!worst || candidate.pct > worst.pct) {
-            worst = candidate;
+          if (!worst || pct > worst.pct) {
+            worst = {
+              riverName: p.riverName,
+              stationName: p.stationName,
+              peakCm: p.levelCm ?? upper,
+              dangerCm: danger,
+              peakDate: p.measuredAt,
+              skill: tier,
+              above: upper >= danger,
+              pct,
+            };
           }
         }
       }
-      if (worst) {
-        setTopAiThreat({
-          riverName: worst.riverName,
-          stationName: worst.stationName,
-          peakCm: worst.peakCm,
-          dangerCm: worst.dangerCm,
-          peakDate: worst.peakDate,
-          skill: worst.skill,
-          above: worst.above,
-        });
-      } else {
-        setTopAiThreat(null);
-      }
+
+      setAiStationKeys(keys);
+      setAiSummaries(summaries);
+      setTopAiThreat(worst ? {
+        riverName: worst.riverName,
+        stationName: worst.stationName,
+        peakCm: worst.peakCm,
+        dangerCm: worst.dangerCm,
+        peakDate: worst.peakDate,
+        skill: worst.skill,
+        above: worst.above,
+      } : null);
     } catch { /* ignore — AI overlay is enhancement */ }
   }, []);
 
