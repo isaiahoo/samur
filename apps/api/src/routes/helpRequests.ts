@@ -569,7 +569,17 @@ router.post(
       });
       const caller = getCaller(req as never);
       const filtered = filterPhones(updated as unknown as HelpRequestWithParties, caller);
-      res.status(201).json({ success: true, data: filtered });
+      // Same enrichment as the list/detail endpoints so the client's state
+      // swap includes myResponseStatus and unreadMessages — otherwise the
+      // just-claimed card won't pass the "Мои отклики" filter until the
+      // next full page fetch.
+      const enriched = caller
+        ? (await attachCallerActivity(
+            [filtered as unknown as { id: string }],
+            caller.sub,
+          ))[0]
+        : filtered;
+      res.status(201).json({ success: true, data: enriched });
     } catch (err) {
       next(err);
     }
@@ -618,7 +628,13 @@ router.patch(
       });
       const caller = getCaller(req as never);
       const filtered = filterPhones(hr as unknown as HelpRequestWithParties, caller);
-      res.json({ success: true, data: filtered });
+      const enriched = caller
+        ? (await attachCallerActivity(
+            [filtered as unknown as { id: string }],
+            caller.sub,
+          ))[0]
+        : filtered;
+      res.json({ success: true, data: enriched });
     } catch (err) {
       next(err);
     }
@@ -868,7 +884,13 @@ router.patch(
 
       const caller = getCaller(req as never);
       const filtered = filterPhones(updated as unknown as HelpRequestWithParties, caller);
-      res.json({ success: true, data: filtered });
+      const enriched = caller
+        ? (await attachCallerActivity(
+            [filtered as unknown as { id: string }],
+            caller.sub,
+          ))[0]
+        : filtered;
+      res.json({ success: true, data: enriched });
     } catch (err) {
       next(err);
     }

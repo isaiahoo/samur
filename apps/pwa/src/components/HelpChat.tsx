@@ -47,7 +47,9 @@ export function HelpChat({ requestId, canParticipate, currentUserId }: Props) {
     });
   }, []);
 
-  // Initial load + mark-read.
+  // Initial load + mark-read. Also re-fetches when canParticipate flips from
+  // false → true: the user may have opened the sheet as a stranger (403'd),
+  // then claimed, so we need to retry now that the gate lets them through.
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -60,6 +62,9 @@ export function HelpChat({ requestId, canParticipate, currentUserId }: Props) {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
+        // Only surface 403s as "not a participant" — other errors show the
+        // real message. The 403 will auto-resolve the moment the user
+        // responds, via the canParticipate re-fetch below.
         const msg = err instanceof Error ? err.message : "Не удалось загрузить сообщения";
         setError(msg);
       })
@@ -67,7 +72,7 @@ export function HelpChat({ requestId, canParticipate, currentUserId }: Props) {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [requestId, scrollToBottom]);
+  }, [requestId, canParticipate, scrollToBottom]);
 
   // Mark this thread as read on mount and whenever a new message arrives.
   // Failure is silent — it's a UX nicety, not a critical path.
