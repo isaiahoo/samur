@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { useEffect, useState } from "react";
 import { legendGradientCSS } from "./SoilMoistureOverlay.js";
 import { snowLegendGradientCSS } from "./SnowOverlay.js";
 import { runoffLegendGradientCSS } from "./RunoffOverlay.js";
@@ -25,6 +26,8 @@ interface MapLegendsProps {
   hasAiForecasts: boolean;
 }
 
+const STORAGE_KEY = "kunak.mapLegends.open";
+
 export function MapLegends({
   layers,
   hasRiverLevels,
@@ -35,6 +38,14 @@ export function MapLegends({
   hasEarthquakes,
   hasAiForecasts,
 }: MapLegendsProps) {
+  const [open, setOpen] = useState<boolean>(() => {
+    try { return localStorage.getItem(STORAGE_KEY) === "true"; } catch { return false; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, open ? "true" : "false"); } catch { /* ignore */ }
+  }, [open]);
+
   const showAny =
     (layers.floodHeatmap && hasRiverLevels) ||
     (layers.precipitation && hasPrecipitation) ||
@@ -45,8 +56,30 @@ export function MapLegends({
 
   if (!showAny) return null;
 
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="map-legends-chip"
+        onClick={() => setOpen(true)}
+        aria-label="Показать легенду карты"
+      >
+        <span className="map-legends-chip-icon" aria-hidden="true">ⓘ</span>
+        <span className="map-legends-chip-label">Легенда</span>
+      </button>
+    );
+  }
+
   return (
     <div className="map-legends">
+      <button
+        type="button"
+        className="map-legends-close"
+        onClick={() => setOpen(false)}
+        aria-label="Скрыть легенду"
+      >
+        ×
+      </button>
       {layers.floodHeatmap && hasRiverLevels && (
         <div className="flood-legend">
           <div className="flood-legend-title">🌊 Зона затопления</div>

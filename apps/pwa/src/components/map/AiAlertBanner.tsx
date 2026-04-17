@@ -1,28 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Map-level AI threat banner. Seasonal-source forecasts never fire here —
-// a climatology baseline cannot legitimately justify a map-wide alert.
+// Compact map-level AI threat chip. Seasonal-source forecasts never fire
+// here — a climatology baseline cannot justify a map-wide alert.
 
 interface AiAlertBannerProps {
   riverName: string;
   stationName: string;
   peakCm: number;
   dangerCm: number;
-  peakDate: string; // ISO date
+  peakDate: string;
   skill: "high" | "medium";
-  above: boolean; // peak upper ≥ danger
+  above: boolean;
   onOpen: () => void;
-}
-
-function formatDateRu(dateStr: string): string {
-  const d = new Date(dateStr);
-  const months = [
-    "янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек",
-  ];
-  return `${d.getUTCDate()} ${months[d.getUTCMonth()]}`;
-}
-
-function hoursUntil(dateStr: string): number {
-  return Math.max(1, Math.round((new Date(dateStr).getTime() - Date.now()) / 3_600_000));
 }
 
 export function AiAlertBanner({
@@ -30,36 +18,28 @@ export function AiAlertBanner({
   stationName,
   peakCm,
   dangerCm,
-  peakDate,
-  skill,
   above,
   onOpen,
 }: AiAlertBannerProps) {
   const pct = dangerCm > 0 ? Math.round((peakCm / dangerCm) * 100) : 0;
-  const h = hoursUntil(peakDate);
-  const whenText = h < 48 ? `через ${h} ч` : formatDateRu(peakDate);
   const severity = above ? "critical" : "elevated";
+  const ariaLabel = above
+    ? `Превышение опасного уровня: ${riverName} — ${stationName}, ${pct}%`
+    : `Приближение к опасному уровню: ${riverName} — ${stationName}, ${pct}%`;
 
   return (
     <button
       type="button"
-      className={`ai-alert-banner ai-alert-banner--${severity}`}
+      className={`ai-alert-chip ai-alert-chip--${severity}`}
       onClick={onOpen}
-      aria-label={`Открыть станцию ${stationName}`}
+      aria-label={ariaLabel}
     >
-      <span className="ai-alert-banner-icon" aria-hidden="true">
+      <span className="ai-alert-chip-icon" aria-hidden="true">
         {above ? "🚨" : "⚠️"}
       </span>
-      <span className="ai-alert-banner-body">
-        <span className="ai-alert-banner-title">
-          Кунак AI: {above ? "возможно превышение опасного уровня" : "приближение к опасному уровню"}
-        </span>
-        <span className="ai-alert-banner-sub">
-          {riverName} — {stationName} · пик {Math.round(peakCm)}&nbsp;см ({pct}%) {whenText}
-          <span className="ai-alert-banner-skill"> · точность: {skill === "high" ? "высокая" : "средняя"}</span>
-        </span>
+      <span className="ai-alert-chip-label">
+        {stationName} {above ? "выше!" : `${pct}%`}
       </span>
-      <span className="ai-alert-banner-chevron" aria-hidden="true">›</span>
     </button>
   );
 }
