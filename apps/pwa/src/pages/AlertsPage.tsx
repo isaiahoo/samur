@@ -1,27 +1,35 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Alert } from "@samur/shared";
-import { ALERT_URGENCY_LABELS, ALERT_URGENCY_COLORS, ALERT_SOURCE_LABELS, ALERT_SOURCE_ICONS } from "@samur/shared";
-import { formatRelativeTime } from "@samur/shared";
+import {
+  ALERT_URGENCY_LABELS,
+  ALERT_URGENCY_COLORS,
+  ALERT_SOURCE_LABELS,
+  ALERT_SOURCE_ICONS,
+  formatRelativeTime,
+} from "@samur/shared";
 import { getAlerts, getAlertsSituation } from "../services/api.js";
 import type { AlertsSituation } from "../services/api.js";
 import { Spinner } from "../components/Spinner.js";
 import { SituationSummary } from "../components/alerts/SituationSummary.js";
 import { AlertActions } from "../components/alerts/AlertActions.js";
-import { useSocketEvent } from "../hooks/useSocket.js";
-import { useUIStore } from "../store/ui.js";
+import { useAlertsStore, isAlertNew } from "../store/alerts.js";
 
 export function AlertsPage() {
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const alerts = useAlertsStore((s) => s.recentAlerts);
+  const setAlerts = useAlertsStore((s) => s.setAlerts);
+  const markAllRead = useAlertsStore((s) => s.markAllRead);
+
   const [situation, setSituation] = useState<AlertsSituation | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(alerts.length === 0);
   const [dismissedCritical, setDismissedCritical] = useState<Set<string>>(new Set());
 
-  const resetUnread = useUIStore((s) => s.resetUnread);
-  const incrementUnread = useUIStore((s) => s.incrementUnread);
+  // Snapshot the read-watermark at mount so cards newer than the snapshot
+  // can render a "new" indicator — we then mark-all-read immediately, so
+  // the visual survives the concurrent store update.
+  const snapshotRef = useRef<string>(useAlertsStore.getState().lastReadAt);
 
   const fetchAll = useCallback(async () => {
-    setLoading(true);
     try {
       const [alertsRes, situationRes] = await Promise.all([
         getAlerts({ active: true, limit: 50, sort: "sent_at", order: "desc" }),
@@ -30,41 +38,42 @@ export function AlertsPage() {
       setAlerts((alertsRes.data ?? []) as Alert[]);
       if (situationRes?.data) setSituation(situationRes.data);
     } catch {
-      // silent — overlay failures don't block the page
+      // silent — badge/summary failures don't block the page
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setAlerts]);
 
   useEffect(() => {
     fetchAll();
-    resetUnread();
-  }, [fetchAll, resetUnread]);
+    markAllRead();
+  }, [fetchAll, markAllRead]);
 
-  useSocketEvent("alert:broadcast", (alert) => {
-    setAlerts((prev) => [alert, ...prev]);
-    incrementUnread();
-
-    if (alert.urgency === "critical" && "Notification" in window) {
-      if (Notification.permission === "granted") {
-        new Notification("Кунак — КРИТИЧЕСКОЕ", {
-          body: alert.title,
-          icon: "/icons/icon-192.png",
-          tag: alert.id,
-        });
-      } else if (Notification.permission !== "denied") {
-        Notification.requestPermission().then((perm) => {
-          if (perm === "granted") {
-            new Notification("Кунак — КРИТИЧЕСКОЕ", {
-              body: alert.title,
-              icon: "/icons/icon-192.png",
-              tag: alert.id,
-            });
-          }
-        });
-      }
+  // Browser-level notification for critical alerts that arrive while the
+  // tab is open. (Badge/cache updates happen globally in Layout now.)
+  useEffect(() => {
+    const newest = alerts[0];
+    if (!newest || newest.urgency !== "critical") return;
+    if (!isAlertNew(newest, snapshotRef.current)) return;
+    if (!("Notification" in window)) return;
+    if (Notification.permission === "granted") {
+      new Notification("Кунак — КРИТИЧЕСКОЕ", {
+        body: newest.title,
+        icon: "/icons/icon-192.png",
+        tag: newest.id,
+      });
+    } else if (Notification.permission !== "denied") {
+      Notification.requestPermission().then((perm) => {
+        if (perm === "granted") {
+          new Notification("Кунак — КРИТИЧЕСКОЕ", {
+            body: newest.title,
+            icon: "/icons/icon-192.png",
+            tag: newest.id,
+          });
+        }
+      });
     }
-  });
+  }, [alerts]);
 
   const criticalAlerts = alerts.filter(
     (a) => a.urgency === "critical" && !dismissedCritical.has(a.id),
@@ -80,7 +89,10 @@ export function AlertsPage() {
       {situation && <SituationSummary data={situation} />}
 
       {criticalAlerts.map((a) => (
-        <div key={a.id} className="alert-banner alert-banner--critical">
+        <div
+          key={a.id}
+          className={`alert-banner alert-banner--critical${isAlertNew(a, snapshotRef.current) ? " alert-banner--new" : ""}`}
+        >
           <div className="alert-banner-content">
             <span className="alert-urgency-icon" aria-hidden="true">
               {ALERT_SOURCE_ICONS[a.source] ?? "⚠️"}
@@ -108,7 +120,7 @@ export function AlertsPage() {
       ) : (
         <div className="alerts-list">
           {otherAlerts.map((a) => (
-            <AlertCard key={a.id} alert={a} />
+            <AlertCard key={a.id} alert={a} isNew={isAlertNew(a, snapshotRef.current)} />
           ))}
         </div>
       )}
@@ -116,7 +128,7 @@ export function AlertsPage() {
   );
 }
 
-function AlertCard({ alert }: { alert: Alert }) {
+function AlertCard({ alert, isNew }: { alert: Alert; isNew: boolean }) {
   const colorClass =
     alert.urgency === "critical"
       ? "alert-card--critical"
@@ -128,8 +140,9 @@ function AlertCard({ alert }: { alert: Alert }) {
   const sourceLabel = ALERT_SOURCE_LABELS[alert.source] ?? "Оповещение";
 
   return (
-    <div className={`alert-card ${colorClass}`}>
+    <div className={`alert-card ${colorClass}${isNew ? " alert-card--new" : ""}`}>
       <div className="alert-card-header">
+        {isNew && <span className="alert-new-dot" aria-label="Новое" />}
         <span className={`alert-source alert-source--${alert.source}`} title={sourceLabel}>
           <span className="alert-source-icon" aria-hidden="true">{sourceIcon}</span>
           <span className="alert-source-label">{sourceLabel}</span>

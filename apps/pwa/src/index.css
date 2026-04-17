@@ -3668,6 +3668,43 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   letter-spacing: 0.04em;
   margin-bottom: 2px;
 }
+
+/* "New since last visit" indicator — a small pulsing dot inside the
+   card header + a subtle background tint so users can spot freshly
+   arrived items at a glance. The watermark is snapshotted at mount;
+   on next navigation everything reads as seen. */
+.alert-new-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2563eb;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.6);
+  animation: alert-new-pulse 2s ease-in-out infinite;
+}
+.alert-card--new {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.05), transparent 30%);
+}
+.alert-banner--new::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  right: 44px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  animation: alert-new-pulse 2s ease-in-out infinite;
+}
+.alert-banner--critical.alert-banner--new { position: relative; }
+@keyframes alert-new-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.55); }
+  50%      { box-shadow: 0 0 0 5px rgba(37, 99, 235, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .alert-new-dot,
+  .alert-banner--new::before { animation: none; }
+}
 .alert-urgency-badge {
   display: inline-block;
   padding: 2px 8px;

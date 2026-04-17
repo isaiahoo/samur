@@ -2,11 +2,14 @@
 import { useState, useRef, useEffect } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useUIStore } from "../store/ui.js";
+import { useAlertsStore, useUnreadCount } from "../store/alerts.js";
 import { useAuthStore } from "../store/auth.js";
 import { useOnline } from "../hooks/useOnline.js";
-import { getMe, getUserStats } from "../services/api.js";
+import { useSocketEvent } from "../hooks/useSocket.js";
+import { getMe, getUserStats, getAlerts } from "../services/api.js";
 import type { User, UserStats } from "@samur/shared";
 import { BottomSheet } from "./BottomSheet.js";
+import type { Alert as AlertType } from "@samur/shared";
 import { Toast } from "./Toast.js";
 import { SOSButton } from "./SOSButton.js";
 import { MapPage } from "../pages/MapPage.js";
@@ -16,7 +19,9 @@ import { NewsPage } from "../pages/NewsPage.js";
 import { InfoPage } from "../pages/InfoPage.js";
 
 export function Layout() {
-  const unread = useUIStore((s) => s.unreadAlerts);
+  const unread = useUnreadCount();
+  const setAlerts = useAlertsStore((s) => s.setAlerts);
+  const appendAlert = useAlertsStore((s) => s.appendAlert);
   const sheetContent = useUIStore((s) => s.sheetContent);
   const closeSheet = useUIStore((s) => s.closeSheet);
   const crisisMode = useUIStore((s) => s.crisisMode);
@@ -41,6 +46,21 @@ export function Layout() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const logout = useAuthStore((s) => s.logout);
   const loggedIn = isLoggedIn();
+
+  // Global alerts bootstrap. Fetches the current active alerts once on
+  // app mount (populates the store for badge + AlertsPage) and keeps
+  // it in sync with incoming "alert:broadcast" socket events. This used
+  // to live inside AlertsPage, which meant the badge silently missed
+  // any alert that arrived while the user was on a different tab.
+  useEffect(() => {
+    getAlerts({ active: true, limit: 50, sort: "sent_at", order: "desc" })
+      .then((res) => setAlerts((res.data ?? []) as AlertType[]))
+      .catch(() => { /* badge stays at cached value */ });
+  }, [setAlerts]);
+
+  useSocketEvent("alert:broadcast", (alert) => {
+    appendAlert(alert as AlertType);
+  });
 
   // One-shot JWT sync on app load. If the user's role was changed server-side
   // but their token still carries the old claim, GET /auth/me returns a fresh
