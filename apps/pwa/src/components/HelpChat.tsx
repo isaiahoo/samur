@@ -5,15 +5,20 @@ import {
   getHelpMessages,
   sendHelpMessage,
   markHelpMessagesRead,
+  ApiError,
 } from "../services/api.js";
 import { useSocketEvent } from "../hooks/useSocket.js";
 import { useUIStore } from "../store/ui.js";
 
 interface Props {
   requestId: string;
+  // Client's best guess for initial render — avoids the "loading → locked"
+  // flash for strangers. The real gate is the server's response; see effect.
   canParticipate: boolean;
   currentUserId: string | null;
 }
+
+type ChatState = "loading" | "locked" | "error" | "ready";
 
 const ROLE_BADGES: Record<string, string> = {
   coordinator: "Координатор",
@@ -30,63 +35,57 @@ function formatTime(iso: string): string {
 }
 
 export function HelpChat({ requestId, canParticipate, currentUserId }: Props) {
+  const [state, setState] = useState<ChatState>(canParticipate ? "loading" : "locked");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [messages, setMessages] = useState<HelpMessage[]>([]);
-  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const showToast = useUIStore((s) => s.showToast);
 
   const scrollToBottom = useCallback(() => {
-    // Wait for layout so new message heights are measured.
     requestAnimationFrame(() => {
-      if (listRef.current) {
-        listRef.current.scrollTop = listRef.current.scrollHeight;
-      }
+      if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
     });
   }, []);
 
-  // Initial load + mark-read. Also re-fetches when canParticipate flips from
-  // false → true: the user may have opened the sheet as a stranger (403'd),
-  // then claimed, so we need to retry now that the gate lets them through.
+  // Always attempt the fetch regardless of client-side canParticipate guess.
+  // The server is the source of truth on access (handles admin/coord case too).
+  // If 403 → show locked card; if OK → show chat; anything else → error.
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     getHelpMessages(requestId, { limit: 50 })
       .then((res) => {
         if (cancelled) return;
         setMessages((res.data as HelpMessage[]) ?? []);
+        setState("ready");
         scrollToBottom();
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        // Only surface 403s as "not a participant" — other errors show the
-        // real message. The 403 will auto-resolve the moment the user
-        // responds, via the canParticipate re-fetch below.
+        if (err instanceof ApiError && err.status === 403) {
+          setState("locked");
+          return;
+        }
         const msg = err instanceof Error ? err.message : "Не удалось загрузить сообщения";
-        setError(msg);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        setErrorMsg(msg);
+        setState("error");
       });
     return () => { cancelled = true; };
+    // canParticipate is in deps so a stranger who just responded retries.
   }, [requestId, canParticipate, scrollToBottom]);
 
   // Mark this thread as read on mount and whenever a new message arrives.
-  // Failure is silent — it's a UX nicety, not a critical path.
   useEffect(() => {
-    if (!canParticipate) return;
+    if (state !== "ready") return;
     markHelpMessagesRead(requestId).catch(() => { /* silent */ });
-  }, [requestId, messages.length, canParticipate]);
+  }, [requestId, messages.length, state]);
 
-  // Live updates via socket.
+  // Live updates via socket — ignored unless we're in the ready state.
   useSocketEvent("help_message:created", (msg) => {
     if (msg.helpRequestId !== requestId) return;
+    if (state !== "ready") return;
     setMessages((prev) => {
-      // Dedup if we optimistically echoed our own send (shouldn't happen
-      // because we append from server response, but cheap insurance).
       if (prev.some((m) => m.id === msg.id)) return prev;
       return [...prev, msg];
     });
@@ -102,7 +101,6 @@ export function HelpChat({ requestId, canParticipate, currentUserId }: Props) {
       const res = await sendHelpMessage(requestId, trimmed);
       const sent = res.data as HelpMessage | undefined;
       if (sent) {
-        // Append immediately — socket echo will dedup on id.
         setMessages((prev) => (prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]));
         scrollToBottom();
       }
@@ -114,6 +112,57 @@ export function HelpChat({ requestId, canParticipate, currentUserId }: Props) {
     }
   };
 
+  // ── Locked state: calm, explanatory, points at the respond button. ─────
+  if (state === "locked") {
+    return (
+      <div className="help-chat-locked">
+        <div className="help-chat-locked-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </div>
+        <h4 className="help-chat-locked-title">Закрытое обсуждение</h4>
+        <p className="help-chat-locked-body">
+          Чат открывается после отклика — так мы защищаем приватность заявителя
+          и не отвлекаем его посторонними сообщениями.
+        </p>
+        <p className="help-chat-locked-hint">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 4, verticalAlign: "-2px" }}>
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <polyline points="19 12 12 19 5 12" />
+          </svg>
+          Нажмите «Откликнуться» внизу — и чат сразу откроется.
+        </p>
+      </div>
+    );
+  }
+
+  // ── Error state: compact, less alarming than before, allows retry. ────
+  if (state === "error") {
+    return (
+      <div className="help-chat">
+        <h4 className="help-chat-title">Обсуждение</h4>
+        <p className="help-chat-inline-error">
+          {errorMsg ?? "Не удалось загрузить сообщения"}
+        </p>
+      </div>
+    );
+  }
+
+  // ── Loading: brief placeholder while the first fetch is in flight. ────
+  if (state === "loading") {
+    return (
+      <div className="help-chat">
+        <h4 className="help-chat-title">Обсуждение</h4>
+        <div className="help-chat-list">
+          <p className="help-chat-hint">Загрузка…</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Ready: full chat UI. ──────────────────────────────────────────────
   return (
     <div className="help-chat">
       <h4 className="help-chat-title">
@@ -122,11 +171,7 @@ export function HelpChat({ requestId, canParticipate, currentUserId }: Props) {
       </h4>
 
       <div className="help-chat-list" ref={listRef}>
-        {loading ? (
-          <p className="help-chat-hint">Загрузка…</p>
-        ) : error ? (
-          <p className="help-chat-error">{error}</p>
-        ) : messages.length === 0 ? (
+        {messages.length === 0 ? (
           <p className="help-chat-hint">
             Сообщений пока нет. Напишите первое — чтобы согласовать встречу или
             уточнить детали, если телефон не отвечает.
@@ -151,36 +196,29 @@ export function HelpChat({ requestId, canParticipate, currentUserId }: Props) {
         )}
       </div>
 
-      {canParticipate ? (
-        <form className="help-chat-composer" onSubmit={handleSend}>
-          <textarea
-            className="help-chat-input"
-            placeholder="Сообщение…"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={2}
-            maxLength={2000}
-            onKeyDown={(e) => {
-              // Enter = send; Shift+Enter = newline.
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend(e);
-              }
-            }}
-          />
-          <button
-            type="submit"
-            className="btn btn-primary btn-sm help-chat-send"
-            disabled={!draft.trim() || sending}
-          >
-            {sending ? "…" : "Отправить"}
-          </button>
-        </form>
-      ) : (
-        <p className="help-chat-hint">
-          Чтобы писать в обсуждение — откликнитесь на заявку.
-        </p>
-      )}
+      <form className="help-chat-composer" onSubmit={handleSend}>
+        <textarea
+          className="help-chat-input"
+          placeholder="Сообщение…"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          rows={2}
+          maxLength={2000}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSend(e);
+            }
+          }}
+        />
+        <button
+          type="submit"
+          className="btn btn-primary btn-sm help-chat-send"
+          disabled={!draft.trim() || sending}
+        >
+          {sending ? "…" : "Отправить"}
+        </button>
+      </form>
     </div>
   );
 }
