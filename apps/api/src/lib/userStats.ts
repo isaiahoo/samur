@@ -105,3 +105,82 @@ export async function computeUserStatsFor(userId: string): Promise<UserStats | n
   const map = await computeUserStats([userId]);
   return map.get(userId) ?? null;
 }
+
+// ── Full activity snapshot — used by the profile endpoint to derive the
+//    achievements set. Strictly superset of UserStats so existing callers
+//    that only read the lightweight fields stay forward-compatible. ──────
+
+export interface UserActivity extends UserStats {
+  requestsCreated: number;
+  helpsByCategory: Record<string, number>;
+  avgResponseToOnWayMinutes: number | null;
+  achievements: string[]; // earned achievement keys
+}
+
+/**
+ * Heavier than computeUserStats — runs a few more aggregates and the
+ * achievement derivation. Only called for the profile page (one user at a
+ * time), so the cost is bounded.
+ */
+export async function computeUserActivity(userId: string): Promise<UserActivity | null> {
+  // Re-use the light stats for the base numbers.
+  const base = await computeUserStatsFor(userId);
+  if (!base) return null;
+
+  // Dynamic imports to avoid a circular dep between this lib file and
+  // @samur/shared (which is imported by many API modules).
+  const { computeEarnedAchievements } = await import("@samur/shared");
+
+  // Category breakdown: count helps ("helped" status responses) grouped by
+  // the help request's category.
+  const categoryRows = await prisma.$queryRaw<Array<{ category: string; count: bigint }>>`
+    SELECT hr.category::text as category, COUNT(*)::bigint as count
+    FROM help_responses resp
+    JOIN help_requests hr ON hr.id = resp.help_request_id
+    WHERE resp.user_id = ${userId}
+      AND resp.status = 'helped'
+      AND hr.deleted_at IS NULL
+    GROUP BY hr.category
+  `;
+  const helpsByCategory: Record<string, number> = {};
+  for (const r of categoryRows) helpsByCategory[r.category] = Number(r.count);
+
+  // Response-to-on-way time: average minutes between the response's createdAt
+  // and the updatedAt when it transitioned past "responded". For helps that
+  // reached on_way or later we approximate with the response row's
+  // updatedAt — works because PATCH /my-response is the only path to advance
+  // status, and each advance bumps updatedAt.
+  //
+  // This is a rough signal — a future iteration could add a response_events
+  // table to capture exact transition timestamps. For achievement-gating
+  // ("avg < 30 min"), the approximation is good enough.
+  const timingRow = await prisma.$queryRaw<Array<{ avg_minutes: number | null }>>`
+    SELECT AVG(EXTRACT(EPOCH FROM (updated_at - created_at)) / 60)::float AS avg_minutes
+    FROM help_responses
+    WHERE user_id = ${userId}
+      AND status IN ('on_way', 'arrived', 'helped')
+  `;
+  const avgResponseToOnWayMinutes = timingRow[0]?.avg_minutes ?? null;
+
+  // requestsCreated = all non-deleted help_requests the user authored,
+  // regardless of current status (counts attempts, not just successes).
+  const requestsCreated = await prisma.helpRequest.count({
+    where: { userId, deletedAt: null },
+  });
+
+  const achievements = computeEarnedAchievements({
+    helpsCompleted: base.helpsCompleted,
+    requestsCreated,
+    joinedAt: base.joinedAt,
+    helpsByCategory,
+    avgResponseToOnWayMinutes,
+  });
+
+  return {
+    ...base,
+    requestsCreated,
+    helpsByCategory,
+    avgResponseToOnWayMinutes,
+    achievements,
+  };
+}

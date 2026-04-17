@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import type { HelpRequest, HelpResponse, HelpResponseStatus } from "@samur/shared";
 import {
   HELP_CATEGORY_LABELS,
@@ -112,7 +113,15 @@ export function HelpDetailSheet({
   item, isNeed, currentUserId, onClaim, onUpdateResponse, onClose,
 }: Props) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const navigate = useNavigate();
   const photos = item.photoUrls ?? [];
+  const openProfile = (userId?: string) => {
+    if (!userId) return;
+    onClose();
+    // Defer so the overlay's exit animation has a frame to start before
+    // routing triggers a full re-render.
+    setTimeout(() => navigate(`/profile/${userId}`), 0);
+  };
 
   const isAuthorMe = !!currentUserId && item.userId === currentUserId;
   const responses: HelpResponse[] = item.responses ?? [];
@@ -290,7 +299,17 @@ export function HelpDetailSheet({
                     <div className="detail-responder-main">
                       <Avatar name={r.user?.name} size={32} />
                       <div className="detail-responder-body">
-                        <div className="detail-responder-name">{r.user?.name ?? "Участник"}</div>
+                        {r.user?.id ? (
+                          <button
+                            type="button"
+                            className="detail-responder-name detail-responder-name--link"
+                            onClick={() => openProfile(r.user!.id)}
+                          >
+                            {r.user.name ?? "Участник"}
+                          </button>
+                        ) : (
+                          <div className="detail-responder-name">{r.user?.name ?? "Участник"}</div>
+                        )}
                         <div className="detail-responder-meta">
                           {(() => {
                             const role = formatRole(r.user?.role);

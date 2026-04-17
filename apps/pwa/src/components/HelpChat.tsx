@@ -9,6 +9,7 @@ import {
 } from "../services/api.js";
 import { useSocketEvent } from "../hooks/useSocket.js";
 import { useUIStore } from "../store/ui.js";
+import { useNavigate } from "react-router-dom";
 
 interface Props {
   requestId: string;
@@ -47,6 +48,7 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
   const [draft, setDraft] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
   const showToast = useUIStore((s) => s.showToast);
+  const navigate = useNavigate();
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -189,7 +191,17 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
               <div key={m.id} className={`help-chat-msg ${isMine ? "help-chat-msg--mine" : ""}`}>
                 {!isMine && (
                   <div className="help-chat-msg-meta">
-                    <span className="help-chat-msg-author">{m.author?.name ?? "—"}</span>
+                    {m.authorId ? (
+                      <button
+                        type="button"
+                        className="help-chat-msg-author help-chat-msg-author--link"
+                        onClick={() => navigate(`/profile/${m.authorId}`)}
+                      >
+                        {m.author?.name ?? "—"}
+                      </button>
+                    ) : (
+                      <span className="help-chat-msg-author">{m.author?.name ?? "—"}</span>
+                    )}
                     {roleBadge && <span className="help-chat-msg-role"> · {roleBadge}</span>}
                   </div>
                 )}

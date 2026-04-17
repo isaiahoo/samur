@@ -164,6 +164,20 @@ export function Layout() {
                   )}
                 </div>
                 <div className="profile-menu-divider" />
+                <button
+                  className="profile-menu-item"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    if (user?.id) navigate(`/profile/${user.id}`);
+                  }}
+                >
+                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  Мой профиль
+                </button>
+                <div className="profile-menu-divider" />
                 <button className="profile-menu-item profile-menu-logout" onClick={handleLogout}>
                   <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                     <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
