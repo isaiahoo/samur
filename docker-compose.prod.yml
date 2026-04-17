@@ -54,10 +54,30 @@ services:
       - |
         while true; do
           STAMP=$$(date +%Y%m%d_%H%M%S)
-          pg_dump -Fc > /backups/samur_$$STAMP.dump
-          echo "[$$STAMP] Backup created"
-          # Keep last 7 days
-          find /backups -name "samur_*.dump" -mtime +7 -delete
+          TARGET=/backups/samur_$$STAMP.dump
+          # Use -f (not shell redirect) so pg_dump won't write a zero-byte
+          # file on connection failure. Check exit code + integrity before
+          # treating the backup as valid.
+          if pg_dump -Fc -f "$$TARGET" 2>/tmp/pg_dump.err; then
+            # Integrity check: pg_restore --list confirms the archive is
+            # readable and lists TOC entries. Catches corrupted writes.
+            if pg_restore --list "$$TARGET" > /dev/null 2>&1; then
+              SIZE=$$(stat -c%s "$$TARGET" 2>/dev/null || echo 0)
+              echo "[$$STAMP] Backup OK ($$SIZE bytes)"
+              # Only prune old backups on a successful run — don't lose our
+              # last-known-good dump because of a transient failure today.
+              find /backups -name "samur_*.dump" -mtime +7 -delete
+            else
+              echo "[$$STAMP] ERROR: dump file failed pg_restore --list integrity check"
+              rm -f "$$TARGET"
+            fi
+          else
+            echo "[$$STAMP] ERROR: pg_dump failed — $$(cat /tmp/pg_dump.err)"
+            rm -f "$$TARGET"
+            # Retry in 5 minutes instead of waiting a full day.
+            sleep 300
+            continue
+          fi
           sleep 86400
         done
 
