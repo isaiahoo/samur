@@ -2479,8 +2479,61 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 4px 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
+.help-my-header--responses { color: #059669; }
+.help-my-unread {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #dc2626;
+  color: #fff;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .help-card--mine { border-left-color: var(--color-primary); }
+.help-card--responding {
+  border-left: 4px solid #059669;
+  background: linear-gradient(to right, rgba(16, 185, 129, 0.05), transparent 40%);
+}
+.help-card-response-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(16, 185, 129, 0.1);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+  font-size: 12px;
+  font-weight: 600;
+}
+.help-card-response-state {
+  color: #047857;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.help-card-response-state::before {
+  content: "●";
+  color: #10b981;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.help-card-unread {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #dc2626;
+  color: #fff;
+}
 .help-section-divider {
   height: 1px;
   background: var(--color-border);
@@ -6022,6 +6075,15 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .help-search input { color: var(--color-text); }
   .help-search input::placeholder { color: #71717a; }
   .help-my-header { color: var(--color-primary); }
+  .help-my-header--responses { color: #34d399; }
+  .help-card--responding {
+    background: linear-gradient(to right, rgba(16, 185, 129, 0.10), transparent 40%);
+  }
+  .help-card-response-strip {
+    background: rgba(16, 185, 129, 0.15);
+    border-bottom-color: rgba(16, 185, 129, 0.25);
+  }
+  .help-card-response-state { color: #6ee7b7; }
   .detail-desc { color: #e4e4e7; }
   .detail-contact-name { color: #e4e4e7; }
   .detail-contact-empty { color: #71717a; }

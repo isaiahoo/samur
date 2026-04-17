@@ -83,6 +83,69 @@ function getCaller(req: { user?: { sub: string; role: string } }): Caller | null
   return req.user ? { sub: req.user.sub, role: req.user.role } : null;
 }
 
+// Enrich each help-request row with per-caller activity fields: the
+// caller's own response status, unread message count (since their last-read
+// watermark), and the thread's last-message timestamp. This is what powers
+// the "Мои отклики" section on the Help page so a volunteer never has to
+// hunt for the requests they're working on.
+async function attachCallerActivity<T extends { id: string }>(
+  rows: T[],
+  userId: string,
+): Promise<Array<T & {
+  myResponseStatus: string | null;
+  unreadMessages: number;
+  lastMessageAt: string | null;
+}>> {
+  if (rows.length === 0) return [] as never;
+  const ids = rows.map((r) => r.id);
+
+  const [myResponses, reads, lastMessages, unreadCounts] = await Promise.all([
+    prisma.helpResponse.findMany({
+      where: { helpRequestId: { in: ids }, userId },
+      select: { helpRequestId: true, status: true },
+    }),
+    prisma.helpMessageRead.findMany({
+      where: { helpRequestId: { in: ids }, userId },
+      select: { helpRequestId: true, lastReadAt: true },
+    }),
+    prisma.helpMessage.groupBy({
+      by: ["helpRequestId"],
+      where: { helpRequestId: { in: ids }, deletedAt: null },
+      _max: { createdAt: true },
+    }),
+    // Per-request unread count: messages after my watermark, authored by
+    // someone else. We can't express this in a single groupBy (watermark
+    // is per-request), so batch via one raw query.
+    prisma.$queryRaw<Array<{ help_request_id: string; unread: bigint }>>`
+      SELECT m.help_request_id, COUNT(*)::bigint AS unread
+      FROM help_messages m
+      LEFT JOIN help_message_reads r
+        ON r.help_request_id = m.help_request_id AND r.user_id = ${userId}
+      WHERE m.help_request_id = ANY(${ids}::text[])
+        AND m.deleted_at IS NULL
+        AND m.author_id <> ${userId}
+        AND m.created_at > COALESCE(r.last_read_at, '1970-01-01'::timestamp)
+      GROUP BY m.help_request_id
+    `,
+  ]);
+
+  const statusByReq = new Map(myResponses.map((r) => [r.helpRequestId, r.status]));
+  void reads; // kept for future derivations; unread computation uses raw query
+  const lastMsgByReq = new Map(
+    lastMessages.map((m) => [m.helpRequestId, m._max.createdAt]),
+  );
+  const unreadByReq = new Map(
+    unreadCounts.map((u) => [u.help_request_id, Number(u.unread)]),
+  );
+
+  return rows.map((r) => ({
+    ...r,
+    myResponseStatus: statusByReq.get(r.id) ?? null,
+    unreadMessages: unreadByReq.get(r.id) ?? 0,
+    lastMessageAt: lastMsgByReq.get(r.id)?.toISOString() ?? null,
+  }));
+}
+
 // Derive a HelpRequest.status from the responses list. The DB column is still
 // maintained for backwards compat and list filters, but the canonical
 // "what's happening" signal comes from responses[].
@@ -160,9 +223,17 @@ router.get(
       const filtered = items.map((row) =>
         filterPhones(row as unknown as HelpRequestWithParties, caller)
       );
+
+      // Per-caller helpers so the PWA can surface "Мои отклики" + unread
+      // badges without a second round-trip. Only fetched when there's an
+      // authenticated caller (anonymous lists have no "me").
+      const enriched = caller
+        ? await attachCallerActivity(filtered as unknown as Array<{ id: string }>, caller.sub)
+        : filtered;
+
       res.json({
         success: true,
-        data: filtered,
+        data: enriched,
         meta: { total, page: q.page, limit: q.limit },
       });
     } catch (err) {
@@ -306,7 +377,10 @@ router.get("/:id", optionalAuth, async (req, res, next) => {
 
     const caller = getCaller(req as never);
     const filtered = filterPhones(hr as unknown as HelpRequestWithParties, caller);
-    res.json({ success: true, data: filtered });
+    const enriched = caller
+      ? (await attachCallerActivity([filtered as unknown as { id: string }], caller.sub))[0]
+      : filtered;
+    res.json({ success: true, data: enriched });
   } catch (err) {
     next(err);
   }

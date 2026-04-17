@@ -240,14 +240,42 @@ export function HelpPage() {
     );
   }, [items, debouncedSearch]);
 
-  // Split into my items and others
+  // Split into: (1) requests I'm actively responding to, (2) my own requests,
+  // (3) everything else. "Мои отклики" is pinned to the top so a volunteer
+  // never has to hunt for the conversation they started.
+  const isActiveResponse = (status: string | null | undefined) =>
+    !!status && status !== "cancelled" && status !== "helped";
+
+  const myResponseItems = useMemo(
+    () => (user
+      ? filtered
+          .filter((hr) => hr.userId !== user.id && isActiveResponse(hr.myResponseStatus))
+          // Most recently active first — newest message or update wins.
+          .sort((a, b) => {
+            const at = a.lastMessageAt ?? a.updatedAt;
+            const bt = b.lastMessageAt ?? b.updatedAt;
+            return bt.localeCompare(at);
+          })
+      : []),
+    [filtered, user],
+  );
+  const myResponseIds = useMemo(
+    () => new Set(myResponseItems.map((hr) => hr.id)),
+    [myResponseItems],
+  );
   const myItems = useMemo(
     () => (user ? filtered.filter((hr) => hr.userId === user.id) : []),
     [filtered, user],
   );
   const otherItems = useMemo(
-    () => (user ? filtered.filter((hr) => hr.userId !== user.id) : filtered),
-    [filtered, user],
+    () => (user
+      ? filtered.filter((hr) => hr.userId !== user.id && !myResponseIds.has(hr.id))
+      : filtered),
+    [filtered, user, myResponseIds],
+  );
+  const totalUnread = useMemo(
+    () => myResponseItems.reduce((a, hr) => a + (hr.unreadMessages ?? 0), 0),
+    [myResponseItems],
   );
 
   const currentTabTotal = urgencyCounts.critical + urgencyCounts.urgent + urgencyCounts.normal;
@@ -374,6 +402,34 @@ export function HelpPage() {
         </div>
       ) : (
         <div className="help-list">
+          {/* Active responses — the requests you're currently helping with.
+              Pinned to the top so you never lose track of a conversation. */}
+          {myResponseItems.length > 0 && (
+            <>
+              <div className="help-my-header help-my-header--responses">
+                Мои отклики ({myResponseItems.length})
+                {totalUnread > 0 && (
+                  <span className="help-my-unread">{totalUnread} новых</span>
+                )}
+              </div>
+              {myResponseItems.map((hr, i) => (
+                <HelpCard
+                  key={hr.id}
+                  item={hr}
+                  isNeed={tab === "need"}
+                  index={i}
+                  userPos={position}
+                  currentUserId={user?.id ?? null}
+                  onClaim={handleClaim}
+                  onDetail={setDetailItem}
+                />
+              ))}
+              {(myItems.length > 0 || otherItems.length > 0) && (
+                <div className="help-section-divider" />
+              )}
+            </>
+          )}
+
           {/* My requests section */}
           {myItems.length > 0 && (
             <>
@@ -384,7 +440,7 @@ export function HelpPage() {
                   item={hr}
                   isNeed={tab === "need"}
                   isMine
-                  index={i}
+                  index={myResponseItems.length + i}
                   userPos={position}
                   currentUserId={user?.id ?? null}
                   onClaim={handleClaim}
@@ -403,7 +459,7 @@ export function HelpPage() {
               key={hr.id}
               item={hr}
               isNeed={tab === "need"}
-              index={myItems.length + i}
+              index={myResponseItems.length + myItems.length + i}
               userPos={position}
               currentUserId={user?.id ?? null}
               onClaim={handleClaim}
@@ -469,12 +525,34 @@ function HelpCard({
     return haversineMeters(userPos.lat, userPos.lng, item.lat, item.lng);
   }, [userPos, item.lat, item.lng]);
 
+  const isActiveMyResponse =
+    !!item.myResponseStatus &&
+    item.myResponseStatus !== "cancelled" &&
+    item.myResponseStatus !== "helped";
+  const unread = item.unreadMessages ?? 0;
+
   return (
     <div
-      className={`help-card ${isMine ? "help-card--mine" : ""}`}
+      className={`help-card ${isMine ? "help-card--mine" : ""} ${isActiveMyResponse ? "help-card--responding" : ""}`}
       data-urgency={item.urgency}
       style={animDelay ? { "--anim-delay": `${animDelay}ms` } as CSSProperties : undefined}
     >
+      {/* Response badge — pinned strip at the top of cards where I'm actively
+          helping. Tappable through to the detail sheet (parent onClick). */}
+      {isActiveMyResponse && (
+        <div className="help-card-response-strip">
+          <span className="help-card-response-state">
+            {item.myResponseStatus === "responded" && "Вы откликнулись"}
+            {item.myResponseStatus === "on_way" && "Вы в пути"}
+            {item.myResponseStatus === "arrived" && "Вы на месте"}
+          </span>
+          {unread > 0 && (
+            <span className="help-card-unread">
+              {unread} {unread === 1 ? "новое" : "новых"}
+            </span>
+          )}
+        </div>
+      )}
       {photos.length > 0 && (
         <div className="help-card-hero" onClick={() => setLightboxIndex(0)}>
           <img src={photos[0]} alt="" loading={index < 3 ? "eager" : "lazy"} />

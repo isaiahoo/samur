@@ -150,6 +150,12 @@ export interface HelpRequest {
   claimer?: HelpRequestParty | null;
   responses?: HelpResponse[];
   responseCount?: number;
+  // Per-caller activity — populated server-side for authenticated callers
+  // so the client can surface "Мои отклики" and unread badges without
+  // extra round-trips.
+  myResponseStatus?: HelpResponseStatus | null;
+  unreadMessages?: number;
+  lastMessageAt?: string | null;
 }
 
 export interface Alert {
