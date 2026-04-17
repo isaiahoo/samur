@@ -4,12 +4,16 @@ import { createPortal } from "react-dom";
 import type { Incident, HelpRequest, Shelter, RiverLevel, EarthquakeEvent } from "@samur/shared";
 import { MapView, type MapViewHandle, type MarkerType } from "../components/map/MapView.js";
 import { LayerToggle } from "../components/map/LayerToggle.js";
+import { floodLegendGradientCSS } from "../components/map/FloodZoneOverlay.js";
+import { precipLegendGradientCSS } from "../components/map/PrecipitationOverlay.js";
+import { legendGradientCSS as soilLegendGradientCSS } from "../components/map/SoilMoistureOverlay.js";
+import { snowLegendGradientCSS } from "../components/map/SnowOverlay.js";
+import { runoffLegendGradientCSS } from "../components/map/RunoffOverlay.js";
 import { ForecastPicker } from "../components/map/ForecastPicker.js";
 import { ForecastBanner } from "../components/map/ForecastBanner.js";
 import { AiAlertBanner } from "../components/map/AiAlertBanner.js";
 import { ReportForm } from "../components/map/ReportForm.js";
 import { DetailPanel } from "../components/map/DetailPanel.js";
-import { MapLegends } from "../components/map/MapLegends.js";
 import { EventPanel } from "../components/map/EventPanel.js";
 import { computeTier } from "../components/map/gaugeUtils.js";
 import { getIncidents, getHelpRequests, getShelters, getRiverLevels, getRiverLevelForecast, getPrecipitation, getSoilMoisture, getSnowData, getRunoffData, getEarthquakes, getAiForecast } from "../services/api.js";
@@ -489,16 +493,50 @@ export function MapPage() {
     setLayers((prev) => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
   }, []);
 
+  // Each overlay with a continuous color scale ships its own gradient
+  // generator so the legend stays in lock-step with the rendering.
+  const hasData = {
+    floodHeatmap: riverLevels.length > 0,
+    precipitation: precipitation.length > 0,
+    soilMoisture: soilMoisture.length > 0,
+    snow: snowData.length > 0,
+    runoff: runoffData.length > 0,
+  };
   const layerConfigs = [
     { key: "incidents", label: "Инциденты", active: layers.incidents },
     { key: "helpRequests", label: "Запросы помощи", active: layers.helpRequests },
     { key: "shelters", label: "Убежища", active: layers.shelters },
     { key: "riverLevels", label: "Уровень рек", active: layers.riverLevels },
-    { key: "floodHeatmap", label: "Зона затопления", active: layers.floodHeatmap },
-    { key: "precipitation", label: "Осадки", active: layers.precipitation },
-    { key: "soilMoisture", label: "Влажность почвы", active: layers.soilMoisture },
-    { key: "snow", label: "Снег / таяние", active: layers.snow },
-    { key: "runoff", label: "Риск затопления", active: layers.runoff },
+    {
+      key: "floodHeatmap", label: "Зона затопления", active: layers.floodHeatmap,
+      legend: hasData.floodHeatmap
+        ? { gradient: floodLegendGradientCSS(), min: "повышен", max: "опасный" }
+        : undefined,
+    },
+    {
+      key: "precipitation", label: "Осадки", active: layers.precipitation,
+      legend: hasData.precipitation
+        ? { gradient: precipLegendGradientCSS(), min: "1 мм", max: "60+ мм" }
+        : undefined,
+    },
+    {
+      key: "soilMoisture", label: "Влажность почвы", active: layers.soilMoisture,
+      legend: hasData.soilMoisture
+        ? { gradient: soilLegendGradientCSS(), min: "сухая", max: "мокрая" }
+        : undefined,
+    },
+    {
+      key: "snow", label: "Снег / таяние", active: layers.snow,
+      legend: hasData.snow
+        ? { gradient: snowLegendGradientCSS(), min: "слабое", max: "сильное" }
+        : undefined,
+    },
+    {
+      key: "runoff", label: "Риск затопления", active: layers.runoff,
+      legend: hasData.runoff
+        ? { gradient: runoffLegendGradientCSS(), min: "низкий", max: "высокий" }
+        : undefined,
+    },
     { key: "earthquakes", label: "Землетрясения", active: layers.earthquakes },
   ];
 
@@ -589,17 +627,6 @@ export function MapPage() {
           />
         )}
       </div>
-
-      <MapLegends
-        layers={layers}
-        hasRiverLevels={riverLevels.length > 0}
-        hasPrecipitation={precipitation.length > 0}
-        hasSoilMoisture={soilMoisture.length > 0}
-        hasSnowData={snowData.length > 0}
-        hasRunoffData={runoffData.length > 0}
-        hasEarthquakes={earthquakes.length > 0}
-        hasAiForecasts={aiStationKeys.size > 0}
-      />
 
       {topAiThreat && (
         <AiAlertBanner

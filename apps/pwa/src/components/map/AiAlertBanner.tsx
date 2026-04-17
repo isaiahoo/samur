@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Glanceable AI threat chip — a compact mini-gauge pill. The fill bar
-// visualises % of danger so the severity reads without a tap; the chip
-// is still tappable for users who want the full detail sheet.
-//
-// Seasonal-source forecasts never reach here — a climatology baseline
-// cannot legitimately justify a map-wide alert.
+// Floating alert label — reads as a map annotation, not a button.
+// Seasonal-source forecasts never reach here (filtered upstream).
 
 interface AiAlertBannerProps {
   riverName: string;
@@ -27,13 +23,8 @@ export function AiAlertBanner({
   rising,
   onOpen,
 }: AiAlertBannerProps) {
-  const rawPct = dangerCm > 0 ? peakCm / dangerCm : 0;
-  const pct = Math.round(rawPct * 100);
-  // Clamp the fill bar at 100% so above-danger forecasts don't overflow
-  // the pill, but keep the numeric percentage honest.
-  const fill = Math.min(Math.max(rawPct, 0), 1);
+  const pct = dangerCm > 0 ? Math.round((peakCm / dangerCm) * 100) : 0;
   const severity = above ? "critical" : "elevated";
-
   const ariaLabel = above
     ? `Превышение опасного уровня: ${riverName} — ${stationName}, ${pct}%`
     : `Приближение к опасному уровню: ${riverName} — ${stationName}, ${pct}%`;
@@ -41,27 +32,24 @@ export function AiAlertBanner({
   return (
     <button
       type="button"
-      className={`ai-alert-chip ai-alert-chip--${severity}`}
+      className={`ai-alert-label ai-alert-label--${severity}`}
       onClick={onOpen}
       aria-label={ariaLabel}
     >
-      <span className="ai-alert-chip-name">{stationName}</span>
-      <span className="ai-alert-chip-pct">{pct}%</span>
-      <span
-        className="ai-alert-chip-gauge"
-        aria-hidden="true"
-      >
-        <span
-          className="ai-alert-chip-gauge-fill"
-          style={{ width: `${fill * 100}%` }}
-        />
-      </span>
+      <span className="ai-alert-label-name">{stationName}</span>
+      <span className="ai-alert-label-sep" aria-hidden="true">·</span>
+      <span className="ai-alert-label-pct">{pct}%</span>
       {rising && (
-        <span className="ai-alert-chip-trend" aria-label="Тренд: рост">
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M2 7 L5 3 L8 7" />
-          </svg>
-        </span>
+        <svg
+          className="ai-alert-label-arrow"
+          width="12" height="12" viewBox="0 0 12 12"
+          fill="none" stroke="currentColor" strokeWidth="2.2"
+          strokeLinecap="round" strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 7 L6 3 L9 7" />
+          <path d="M6 3 L6 10" />
+        </svg>
       )}
     </button>
   );

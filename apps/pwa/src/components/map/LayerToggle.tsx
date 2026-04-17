@@ -1,14 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * NERV-style layer toggle — compact trigger button that opens a
- * geometric panel on tap. Tap again (or outside) to dismiss.
+ * Layer toggle — trigger button + geometric panel with inline color
+ * legends for each active overlay. The legend used to live in a
+ * separate floating panel; merging it here means one control, one
+ * mental model, one tap to reach everything layer-related.
  */
 
 interface LayerConfig {
   key: string;
   label: string;
   active: boolean;
+  /** Inline color scale shown under the label when the layer is active. */
+  legend?: {
+    gradient: string;
+    min: string;
+    max: string;
+  };
 }
 
 interface Props {
@@ -34,15 +42,28 @@ export function LayerToggle({ layers, onToggle, open, onOpenChange }: Props) {
       {open && (
         <div className="nerv-layers-panel" role="region" aria-label="Слои карты">
           {layers.map((l) => (
-            <button
-              key={l.key}
-              className={`nerv-layer-item${l.active ? " nerv-layer-item--on" : ""}`}
-              onClick={() => onToggle(l.key)}
-              aria-pressed={l.active}
-            >
-              <span className="nerv-layer-indicator" />
-              <span className="nerv-layer-label">{l.label}</span>
-            </button>
+            <div key={l.key} className="nerv-layer-row">
+              <button
+                className={`nerv-layer-item${l.active ? " nerv-layer-item--on" : ""}`}
+                onClick={() => onToggle(l.key)}
+                aria-pressed={l.active}
+              >
+                <span className="nerv-layer-indicator" />
+                <span className="nerv-layer-label">{l.label}</span>
+              </button>
+              {l.active && l.legend && (
+                <div className="nerv-layer-legend" aria-hidden="true">
+                  <div
+                    className="nerv-layer-legend-bar"
+                    style={{ background: l.legend.gradient }}
+                  />
+                  <div className="nerv-layer-legend-ends">
+                    <span>{l.legend.min}</span>
+                    <span>{l.legend.max}</span>
+                  </div>
+                </div>
+              )}
+            </div>
           ))}
         </div>
       )}

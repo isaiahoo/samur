@@ -4228,91 +4228,74 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .forecast-banner-return:hover { background: rgba(255, 255, 255, 0.25); }
 
-/* ── AI Alert Chip ──────────────────────────────────────────────────── */
-/* Glanceable mini-gauge pill. Dark backdrop lets the map read through;
-   a thin colored accent (border + text) encodes severity; the inline
-   fill bar visualises % of danger so the info doesn't need a tap to
-   be legible. Still tappable — clicking flies + opens detail. */
-.ai-alert-chip {
+/* ── AI Alert Label ─────────────────────────────────────────────────── */
+/* Reads as a map annotation rather than a button: no pill, no border,
+   just colored text with a soft dark shadow for legibility on any
+   background. Hit area is provided by invisible padding. */
+.ai-alert-label {
   position: absolute;
-  top: 12px;
+  top: 14px;
   left: 50%;
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 12px;
-  background: rgba(15, 17, 22, 0.82);
-  backdrop-filter: blur(14px) saturate(1.4);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
-  border: 1px solid transparent;
-  border-radius: 999px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 0;
   font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.1;
   white-space: nowrap;
+  letter-spacing: 0.01em;
   cursor: pointer;
   z-index: 13;
-  animation: ai-alert-chip-appear 280ms ease-out;
+  /* Dark halo + soft color glow keep the label readable whether the
+     map beneath is light (plains) or dark (sea / night tiles). */
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.55),
+    0 0 8px rgba(0, 0, 0, 0.35);
+  animation: ai-alert-label-appear 280ms ease-out;
 }
-.ai-alert-chip--elevated {
-  border-color: rgba(245, 158, 11, 0.55);
-  color: #fcd34d;
+.ai-alert-label--elevated { color: #f59e0b; }
+.ai-alert-label--critical {
+  color: #ef4444;
+  /* Gentle pulse draws peripheral attention without competing with
+     the live SOS button's prominence. */
+  animation: ai-alert-label-appear 280ms ease-out, ai-alert-label-pulse 2.6s ease-in-out 280ms infinite;
 }
-.ai-alert-chip--critical {
-  border-color: rgba(239, 68, 68, 0.65);
-  color: #fca5a5;
-  /* Subtle pulse draws peripheral attention to an above-danger forecast
-     without competing with the live SOS button's prominence. */
-  animation: ai-alert-chip-appear 280ms ease-out, ai-alert-chip-pulse 2.6s ease-in-out 280ms infinite;
-}
-.ai-alert-chip-name {
-  color: #f4f4f5;
+.ai-alert-label-name {
+  color: #fafafa;
   font-weight: 700;
-  letter-spacing: 0.01em;
 }
-.ai-alert-chip-pct {
-  font-weight: 700;
+.ai-alert-label-sep {
+  opacity: 0.55;
+  font-weight: 500;
+}
+.ai-alert-label-pct {
   font-variant-numeric: tabular-nums;
 }
-.ai-alert-chip-gauge {
-  position: relative;
-  width: 44px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 2px;
-  overflow: hidden;
+.ai-alert-label-arrow {
+  margin-left: 2px;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
 }
-.ai-alert-chip-gauge-fill {
-  display: block;
-  height: 100%;
-  background: currentColor;
-  border-radius: 2px;
-  transition: width 320ms ease-out;
+.ai-alert-label:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 6px;
 }
-.ai-alert-chip-trend {
-  display: inline-flex;
-  margin-left: -2px;
-}
-.ai-alert-chip:hover,
-.ai-alert-chip:focus-visible {
-  background: rgba(20, 22, 28, 0.9);
-  outline: none;
-}
-@keyframes ai-alert-chip-appear {
+@keyframes ai-alert-label-appear {
   from { opacity: 0; transform: translate(-50%, -6px); }
   to   { opacity: 1; transform: translate(-50%, 0); }
 }
-@keyframes ai-alert-chip-pulse {
-  0%, 100% { box-shadow: 0 4px 14px rgba(239, 68, 68, 0.25); }
-  50%      { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.6); }
+@keyframes ai-alert-label-pulse {
+  0%, 100% { text-shadow: 0 1px 2px rgba(0,0,0,0.55), 0 0 8px rgba(0,0,0,0.35), 0 0 8px rgba(239,68,68,0.35); }
+  50%      { text-shadow: 0 1px 2px rgba(0,0,0,0.55), 0 0 14px rgba(0,0,0,0.45), 0 0 16px rgba(239,68,68,0.75); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ai-alert-chip,
-  .ai-alert-chip--critical { animation: none; }
-  .ai-alert-chip-gauge-fill { transition: none; }
+  .ai-alert-label,
+  .ai-alert-label--critical { animation: none; }
 }
 
 /* Crisis mode: use red accent for the banner + active pill */
@@ -4470,72 +4453,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 /* ── Legends container (stacks soil + snow legends) ─────────────────────── */
 
-/* Always-visible toggle button — icon-only, matches the other map
-   controls (same dark rounded square as the layers trigger). Tap once
-   to open the legend panel, tap again to close. Panel sits above the
-   button so both stay reachable. */
-.map-legends-toggle {
-  position: absolute;
-  bottom: 88px;
-  left: 12px;
-  z-index: 11;
-  width: 44px;
-  height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  background: rgba(10, 10, 14, 0.82);
-  backdrop-filter: blur(12px) saturate(1.3);
-  -webkit-backdrop-filter: blur(12px) saturate(1.3);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 10px;
-  color: #d4d4d8;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.map-legends-toggle:hover,
-.map-legends-toggle:focus-visible {
-  background: rgba(20, 22, 28, 0.9);
-  color: #f4f4f5;
-  outline: none;
-}
-.map-legends-toggle--open {
-  background: rgba(20, 22, 28, 0.92);
-  border-color: rgba(20, 184, 166, 0.55);
-  color: #5eead4;
-}
-
-.map-legends {
-  position: absolute;
-  bottom: 140px;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  display: flex;
-  flex-direction: row;
-  gap: 6px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding: 0 12px 4px;
-}
-.map-legends::-webkit-scrollbar {
-  display: none;
-}
-.map-legends > * {
-  flex-shrink: 0;
-  animation: legendFadeIn 0.3s ease-out both;
-}
-.map-legends > *:nth-child(2) { animation-delay: 0.06s; }
-.map-legends > *:nth-child(3) { animation-delay: 0.12s; }
-.map-legends > *:nth-child(4) { animation-delay: 0.18s; }
-.map-legends > *:nth-child(5) { animation-delay: 0.24s; }
-@keyframes legendFadeIn {
-  from { opacity: 0; transform: translateY(8px) scale(0.95); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
+/* (The former map-legends floating panel + toggle have been removed.
+    Color scales now live inline in the Layers menu — see
+    .nerv-layer-legend below.) */
 
 .soil-legend {
   background: rgba(10, 10, 14, 0.85);
@@ -5115,6 +5035,29 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .nerv-layer-label {
   flex: 1;
+}
+.nerv-layer-row {
+  display: flex;
+  flex-direction: column;
+}
+.nerv-layer-legend {
+  padding: 0 14px 8px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.nerv-layer-legend-bar {
+  height: 4px;
+  border-radius: 2px;
+  opacity: 0.92;
+}
+.nerv-layer-legend-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: rgba(161, 161, 170, 0.75);
+  font-family: "Courier New", Courier, monospace;
+  letter-spacing: 0.3px;
 }
 .crisis-mode .nerv-layers-trigger {
   border-color: rgba(239, 68, 68, 0.3);
