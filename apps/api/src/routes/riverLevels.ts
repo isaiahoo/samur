@@ -351,6 +351,7 @@ router.get("/ai-skill", async (req, res, next) => {
     });
 
     if (snapshots.length === 0) {
+      res.set("Cache-Control", "public, max-age=600");
       res.json({
         success: true,
         data: [],
