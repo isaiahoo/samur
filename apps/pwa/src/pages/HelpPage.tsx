@@ -67,9 +67,12 @@ export function HelpPage() {
     async (pageNum: number, append = false) => {
       if (!append) setLoading(true);
       try {
-        const params: Record<string, string | number> = {
+        const params: Record<string, string | number | boolean> = {
           type: tab,
-          status: "open",
+          // Show everything that's still in flight — open, claimed, in_progress.
+          // A stricter status=open hid the author's own request as soon as
+          // someone responded, which made it look deleted.
+          activeOnly: true,
           limit: 20,
           page: pageNum,
           sort: "created_at",
@@ -98,17 +101,20 @@ export function HelpPage() {
   );
 
   // Counts are computed ignoring the urgency filter so the summary strip
-  // stays informative while the list narrows.
+  // stays informative while the list narrows. Uses activeOnly to match the
+  // main list — otherwise "Всего 0" while a claimed request sits in view.
   const fetchCounts = useCallback(async () => {
     const otherTab = tab === "need" ? "offer" : "need";
-    const base: Record<string, string | number> = {
-      status: "open",
+    const base: Record<string, string | number | boolean> = {
+      activeOnly: true,
       limit: 1,
       page: 1,
     };
     if (category) base.category = category;
 
-    const safe = async (params: Record<string, string | number>): Promise<number> => {
+    const safe = async (
+      params: Record<string, string | number | boolean>,
+    ): Promise<number> => {
       try {
         const r = await getHelpRequests(params);
         return r.meta?.total ?? 0;

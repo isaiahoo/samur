@@ -297,6 +297,10 @@ export const HelpRequestQuerySchema = PaginationSchema.merge(GeoFilterSchema).ex
   type: HelpRequestTypeSchema.optional(),
   category: HelpCategorySchema.optional(),
   status: HelpRequestStatusSchema.optional(),
+  // "Active" = open | claimed | in_progress (i.e. not completed, not cancelled).
+  // A single-status filter like status=open hides the author's own request the
+  // moment someone responds — this flag keeps active work visible.
+  activeOnly: z.coerce.boolean().optional(),
   urgency: UrgencySchema.optional(),
   source: SourceSchema.optional(),
   sort: z.enum(["created_at", "urgency", "updated_at"]).default("created_at"),

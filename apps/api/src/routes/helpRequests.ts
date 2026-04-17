@@ -171,7 +171,8 @@ router.get(
     try {
       const q = (req as unknown as { parsedQuery: Record<string, unknown> }).parsedQuery as {
         page: number; limit: number; type?: string; category?: string;
-        status?: string; urgency?: string; source?: string;
+        status?: string; activeOnly?: boolean;
+        urgency?: string; source?: string;
         sort: string; order: string;
         lat?: number; lng?: number; radius?: number;
         north?: number; south?: number; east?: number; west?: number;
@@ -181,7 +182,15 @@ router.get(
 
       if (q.type) where.type = q.type as never;
       if (q.category) where.category = q.category as never;
-      if (q.status) where.status = q.status as never;
+      if (q.status) {
+        // Explicit single-status filter still wins when provided — callers
+        // who want strictly "open" (or any other single value) can opt in.
+        where.status = q.status as never;
+      } else if (q.activeOnly) {
+        // The normal list view: show work that's still in flight. Keeps the
+        // author's own request visible after a responder claims it.
+        where.status = { notIn: ["completed", "cancelled"] } as never;
+      }
       if (q.urgency) where.urgency = q.urgency as never;
       if (q.source) where.source = q.source as never;
 
