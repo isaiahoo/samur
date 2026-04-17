@@ -37,6 +37,10 @@ export function MapPage() {
   const [runoffData, setRunoffData] = useState<RunoffPoint[]>([]);
   const [earthquakes, setEarthquakes] = useState<EarthquakeEvent[]>([]);
   const [aiStationKeys, setAiStationKeys] = useState<Set<string>>(new Set());
+  // Stations whose model exists but is running on a seasonal baseline
+  // (sensor is silent). Rendered as a dashed dimmed teal ring so users
+  // see the AI infrastructure without mistaking it for a live forecast.
+  const [aiSeasonalKeys, setAiSeasonalKeys] = useState<Set<string>>(new Set());
   const [aiSummaries, setAiSummaries] = useState<Map<string, string>>(new Map());
 
   // Top AI threat — the single most concerning non-seasonal forecast,
@@ -182,13 +186,19 @@ export function MapPage() {
         byStation.set(key, arr);
       }
 
-      const keys = new Set<string>();
+      const liveKeys = new Set<string>();
+      const seasonalKeys = new Set<string>();
       const summaries = new Map<string, string>();
       const skills = res.meta?.skills ?? {};
 
+      const SEASONAL_SOURCES: ReadonlySet<string> = new Set([
+        "climatology", "training-csv", "unknown",
+      ]);
+
       // A threat is any forecast point whose upper-bound reaches ≥75% of
       // the station's danger level. Seasonal-source stations get tier=none
-      // from the Phase-1 cascade so they're filtered out automatically.
+      // from the Phase-1 cascade so they're filtered out of the threat
+      // banner automatically (they still appear as a dashed ring below).
       type Threat = {
         riverName: string; stationName: string;
         peakCm: number; dangerCm: number; peakDate: string;
@@ -201,12 +211,11 @@ export function MapPage() {
         const hasReal = points.some((p) => (p.levelCm ?? 0) > 0);
         if (!hasReal) continue;
 
-        const tier = skills[key]?.tier;
-        // Suppress AI ring + threat scan for below-medium skill (NSE < 0.5);
-        // server-side gating already drops NSE < 0.3 entirely.
-        if (tier === "low" || tier === "none") continue;
-
-        keys.add(key);
+        const meta = skills[key];
+        const tier = meta?.tier;
+        const source = meta?.source ?? "unknown";
+        const isSeasonal = SEASONAL_SOURCES.has(source);
+        const bestNse = meta?.bestNse ?? 0;
 
         const sorted = [...points].sort((a, b) => a.measuredAt.localeCompare(b.measuredAt));
         const first = sorted[0];
@@ -217,10 +226,25 @@ export function MapPage() {
           (new Date(last.measuredAt).getTime() - new Date(first.measuredAt).getTime()) / 86400000,
         ));
 
-        // Summary expresses the forecast-horizon change in concrete cm
-        // rather than % of the starting level — easier to read on a
-        // marker and avoids adding yet another percentage denominator
-        // to a screen that already juggles several.
+        // Seasonal branch: model exists (NSE is salvageable) but input
+        // lags are day-of-year averages. Mark as "starved" AI — ring
+        // renders dashed, summary framed as a historical norm, never
+        // contributes to the top-of-map threat banner.
+        if (isSeasonal) {
+          if (bestNse === null || bestNse < 0.3) continue;
+          seasonalKeys.add(key);
+          const curLevel = firstLevel > 0 ? firstLevel : lastLevel;
+          summaries.set(key, `AI: норма ~${Math.round(curLevel)} см`);
+          continue;
+        }
+
+        // Live branch: hide the ring when skill is low/none so the map
+        // doesn't credit a flaky live model. Server-side NSE gate drops
+        // < 0.3 entirely; client-side rule here drops "low" (0.3-0.5).
+        if (tier === "low" || tier === "none") continue;
+
+        liveKeys.add(key);
+
         if (firstLevel > 0) {
           const deltaCm = Math.round(lastLevel - firstLevel);
           const sign = deltaCm > 0 ? "+" : "";
@@ -253,7 +277,8 @@ export function MapPage() {
         }
       }
 
-      setAiStationKeys(keys);
+      setAiStationKeys(liveKeys);
+      setAiSeasonalKeys(seasonalKeys);
       setAiSummaries(summaries);
       setTopAiThreat(worst ? {
         riverName: worst.riverName,
@@ -556,6 +581,7 @@ export function MapPage() {
         layers={layers}
         crisisMode={crisisMode}
         aiStationKeys={aiStationKeys}
+        aiSeasonalKeys={aiSeasonalKeys}
         aiSummaries={aiSummaries}
         onMarkerClick={handleMarkerClick}
         onMapMove={handleMapMove}

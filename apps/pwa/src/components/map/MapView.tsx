@@ -61,6 +61,7 @@ interface Props {
   layers: Record<LayerKey, boolean>;
   crisisMode?: boolean;
   aiStationKeys?: Set<string>;
+  aiSeasonalKeys?: Set<string>;
   aiSummaries?: Map<string, string>;
   onMarkerClick: (type: MarkerType, item: Incident | HelpRequest | Shelter | RiverLevel | EarthquakeEvent | Record<string, unknown>) => void;
   onMapMove?: (bounds: { north: number; south: number; east: number; west: number }, zoom: number) => void;
@@ -147,6 +148,7 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
   layers,
   crisisMode,
   aiStationKeys,
+  aiSeasonalKeys,
   aiSummaries,
   onMarkerClick,
   onMapMove,
@@ -896,15 +898,17 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
       const tier = computeTier(r);
       const variant = variantForMarker(zoom, tier.tier, tier.hasData);
       const upstream = checkUpstreamDanger(r.riverName, r.stationName, tier, riverLevels);
-      const hasAi = aiStationKeys?.has(key) ?? false;
+      const isLiveAi = aiStationKeys?.has(key) ?? false;
+      const isSeasonalAi = !isLiveAi && (aiSeasonalKeys?.has(key) ?? false);
+      const aiTier = isLiveAi ? "live" : isSeasonalAi ? "seasonal" : undefined;
       const markerData: GaugeMarkerData = {
         riverName: r.riverName,
         stationName: r.stationName,
         trend: r.trend,
         tier,
         upstream,
-        hasAiForecast: hasAi,
-        aiSummary: hasAi ? (aiSummaries?.get(key) ?? null) : null,
+        aiTier,
+        aiSummary: aiTier ? (aiSummaries?.get(key) ?? null) : null,
       };
 
       const entry = existing.get(key);
@@ -957,7 +961,7 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
         existing.delete(key);
       }
     }
-  }, [riverLevels, mapReady, aiStationKeys, aiSummaries]);
+  }, [riverLevels, mapReady, aiStationKeys, aiSeasonalKeys, aiSummaries]);
 
   // Zoom change: swap marker variants (dot/pill/card)
   useEffect(() => {

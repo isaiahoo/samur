@@ -41,13 +41,18 @@ function esc(s: string): string {
 }
 
 
+export type AiTier = "live" | "seasonal";
+
 /** Ring priority: pulse (tier 3+) > upstream-ring > ai-ring. At most one
  *  decoration ring is applied so the marker never stacks three concentric
- *  rings for a single station. */
-function decorationClass(tier: GaugeTier, upstream?: UpstreamWarning | null, hasAi?: boolean): string {
+ *  rings for a single station. A seasonal ("starved") AI station gets
+ *  a dashed dimmed variant of the AI ring, so the infrastructure shows
+ *  but can't be mistaken for a live forecast. */
+function decorationClass(tier: GaugeTier, upstream?: UpstreamWarning | null, aiTier?: AiTier): string {
   if (tier.tier >= 3 && tier.hasData) return "gauge-pulse";
   if (upstream) return "gauge-upstream-ring";
-  if (hasAi) return "gauge-ai-ring";
+  if (aiTier === "live") return "gauge-ai-ring";
+  if (aiTier === "seasonal") return "gauge-ai-ring gauge-ai-ring--seasonal";
   return "";
 }
 
@@ -92,11 +97,11 @@ function createDotElement(
   stationName: string,
   tier: GaugeTier,
   upstream?: UpstreamWarning | null,
-  hasAi?: boolean,
+  aiTier?: AiTier,
 ): HTMLDivElement {
   const el = document.createElement("div");
   const tierCls = tier.hasData ? `tier-${tier.tier}` : "tier-nodata";
-  const decor = decorationClass(tier, upstream, hasAi);
+  const decor = decorationClass(tier, upstream, aiTier);
   const majorCls = isMajorStation(riverName, stationName) ? " gauge-major" : "";
   el.className = `gauge-dot ${tierCls}${decor ? ` ${decor}` : ""}${majorCls}`;
   return el;
@@ -127,14 +132,14 @@ function createPillElement(
   tier: GaugeTier,
   forecast?: ForecastWarning | null,
   upstream?: UpstreamWarning | null,
-  hasAi?: boolean,
+  aiTier?: AiTier,
 ): HTMLDivElement {
   const wrap = document.createElement("div");
   const majorCls = isMajorStation(riverName, stationName) ? " gauge-marker--major" : "";
   wrap.className = `gauge-marker gauge-marker--pill${majorCls}`;
 
   const tierCls = tier.hasData ? `tier-${tier.tier}` : "tier-nodata";
-  const decor = decorationClass(tier, upstream, hasAi);
+  const decor = decorationClass(tier, upstream, aiTier);
   const pillCls = `gauge-pill ${tierCls}${decor ? ` ${decor}` : ""}`;
   const dotCls = `gauge-anchor-dot ${tierCls}`;
 
@@ -151,7 +156,7 @@ function cardInnerHTML(
   tier: GaugeTier,
   forecast?: ForecastWarning | null,
   upstream?: UpstreamWarning | null,
-  hasAi?: boolean,
+  aiTier?: AiTier,
   aiSummary?: string | null,
 ): string {
   const pctText = tier.hasData ? tierHeroText(tier) : "Нет данных";
@@ -164,8 +169,8 @@ function cardInnerHTML(
   const upstreamHTML = upstream
     ? `<div class="gauge-card-upstream">▲ ${esc(upstream.text)}</div>`
     : "";
-  const aiHTML = hasAi && aiSummary
-    ? `<div class="gauge-card-ai">${esc(aiSummary)}</div>`
+  const aiHTML = aiTier && aiSummary
+    ? `<div class="gauge-card-ai gauge-card-ai--${aiTier}">${esc(aiSummary)}</div>`
     : "";
 
   return `<div class="gauge-card-header"><span class="gauge-card-river">${esc(riverName)} — ${esc(stationName)}</span></div>`
@@ -180,7 +185,7 @@ function createCardElement(
   tier: GaugeTier,
   forecast?: ForecastWarning | null,
   upstream?: UpstreamWarning | null,
-  hasAi?: boolean,
+  aiTier?: AiTier,
   aiSummary?: string | null,
 ): HTMLDivElement {
   const wrap = document.createElement("div");
@@ -188,11 +193,11 @@ function createCardElement(
   wrap.className = `gauge-marker gauge-marker--card${majorCls}`;
 
   const tierCls = tier.hasData ? `tier-${tier.tier}` : "tier-nodata";
-  const decor = decorationClass(tier, upstream, hasAi);
+  const decor = decorationClass(tier, upstream, aiTier);
   const cardCls = `gauge-card ${tierCls}${decor ? ` ${decor}` : ""}`;
   const dotCls = `gauge-anchor-dot ${tierCls}`;
 
-  wrap.innerHTML = `<div class="${cardCls}">${cardInnerHTML(riverName, stationName, trend, tier, forecast, upstream, hasAi, aiSummary)}</div><div class="${dotCls}"></div>`;
+  wrap.innerHTML = `<div class="${cardCls}">${cardInnerHTML(riverName, stationName, trend, tier, forecast, upstream, aiTier, aiSummary)}</div><div class="${dotCls}"></div>`;
   return wrap;
 }
 
@@ -205,7 +210,7 @@ export interface GaugeMarkerData {
   tier: GaugeTier;
   forecast?: ForecastWarning | null;
   upstream?: UpstreamWarning | null;
-  hasAiForecast?: boolean;
+  aiTier?: AiTier;
   aiSummary?: string | null;
 }
 
@@ -215,11 +220,11 @@ export function createMarkerElement(
 ): HTMLDivElement {
   switch (variant) {
     case "dot":
-      return createDotElement(data.riverName, data.stationName, data.tier, data.upstream, data.hasAiForecast);
+      return createDotElement(data.riverName, data.stationName, data.tier, data.upstream, data.aiTier);
     case "pill":
-      return createPillElement(data.riverName, data.stationName, data.trend, data.tier, data.forecast, data.upstream, data.hasAiForecast);
+      return createPillElement(data.riverName, data.stationName, data.trend, data.tier, data.forecast, data.upstream, data.aiTier);
     case "card":
-      return createCardElement(data.riverName, data.stationName, data.trend, data.tier, data.forecast, data.upstream, data.hasAiForecast, data.aiSummary);
+      return createCardElement(data.riverName, data.stationName, data.trend, data.tier, data.forecast, data.upstream, data.aiTier, data.aiSummary);
   }
 }
 
@@ -236,7 +241,7 @@ export function updateMarkerElement(
   if (newVariant !== currentVariant) return true;
 
   const tierClass = data.tier.hasData ? `tier-${data.tier.tier}` : "tier-nodata";
-  const decor = decorationClass(data.tier, data.upstream, data.hasAiForecast);
+  const decor = decorationClass(data.tier, data.upstream, data.aiTier);
   const decorSuffix = decor ? ` ${decor}` : "";
   const major = isMajorStation(data.riverName, data.stationName);
   // Preserve the persistent "gauge-selected" class if the caller has applied
@@ -251,7 +256,7 @@ export function updateMarkerElement(
   const innerPill = newVariant === "pill";
   const inner = innerPill
     ? pillInnerHTML(data.riverName, data.trend, data.tier, data.forecast, data.upstream)
-    : cardInnerHTML(data.riverName, data.stationName, data.trend, data.tier, data.forecast, data.upstream, data.hasAiForecast, data.aiSummary);
+    : cardInnerHTML(data.riverName, data.stationName, data.trend, data.tier, data.forecast, data.upstream, data.aiTier, data.aiSummary);
   const mainClass = innerPill ? "gauge-pill" : "gauge-card";
   existing.className = `gauge-marker gauge-marker--${newVariant}${major ? " gauge-marker--major" : ""}${selected}`;
   existing.innerHTML = `<div class="${mainClass} ${tierClass}${decorSuffix}">${inner}</div><div class="gauge-anchor-dot ${tierClass}"></div>`;

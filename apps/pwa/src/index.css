@@ -4321,7 +4321,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .gauge-dot.gauge-upstream-ring { border-radius: 50%; }
 .gauge-pill.gauge-upstream-ring { outline-offset: 2px; }
 
-/* Кунак AI indicator ring — solid teal */
+/* Кунак AI indicator ring — solid teal for live forecasts */
 .gauge-ai-ring {
   outline: 2px solid #14b8a6;
   outline-offset: 3px;
@@ -4329,11 +4329,24 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .gauge-dot.gauge-ai-ring { border-radius: 50%; }
 .gauge-pill.gauge-ai-ring { outline-offset: 2px; }
 
+/* Seasonal variant: the model exists but inputs are day-of-year
+   averages (sensor silent). Dashed + dimmed so it's visually distinct
+   from a live forecast — infrastructure shows, but can't be mistaken
+   for a weather-responsive prediction. */
+.gauge-ai-ring--seasonal {
+  outline-style: dashed;
+  outline-color: rgba(20, 184, 166, 0.55);
+}
+
 /* Both upstream + AI: AI takes outline (outer), upstream becomes box-shadow (inner) */
 .gauge-upstream-ring.gauge-ai-ring {
   outline-color: #14b8a6;
   outline-style: solid;
   box-shadow: 0 0 0 2px #F59E0B;
+}
+.gauge-upstream-ring.gauge-ai-ring--seasonal {
+  outline-color: rgba(20, 184, 166, 0.55);
+  outline-style: dashed;
 }
 
 /* Card upstream warning line */
@@ -4357,6 +4370,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+/* Seasonal AI (starved-sensor station): dimmer tone, dashed divider —
+   same visual language as the seasonal ring on the marker. */
+.gauge-card-ai--seasonal {
+  color: rgba(20, 184, 166, 0.7);
+  border-top-style: dashed;
+  border-top-color: rgba(153, 246, 228, 0.7);
+  font-weight: 500;
 }
 
 /* Detail panel upstream warning */
@@ -6264,6 +6285,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .ai-legend-ring { background: #52525b; }
   .ai-legend-inline { border-top-color: rgba(160, 160, 170, 0.1); }
   .gauge-card-ai { color: #5eead4; border-top-color: #115e59; }
+  .gauge-card-ai--seasonal { color: rgba(94, 234, 212, 0.7); border-top-color: rgba(17, 94, 89, 0.7); }
 
   /* Event panel — dark mode */
   .ep-toggle {
