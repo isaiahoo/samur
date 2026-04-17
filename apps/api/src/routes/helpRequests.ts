@@ -25,6 +25,7 @@ import {
   emitSOSCreated,
 } from "../lib/emitter.js";
 import { computeUserStats, type UserStats } from "../lib/userStats.js";
+import { getRealIp } from "../lib/clientIp.js";
 import { paramId } from "../lib/params.js";
 import {
   checkSosRateLimit,
@@ -288,7 +289,7 @@ router.post(
   async (req, res, next) => {
     try {
       const { lat, lng, situation, peopleCount, contactPhone, contactName, batteryLevel, source } = req.body;
-      const clientIp = req.ip ?? "unknown";
+      const clientIp = getRealIp(req);
 
       // Tier 1.1 — Per-IP SOS rate limit (1 per 5 min)
       const rateCheck = await checkSosRateLimit(clientIp);

@@ -47,6 +47,14 @@ import uploadsRouter from "./routes/uploads.js";
 import metricsRouter from "./routes/metrics.js";
 
 const app = express();
+
+// Requests always reach us through nginx (and Cloudflare when the orange
+// cloud is on). Trust the proxy chain so Express's internal machinery
+// (X-Forwarded-Proto, secure-cookie detection, etc.) sees HTTPS correctly.
+// We don't rely on Express's req.ip — see lib/clientIp.getRealIp which is
+// robust to the variable hop count between grey and orange Cloudflare.
+app.set("trust proxy", true);
+
 const server = http.createServer(app);
 
 let redisClient: Redis | null = null;

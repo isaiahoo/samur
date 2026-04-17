@@ -2,6 +2,7 @@
 import pino from "pino";
 import { randomUUID } from "crypto";
 import type { Request, Response, NextFunction } from "express";
+import { getRealIp } from "./clientIp.js";
 
 export const logger = pino({
   level: process.env.LOG_LEVEL ?? "info",
@@ -44,7 +45,7 @@ export function pinoRequestLogger(req: Request, res: Response, next: NextFunctio
       url: req.originalUrl,
       status: res.statusCode,
       duration,
-      ip: req.ip,
+      ip: getRealIp(req),
       userAgent: req.headers["user-agent"],
       userId: req.user?.sub,
     };

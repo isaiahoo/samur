@@ -3,6 +3,7 @@ import type { Request, Response, NextFunction } from "express";
 import { RateLimiterRedis, RateLimiterMemory } from "rate-limiter-flexible";
 import type { Redis } from "ioredis";
 import { logger } from "../lib/logger.js";
+import { getRealIp } from "../lib/clientIp.js";
 
 const LIMITS = {
   anonymous: { points: 90, duration: 60 },
@@ -57,7 +58,8 @@ export async function rateLimiterMiddleware(
 
   if (!user) {
     limiterKey = "anonymous";
-    consumeKey = req.ip ?? "unknown";
+    // Must use the real client IP — req.ip is unreliable behind CF+nginx.
+    consumeKey = getRealIp(req);
   } else if (user.role === "coordinator" || user.role === "admin") {
     limiterKey = "coordinator";
     consumeKey = user.sub;
