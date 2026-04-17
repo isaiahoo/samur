@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 /**
- * Registry of curated news feeds for the Samur flood relief platform.
+ * Registry of curated news feeds for the Kunak flood relief platform.
  *
  * Each feed is verified to be active and relevant to Dagestan emergency/flood news.
  * Feeds are fetched periodically and stored in the news_articles table.

@@ -45,7 +45,7 @@ async function fetchWithRetry(url: string, retries = MAX_RETRIES): Promise<strin
       const res = await fetch(url, {
         signal: controller.signal,
         headers: {
-          "User-Agent": "Samur-FloodMonitor/1.0 (flood relief platform; contact: admin@samur.dag)",
+          "User-Agent": "Kunak-FloodMonitor/1.0 (flood relief platform; contact: admin@mykunak.ru)",
           "Accept": "text/html,application/xhtml+xml",
           "Accept-Language": "ru-RU,ru;q=0.9",
         },

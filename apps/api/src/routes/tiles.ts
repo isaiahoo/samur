@@ -99,7 +99,7 @@ function buildFallbackStyle(baseUrl: string): Record<string, unknown> {
   const tileUrl = `${baseUrl}/api/v1/tiles/{z}/{x}/{y}.pbf`;
   return {
     version: 8,
-    name: "Samur",
+    name: "Kunak",
     sources: {
       openmaptiles: { type: "vector", tiles: [tileUrl], maxzoom: 14, attribution: "" },
     },
@@ -149,7 +149,7 @@ router.get("/offline-style.json", (_req, res) => {
   res.set("Cache-Control", "public, max-age=86400");
   res.json({
     version: 8,
-    name: "Samur Offline",
+    name: "Kunak Offline",
     sources: {
       openmaptiles: {
         type: "vector",

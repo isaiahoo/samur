@@ -126,7 +126,7 @@ server.listen(config.PORT, () => {
   logger.info({
     port: config.PORT,
     env: config.NODE_ENV,
-  }, "Samur API running");
+  }, "Kunak API running");
 
   // Start river level scraping scheduler
   startScheduler().catch((err) => {

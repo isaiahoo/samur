@@ -11,7 +11,7 @@ const log = logger.child({ service: "news-fetcher" });
 const parser = new RSSParser({
   timeout: 30_000,
   headers: {
-    "User-Agent": "Samur-FloodMonitor/1.0 (flood relief platform)",
+    "User-Agent": "Kunak-FloodMonitor/1.0 (flood relief platform)",
     Accept: "application/rss+xml, application/xml, text/xml",
     "Accept-Encoding": "identity", // avoid gzip — some feeds return compressed with wrong content-type
   },

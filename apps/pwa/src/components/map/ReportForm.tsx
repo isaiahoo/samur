@@ -45,7 +45,7 @@ async function reverseGeocode(lat: number, lng: number): Promise<string | null> 
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ru&zoom=14`,
-      { headers: { "User-Agent": "Samur-PWA/1.0" } },
+      { headers: { "User-Agent": "Kunak-PWA/1.0" } },
     );
     if (!res.ok) return null;
     const data = await res.json();

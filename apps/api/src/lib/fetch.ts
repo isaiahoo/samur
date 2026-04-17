@@ -41,7 +41,7 @@ export async function fetchJSON<T>(
         signal: controller.signal,
         headers: {
           Accept: "application/json",
-          "User-Agent": "Samur-FloodMonitor/1.0 (flood relief platform)",
+          "User-Agent": "Kunak-FloodMonitor/1.0 (flood relief platform)",
         },
       });
       clearTimeout(timer);

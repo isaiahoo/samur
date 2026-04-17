@@ -1,4 +1,4 @@
-# Samur Platform — Roadmap
+# Kunak Platform — Roadmap
 
 ## Next Steps (prioritized)
 
