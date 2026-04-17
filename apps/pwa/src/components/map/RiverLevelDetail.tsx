@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import type { RiverLevel } from "@samur/shared";
 import { formatRelativeTime } from "@samur/shared";
-import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning, checkUpstreamDanger } from "./gaugeUtils.js";
+import { computeTier, trendArrow, TIER_ACTIONS, computeForecastWarning, checkUpstreamDanger, tierHeroText } from "./gaugeUtils.js";
 import { GaugeChart, type HistoryPoint } from "./GaugeChart.js";
 import { DamageScenario } from "./DamageScenario.js";
 import { AiForecastPanel, isSeasonal } from "./AiForecastPanel.js";
@@ -224,15 +224,10 @@ export function RiverLevelDetail({ data: r, allLevels, soilMoisture }: RiverLeve
         </div>
       )}
 
-      {/* Hero percentage */}
-      {hasData && tier.pctOfMean > 0 && (
+      {/* Hero — reference-aware phrasing (danger vs mean vs tier-only) */}
+      {hasData && tier.referenceMode !== "none" && (
         <div className={`tier-hero tier-hero--${tier.tier}`}>
-          {(() => {
-            const diff = Math.round(tier.pctOfMean - 100);
-            if (diff === 0) return "Норма";
-            if (diff > 0) return `на ${diff}% выше нормы`;
-            return `на ${Math.abs(diff)}% ниже нормы`;
-          })()}
+          {tierHeroText(tier)}
           <span className="tier-hero-sub">
             {arrow}
           </span>

@@ -18,8 +18,19 @@ export interface GaugeTier {
   label: string;
   /** Hex color for the tier */
   color: string;
-  /** Percentage of mean discharge (e.g. 287 = 287% of normal) */
-  pctOfMean: number;
+  /** Percentage of the station's seasonal/annual mean — 100 = baseline,
+   * >100 = above normal flow. Null when the station has no meaningful
+   * mean reference (e.g. CM-based gauges without historical mean). */
+  pctOfMean: number | null;
+  /** Percentage of the station's danger threshold — 0 = safe, 100 =
+   * at flood line, >100 = above flood line. Null when no danger
+   * threshold is available for this station. */
+  pctOfDanger: number | null;
+  /** Which reference the UI should lead with. "danger" means the
+   * station has a hard flood line; "mean" means only a seasonal
+   * baseline is available; "none" means no reference — show the
+   * tier label without a numeric framing. */
+  referenceMode: "danger" | "mean" | "none";
   /** Whether this station has valid data */
   hasData: boolean;
 }
@@ -55,51 +66,114 @@ export function computeTier(r: RiverLevel): GaugeTier {
   const levelCm = r.levelCm;
   const dangerCm = r.dangerLevelCm;
 
+  const base = { pctOfMean: null, pctOfDanger: null, referenceMode: "none" as const };
+
   // No data at all
   if (
     (discharge === null || discharge <= 0) &&
     (levelCm === null || levelCm <= 0)
   ) {
-    return { tier: 1, label: TIER_LABELS[1], color: TIER_COLORS[1], pctOfMean: 0, hasData: false };
+    return { tier: 1, label: TIER_LABELS[1], color: TIER_COLORS[1], ...base, hasData: false };
   }
 
-  // CM-based calculation (if available)
+  // CM-based calculation (if available). Level vs danger threshold is the
+  // cleanest reference a user can reason about — "how close to flooding".
+  // Seasonal-mean context is not reliably available at CM gauges yet, so
+  // pctOfMean stays null here and the UI leads with pctOfDanger.
   if (levelCm !== null && levelCm > 0 && dangerCm && dangerCm > 0) {
     const ratio = levelCm / dangerCm;
-    const pct = Math.round(ratio * 100);
-    if (ratio >= 1.0) return { tier: 4, label: TIER_LABELS[4], color: TIER_COLORS[4], pctOfMean: pct, hasData: true };
-    if (ratio >= 0.75) return { tier: 3, label: TIER_LABELS[3], color: TIER_COLORS[3], pctOfMean: pct, hasData: true };
-    if (ratio >= 0.5) return { tier: 2, label: TIER_LABELS[2], color: TIER_COLORS[2], pctOfMean: pct, hasData: true };
-    return { tier: 1, label: TIER_LABELS[1], color: TIER_COLORS[1], pctOfMean: pct, hasData: true };
+    const pctOfDanger = Math.round(ratio * 100);
+    const cmBase = { pctOfMean: null, pctOfDanger, referenceMode: "danger" as const, hasData: true };
+    if (ratio >= 1.0) return { tier: 4, label: TIER_LABELS[4], color: TIER_COLORS[4], ...cmBase };
+    if (ratio >= 0.75) return { tier: 3, label: TIER_LABELS[3], color: TIER_COLORS[3], ...cmBase };
+    if (ratio >= 0.5) return { tier: 2, label: TIER_LABELS[2], color: TIER_COLORS[2], ...cmBase };
+    return { tier: 1, label: TIER_LABELS[1], color: TIER_COLORS[1], ...cmBase };
   }
 
-  // Discharge-based calculation — prefer annual mean over daily mean
-  // Daily mean tracks seasonal patterns so closely that ratio is always ~1.0
-  // Annual mean shows meaningful seasonal variation
+  // Discharge-based calculation — prefer annual mean over daily mean.
+  // Daily mean tracks seasonal patterns so closely that ratio is always ~1.0.
+  // Annual mean shows meaningful seasonal variation.
   const mean = (annualMean && annualMean > 0) ? annualMean : (dailyMean && dailyMean > 0 ? dailyMean : null);
 
   if (discharge !== null && discharge > 0 && mean && mean > 0) {
     const ratio = discharge / mean;
-    const pct = Math.round(ratio * 100);
-
-    // Check absolute danger threshold
-    const dangerDischarge = r.dischargeMax; // dischargeMax serves as danger threshold
+    const pctOfMean = Math.round(ratio * 100);
+    // dischargeMax stands in as the danger threshold where no per-station
+    // dangerDischarge is surfaced to the row; it's the historical max for
+    // the day-of-year, so crossing it is a genuine anomaly signal.
+    const dangerDischarge = r.dischargeMax;
+    const pctOfDanger = (dangerDischarge && dangerDischarge > 0)
+      ? Math.round((discharge / dangerDischarge) * 100)
+      : null;
+    const qBase = {
+      pctOfMean,
+      pctOfDanger,
+      referenceMode: "mean" as const,
+      hasData: true,
+    };
     if (dangerDischarge && dangerDischarge > 0 && discharge > dangerDischarge) {
-      return { tier: 4, label: TIER_LABELS[4], color: TIER_COLORS[4], pctOfMean: pct, hasData: true };
+      return { tier: 4, label: TIER_LABELS[4], color: TIER_COLORS[4], ...qBase };
     }
-
-    if (ratio > 2.5) return { tier: 4, label: TIER_LABELS[4], color: TIER_COLORS[4], pctOfMean: pct, hasData: true };
-    if (ratio > 1.5) return { tier: 3, label: TIER_LABELS[3], color: TIER_COLORS[3], pctOfMean: pct, hasData: true };
-    if (ratio > 1.15) return { tier: 2, label: TIER_LABELS[2], color: TIER_COLORS[2], pctOfMean: pct, hasData: true };
-    return { tier: 1, label: TIER_LABELS[1], color: TIER_COLORS[1], pctOfMean: pct, hasData: true };
+    if (ratio > 2.5) return { tier: 4, label: TIER_LABELS[4], color: TIER_COLORS[4], ...qBase };
+    if (ratio > 1.5) return { tier: 3, label: TIER_LABELS[3], color: TIER_COLORS[3], ...qBase };
+    if (ratio > 1.15) return { tier: 2, label: TIER_LABELS[2], color: TIER_COLORS[2], ...qBase };
+    return { tier: 1, label: TIER_LABELS[1], color: TIER_COLORS[1], ...qBase };
   }
 
-  // Has discharge but no mean — show data without tier classification
+  // Has discharge but no mean — show data without tier classification.
   if (discharge !== null && discharge > 0) {
-    return { tier: 1, label: TIER_LABELS[1], color: TIER_COLORS[1], pctOfMean: 0, hasData: true };
+    return { tier: 1, label: TIER_LABELS[1], color: TIER_COLORS[1], ...base, hasData: true };
   }
 
-  return { tier: 1, label: TIER_LABELS[1], color: TIER_COLORS[1], pctOfMean: 0, hasData: false };
+  return { tier: 1, label: TIER_LABELS[1], color: TIER_COLORS[1], ...base, hasData: false };
+}
+
+// ── Reference-aware framing ───────────────────────────────────────────────
+
+/**
+ * Compact numeric label for a gauge marker — a single percentage, no units.
+ * Returns null when no reference is available and the UI should fall back
+ * to the tier label alone. For CM-mode stations the number is % of the
+ * danger threshold (so 71 → "71%"); for discharge stations with a mean
+ * reference it is % of the seasonal mean (so 150 → "150%"). The two
+ * denominators are deliberately different — readers glance at the colour
+ * for severity, the number is just one extra glyph of context.
+ */
+export function pctForMarker(tier: GaugeTier): string | null {
+  if (!tier.hasData) return null;
+  if (tier.referenceMode === "danger" && tier.pctOfDanger !== null) {
+    return `${tier.pctOfDanger}%`;
+  }
+  if (tier.referenceMode === "mean" && tier.pctOfMean !== null) {
+    return `${tier.pctOfMean}%`;
+  }
+  return null;
+}
+
+/**
+ * Full sentence for the detail-panel hero. Chooses the reference that
+ * exists for this station and phrases it honestly: "71% до опасного
+ * уровня" for CM-mode gauges (the canonical safety-margin framing),
+ * "на 50% выше/ниже нормы" for discharge-mode stations where we have a
+ * seasonal mean, or just "Норма" / the tier label when neither applies.
+ */
+export function tierHeroText(tier: GaugeTier): string {
+  if (!tier.hasData) return tier.label;
+
+  if (tier.referenceMode === "danger" && tier.pctOfDanger !== null) {
+    if (tier.pctOfDanger >= 100) return "Опасный уровень достигнут";
+    if (tier.pctOfDanger < 10) return "Норма";
+    return `${tier.pctOfDanger}% до опасного уровня`;
+  }
+
+  if (tier.referenceMode === "mean" && tier.pctOfMean !== null) {
+    const diff = Math.round(tier.pctOfMean - 100);
+    if (diff === 0) return "Норма";
+    if (diff > 0) return `на ${diff}% выше нормы`;
+    return `на ${Math.abs(diff)}% ниже нормы`;
+  }
+
+  return tier.label;
 }
 
 // ── Trend arrow ────────────────────────────────────────────────────────────

@@ -213,10 +213,14 @@ export function MapPage() {
           (new Date(last.measuredAt).getTime() - new Date(first.measuredAt).getTime()) / 86400000,
         ));
 
+        // Summary expresses the forecast-horizon change in concrete cm
+        // rather than % of the starting level — easier to read on a
+        // marker and avoids adding yet another percentage denominator
+        // to a screen that already juggles several.
         if (firstLevel > 0) {
-          const pctChange = Math.round(((lastLevel - firstLevel) / firstLevel) * 100);
-          const sign = pctChange >= 0 ? "+" : "";
-          summaries.set(key, `AI: ${sign}${pctChange}% за ${days} дн.`);
+          const deltaCm = Math.round(lastLevel - firstLevel);
+          const sign = deltaCm > 0 ? "+" : "";
+          summaries.set(key, `AI: ${sign}${deltaCm} см за ${days} дн.`);
         } else {
           summaries.set(key, `AI: ${Math.round(lastLevel)} см`);
         }

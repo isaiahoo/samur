@@ -14,6 +14,7 @@
  */
 
 import type { GaugeTier, ForecastWarning, UpstreamWarning } from "./gaugeUtils.js";
+import { pctForMarker, tierHeroText } from "./gaugeUtils.js";
 
 export type MarkerVariant = "dot" | "pill" | "card";
 
@@ -39,14 +40,6 @@ function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-/** Format pctOfMean as "выше/ниже нормы" */
-function formatPct(pct: number): string {
-  if (pct <= 0) return "Нет данных";
-  const diff = Math.round(pct - 100);
-  if (diff === 0) return "Норма";
-  if (diff > 0) return `на ${diff}% выше нормы`;
-  return `на ${Math.abs(diff)}% ниже нормы`;
-}
 
 /** Ring priority: pulse (tier 3+) > upstream-ring > ai-ring. At most one
  *  decoration ring is applied so the marker never stacks three concentric
@@ -120,9 +113,8 @@ function pillInnerHTML(
 ): string {
   const name = esc(riverName);
   const arrow = tier.hasData ? trendIconHTML(trend) : "";
-  const pct = tier.hasData && tier.tier >= 2
-    ? `<span class="gauge-pill-pct">${tier.pctOfMean}%</span>`
-    : "";
+  const pctLabel = tier.tier >= 2 ? pctForMarker(tier) : null;
+  const pct = pctLabel ? `<span class="gauge-pill-pct">${esc(pctLabel)}</span>` : "";
   const warn = forecast?.hasDanger ? `<span class="gauge-pill-flag" aria-label="Прогноз опасности">⚠</span>` : "";
   const up = upstream ? `<span class="gauge-pill-flag" aria-label="Опасность выше по течению">▲</span>` : "";
   return `<span class="gauge-pill-name">${name}</span>${arrow}${pct}${warn}${up}`;
@@ -162,7 +154,7 @@ function cardInnerHTML(
   hasAi?: boolean,
   aiSummary?: string | null,
 ): string {
-  const pctText = formatPct(tier.pctOfMean);
+  const pctText = tier.hasData ? tierHeroText(tier) : "Нет данных";
   const tierLabel = tier.hasData ? esc(tier.label) : "—";
   const arrow = tier.hasData ? trendIconHTML(trend) : "";
 

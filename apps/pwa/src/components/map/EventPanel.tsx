@@ -275,7 +275,14 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
   const sortedRivers = useMemo(
     () => [...riverLevels]
       .map((r) => ({ r, tier: computeTier(r) }))
-      .sort((a, b) => b.tier.tier - a.tier.tier || b.tier.pctOfMean - a.tier.pctOfMean),
+      // Tie-breaker: prefer % of danger when we have it (the more
+      // decision-relevant number), fall back to % of seasonal mean.
+      .sort((a, b) => {
+        if (a.tier.tier !== b.tier.tier) return b.tier.tier - a.tier.tier;
+        const aPct = a.tier.pctOfDanger ?? a.tier.pctOfMean ?? 0;
+        const bPct = b.tier.pctOfDanger ?? b.tier.pctOfMean ?? 0;
+        return bPct - aPct;
+      }),
     [riverLevels],
   );
   const sortedEq = useMemo(
@@ -426,9 +433,9 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
                       {dist && ` · ${dist}`}
                     </span>
                   </span>
-                  {tier.hasData && (
+                  {tier.hasData && (tier.pctOfDanger !== null || tier.pctOfMean !== null) && (
                     <span className="ep-row-pill" style={{ background: `${color}1a`, color }}>
-                      {tier.pctOfMean}%
+                      {tier.pctOfDanger ?? tier.pctOfMean}%
                     </span>
                   )}
                 </button>
