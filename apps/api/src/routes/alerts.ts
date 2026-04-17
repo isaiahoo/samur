@@ -138,20 +138,19 @@ router.get("/context", async (_req, res, next) => {
     const since24h = new Date(now.getTime() - DAY);
     const since48h = new Date(now.getTime() - 2 * DAY);
 
-    // Keyword filter for flood-relevant news. Case-insensitive and
-    // intentionally broad — the News tab's own scraper will surface
-    // anything else; we just pick the items a flood-app user would
-    // want to see as context on the Alerts screen.
+    // Keyword filter for flood-relevant news. Match on TITLE only —
+    // matching on summary/body leaked in generic МЧС / "стихийн"
+    // articles from elsewhere in Russia. Titles are curated and precise,
+    // and the word list is kept tightly flood/landslide-specific.
     const FLOOD_KEYWORDS = [
       "наводнен", "паводок", "паводк", "затоплен", "подтоплен",
       "ливень", "ливн", "шторм",
-      "сель", "селев", "оползень", "оползн", "обрушен",
-      "эвакуац", "МЧС", "стихийн", "чрезвычайн",
+      "сель", "селев", "оползень", "оползн",
+      "эвакуац",
     ];
-    const keywordClauses = FLOOD_KEYWORDS.flatMap((kw) => [
-      { title: { contains: kw, mode: "insensitive" } as const },
-      { summary: { contains: kw, mode: "insensitive" } as const },
-    ]);
+    const keywordClauses = FLOOD_KEYWORDS.map((kw) => (
+      { title: { contains: kw, mode: "insensitive" } as const }
+    ));
 
     const [newsItems, quakeItems, helpItems, aiWatchForecasts] = await Promise.all([
       prisma.newsArticle.findMany({
