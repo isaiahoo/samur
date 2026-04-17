@@ -56,30 +56,27 @@ export function MapLegends({
 
   if (!showAny) return null;
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        className="map-legends-chip"
-        onClick={() => setOpen(true)}
-        aria-label="Показать легенду карты"
-      >
-        <span className="map-legends-chip-icon" aria-hidden="true">ⓘ</span>
-        <span className="map-legends-chip-label">Легенда</span>
-      </button>
-    );
-  }
-
   return (
-    <div className="map-legends">
+    <>
       <button
         type="button"
-        className="map-legends-close"
-        onClick={() => setOpen(false)}
-        aria-label="Скрыть легенду"
+        className={`map-legends-toggle${open ? " map-legends-toggle--open" : ""}`}
+        onClick={() => setOpen((v) => !v)}
+        aria-label={open ? "Скрыть легенду" : "Показать легенду"}
+        aria-expanded={open}
       >
-        ×
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="5" cy="6" r="1.5" fill="currentColor" stroke="none" />
+          <line x1="10" y1="6" x2="20" y2="6" />
+          <circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none" />
+          <line x1="10" y1="12" x2="20" y2="12" />
+          <circle cx="5" cy="18" r="1.5" fill="currentColor" stroke="none" />
+          <line x1="10" y1="18" x2="20" y2="18" />
+        </svg>
       </button>
+
+      {open && (
+        <div className="map-legends">
       {layers.floodHeatmap && hasRiverLevels && (
         <div className="flood-legend">
           <div className="flood-legend-title">🌊 Зона затопления</div>
@@ -169,6 +166,8 @@ export function MapLegends({
         </div>
       )}
 
-    </div>
+        </div>
+      )}
+    </>
   );
 }
