@@ -16,9 +16,10 @@ interface Props {
   // flash for strangers. The real gate is the server's response; see effect.
   canParticipate: boolean;
   currentUserId: string | null;
-  // When true, the chat fills all vertical space the parent offers and the
-  // composer is pinned at the bottom. Used in the "Обсуждение" tab.
-  fullHeight?: boolean;
+  // Pins the composer to the bottom of the nearest scrolling ancestor (the
+  // sheet's scroll container) so typing is always one tap away no matter
+  // how far down the user has scrolled.
+  stickyComposer?: boolean;
 }
 
 type ChatState = "loading" | "locked" | "error" | "ready";
@@ -37,8 +38,8 @@ function formatTime(iso: string): string {
     : d.toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-export function HelpChat({ requestId, canParticipate, currentUserId, fullHeight }: Props) {
-  const rootClass = `help-chat${fullHeight ? " help-chat--fullheight" : ""}`;
+export function HelpChat({ requestId, canParticipate, currentUserId, stickyComposer }: Props) {
+  const rootClass = `help-chat${stickyComposer ? " help-chat--inline" : ""}`;
   const [state, setState] = useState<ChatState>(canParticipate ? "loading" : "locked");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [messages, setMessages] = useState<HelpMessage[]>([]);
@@ -119,7 +120,7 @@ export function HelpChat({ requestId, canParticipate, currentUserId, fullHeight 
   // ── Locked state: calm, explanatory, points at the respond button. ─────
   if (state === "locked") {
     return (
-      <div className={`help-chat-locked${fullHeight ? " help-chat-locked--fullheight" : ""}`}>
+      <div className="help-chat-locked">
         <div className="help-chat-locked-icon" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="11" width="18" height="11" rx="2" />

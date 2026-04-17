@@ -2644,45 +2644,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   font-weight: 600;
 }
 
-/* Tabs below the top bar: "Детали" / "Обсуждение". Lets the chat tab
-   take the full content height without fighting the meta blocks. */
-.detail-tabs {
-  display: flex;
-  padding: 0;
-  border-bottom: 1px solid var(--color-border);
-  flex-shrink: 0;
-  background: #f8fafc;
-}
-.detail-tab {
-  flex: 1;
-  padding: 12px 14px;
-  background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
-  font-size: 14.5px;
-  font-weight: 600;
-  color: #475569;
-  cursor: pointer;
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 46px;
-}
-.detail-tab + .detail-tab {
-  border-left: 1px solid var(--color-border);
-}
-.detail-tab--active {
-  color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
-  background: #fff;
-}
-.detail-tab-icon {
-  width: 16px;
-  height: 16px;
-  opacity: 0.85;
-}
+/* (Tabs removed — chat is now part of the unified scroll with a sticky
+   composer. See .help-chat--inline below.) */
 .detail-tab-count { font-size: 12px; font-weight: 500; color: inherit; }
 .detail-tab-badge {
   min-width: 18px;
@@ -2699,81 +2662,42 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   margin-left: 4px;
 }
 
-/* When the chat tab is active, the content slot has no padding and the
-   chat fills the entire area. Composer pinned at the bottom of the sheet,
-   above the sticky footer action bar. */
-.sheet-content--chat {
-  padding: 0 !important;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.help-chat--fullheight {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  border-top: none;
-  padding-top: 0;
-  margin-bottom: 0;
-}
-.help-chat--fullheight .help-chat-title {
-  display: none; /* redundant with the tab label */
-}
-.help-chat--fullheight .help-chat-list {
-  flex: 1;
-  max-height: none;
-  border-radius: 0;
-  border: none;
-  border-bottom: 1px solid var(--color-border);
-  background: transparent;
-  padding: 12px 14px;
-}
-.help-chat--fullheight .help-chat-composer {
-  margin: 0;
-  padding: 10px 14px;
+/* Inline chat mode — the entire chat lives in the main scroll flow.
+   Message list has no max-height (the sheet scroll handles overflow);
+   composer is pinned to the bottom of the scroll viewport so typing is
+   always one tap away regardless of scroll position. */
+.help-chat--inline {
   border-top: 1px solid var(--color-border);
+  padding-top: 0;
+  margin: 0 -16px -24px; /* bleed to sheet edges so composer sticks flush */
+  padding: 0;
+}
+.help-chat--inline .help-chat-title {
+  padding: 14px 16px 8px;
+  margin: 0;
+  font-size: 12px;
+  position: sticky;
+  top: 0;
   background: var(--color-surface);
+  z-index: 2;
+  border-bottom: 1px solid var(--color-border);
 }
-.help-chat-locked--fullheight {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  border-top: none;
-  padding: 32px 16px;
+.help-chat--inline .help-chat-list {
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 12px 16px 6px;
 }
-
-/* "N новых в обсуждении" nudge on the Details tab — tap to jump to Chat tab. */
-.detail-chat-jump {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  margin: 8px 0 12px;
-  border: 1px solid #bfdbfe;
-  border-radius: 10px;
-  background: #eff6ff;
-  color: #1e40af;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: left;
-}
-.detail-chat-jump-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #ef4444;
-  flex-shrink: 0;
-  animation: pulse 2s ease-in-out infinite;
-}
-.detail-chat-jump-arrow {
-  margin-left: auto;
-  font-size: 18px;
-  line-height: 1;
+.help-chat--inline .help-chat-composer {
+  position: sticky;
+  bottom: 0;
+  margin: 0;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.04);
+  z-index: 3;
 }
 
 /* Compact top bar: category + urgency + cancel, replacing the old
@@ -6272,19 +6196,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .detail-contact-empty { color: #71717a; }
   .detail-contact-hint { color: #71717a; }
   .detail-status-count { background: rgba(67,56,202,0.22); color: #c7d2fe; }
-  .detail-tabs { border-bottom-color: var(--color-border); background: #1f1f23; }
-  .detail-tab { color: #d4d4d8; }
-  .detail-tab--active { color: var(--color-primary); background: var(--color-surface); }
-  .detail-tab + .detail-tab { border-left-color: var(--color-border); }
-  .help-chat--fullheight .help-chat-list { border-bottom-color: var(--color-border); }
-  .help-chat--fullheight .help-chat-composer {
+  .help-chat--inline .help-chat-title {
+    background: var(--color-surface);
+    border-bottom-color: var(--color-border);
+  }
+  .help-chat--inline .help-chat-composer {
     background: var(--color-surface);
     border-top-color: var(--color-border);
-  }
-  .detail-chat-jump {
-    background: rgba(59,130,246,0.10);
-    border-color: rgba(59,130,246,0.35);
-    color: #bfdbfe;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
   }
   .detail-topbar { border-color: var(--color-border); }
   .detail-topbar .detail-category { color: #f4f4f5; }
