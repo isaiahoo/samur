@@ -3669,6 +3669,105 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   margin-bottom: 2px;
 }
 
+/* ── Context feed (bottom of Alerts tab) ─────────────────────────────── */
+/* Visually subordinate to active alerts: muted colours, compact rows,
+   section-style header. Every row deep-links to its canonical tab
+   (News/Map/Help) so the feed is a teaser list, not a duplicate. */
+.context-feed {
+  margin-top: 8px;
+  padding: 20px 16px 24px;
+  border-top: 1px solid #e4e4e7;
+}
+.context-feed-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: #71717a;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+.context-feed-empty-note {
+  font-size: 13px;
+  color: #a1a1aa;
+  margin: 0;
+  padding: 4px 0 0;
+}
+.context-feed-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.context-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.context-row:hover:not(:disabled),
+.context-row:focus-visible:not(:disabled) {
+  background: #f4f4f5;
+  outline: none;
+}
+.context-row:disabled { cursor: default; }
+.context-row-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  opacity: 0.85;
+  width: 22px;
+  text-align: center;
+}
+.context-row-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.context-row-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #27272a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.context-row-subtitle {
+  font-size: 11px;
+  color: #71717a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.context-row-time {
+  font-size: 11px;
+  color: #a1a1aa;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.context-row-chevron {
+  font-size: 16px;
+  color: #a1a1aa;
+  flex-shrink: 0;
+  line-height: 1;
+}
+/* Per-kind tint: a subtle left-edge accent so the eye can group without
+   the feed looking as loud as the alert cards above. */
+.context-row--news     { border-left: 3px solid #fde68a; padding-left: 7px; }
+.context-row--quake    { border-left: 3px solid #fecaca; padding-left: 7px; }
+.context-row--help     { border-left: 3px solid #fecaca; padding-left: 7px; }
+.context-row--ai-watch { border-left: 3px solid #a5f3fc; padding-left: 7px; }
+
 /* "New since last visit" indicator — a small pulsing dot inside the
    card header + a subtle background tint so users can spot freshly
    arrived items at a glance. The watermark is snapshotted at mount;

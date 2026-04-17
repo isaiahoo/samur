@@ -13,6 +13,7 @@ import type { AlertsSituation } from "../services/api.js";
 import { Spinner } from "../components/Spinner.js";
 import { SituationSummary } from "../components/alerts/SituationSummary.js";
 import { AlertActions } from "../components/alerts/AlertActions.js";
+import { ContextFeed } from "../components/alerts/ContextFeed.js";
 import { useAlertsStore, isAlertNew } from "../store/alerts.js";
 
 export function AlertsPage() {
@@ -124,6 +125,8 @@ export function AlertsPage() {
           ))}
         </div>
       )}
+
+      <ContextFeed />
     </div>
   );
 }

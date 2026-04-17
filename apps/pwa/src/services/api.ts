@@ -293,6 +293,19 @@ export function getAlertsSituation() {
   return request<ApiResponse<AlertsSituation>>("/alerts/situation");
 }
 
+export interface AlertsContextItem {
+  id: string;
+  kind: "news" | "quake" | "help" | "ai-watch";
+  timestamp: string;
+  title: string;
+  subtitle?: string;
+  navigateTo?: string;
+  icon: string;
+}
+export function getAlertsContext() {
+  return request<ApiResponse<AlertsContextItem[]>>("/alerts/context");
+}
+
 export function getAlerts(params?: Record<string, string | number | boolean>) {
   const qs = params ? "?" + new URLSearchParams(toStringRecord(params)).toString() : "";
   return request<PaginatedResponse<unknown>>(`/alerts${qs}`);
