@@ -142,10 +142,14 @@ router.get("/context", async (_req, res, next) => {
     // matching on summary/body leaked in generic МЧС / "стихийн"
     // articles from elsewhere in Russia. Titles are curated and precise,
     // and the word list is kept tightly flood/landslide-specific.
+    // Note: "сель" on its own would false-match "сельских" (rural), so
+    // we use only the unambiguous "селев" adjective root for mudslide.
+    // Other keywords are long enough that substring collisions are
+    // extremely unlikely.
     const FLOOD_KEYWORDS = [
       "наводнен", "паводок", "паводк", "затоплен", "подтоплен",
       "ливень", "ливн", "шторм",
-      "сель", "селев", "оползень", "оползн",
+      "селев", "оползень", "оползн",
       "эвакуац",
     ];
     const keywordClauses = FLOOD_KEYWORDS.map((kw) => (
