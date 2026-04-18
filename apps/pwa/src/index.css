@@ -4700,6 +4700,75 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .btn-tg-login:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-tg-login svg { flex-shrink: 0; }
 
+/* Telegram auth card — shown after the user taps "Войти через Telegram"
+   and telegramInit() returns a one-time token. The two anchors (tg://
+   deep-link + https://t.me web fallback) are user-gesture taps so iOS
+   Safari doesn't block them the way it blocked the old
+   setTimeout-driven window.open. */
+.tg-auth-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 8px 12px;
+  text-align: center;
+}
+.tg-auth-icon { flex-shrink: 0; }
+.tg-auth-title { font-size: 17px; font-weight: 700; margin: 0; }
+.tg-auth-body {
+  font-size: 14px;
+  color: #52525b;
+  margin: 0;
+  line-height: 1.5;
+  max-width: 320px;
+}
+a.tg-auth-primary {
+  /* Anchor inherits .btn-tg-login sizing; override default link color
+     so it reads as a button, not a text link. */
+  text-decoration: none;
+  color: #fff;
+}
+a.tg-auth-fallback {
+  font-size: 13px;
+  color: #52525b;
+  text-decoration: underline;
+  text-decoration-color: rgba(82, 82, 91, 0.3);
+  text-underline-offset: 3px;
+}
+.tg-auth-waiting {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #71717a;
+  margin-top: 4px;
+}
+.tg-auth-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+.tg-auth-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #2aabee;
+  animation: tg-auth-bounce 1.2s ease-in-out infinite;
+}
+.tg-auth-dots span:nth-child(2) { animation-delay: 0.18s; }
+.tg-auth-dots span:nth-child(3) { animation-delay: 0.36s; }
+@keyframes tg-auth-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tg-auth-dots span { animation: none; opacity: 0.6; }
+}
+.tg-auth-cancel {
+  margin-top: 4px;
+  color: #71717a !important;
+  text-decoration: none !important;
+}
+
 .btn-vk-login {
   display: flex;
   align-items: center;
@@ -7587,6 +7656,11 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .btn-tg-login:hover { background: #40b8f5; }
   .btn-vk-login { background: #0077ff; }
   .btn-vk-login:hover { background: #338aff; }
+  .tg-auth-title { color: var(--color-text); }
+  .tg-auth-body { color: #a1a1aa; }
+  a.tg-auth-fallback { color: #a1a1aa; }
+  .tg-auth-waiting { color: #a1a1aa; }
+  .tg-auth-cancel { color: #a1a1aa !important; }
   .vk-callback-error { color: #f87171; }
   .vk-callback-loading { color: #d4d4d8; }
 

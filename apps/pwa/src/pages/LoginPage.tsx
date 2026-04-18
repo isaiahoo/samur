@@ -41,7 +41,12 @@ export function LoginPage() {
   const [step, setStep] = useState<"phone" | "code" | "profile">("phone");
   const [submitting, setSubmitting] = useState(false);
   const [tgLoading, setTgLoading] = useState(false);
-  const [tgPolling, setTgPolling] = useState(false);
+  /** Set after telegramInit() returns a one-time token. Non-null means
+   * the auth card is visible and we're polling for confirmation.
+   * Carrying the token in state (vs a separate boolean) lets the <a>
+   * href be a direct, gesture-safe tap — iOS Safari blocks window.open
+   * / setTimeout-driven navigation but not a user-initiated anchor tap. */
+  const [tgAuthToken, setTgAuthToken] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [error, setError] = useState("");
 
@@ -77,54 +82,51 @@ export function LoginPage() {
     }, 1000);
   }, []);
 
+  const cancelTgAuth = useCallback(() => {
+    if (tgPollRef.current) {
+      clearInterval(tgPollRef.current);
+      tgPollRef.current = null;
+    }
+    setTgAuthToken(null);
+    setTgLoading(false);
+  }, []);
+
   const handleTelegramLogin = async () => {
     setTgLoading(true);
     try {
       const res = await telegramInit();
       const { token } = res.data as { token: string };
+      setTgAuthToken(token);
+      setTgLoading(false);
 
-      const tgDeepLink = `tg://resolve?domain=${TG_BOT_NAME}&start=login_${token}`;
-      const tgWebLink = `https://t.me/${TG_BOT_NAME}?start=login_${token}`;
-
-      window.location.href = tgDeepLink;
-      setTimeout(() => {
-        if (document.hasFocus()) {
-          window.open(tgWebLink, "_blank");
-        }
-      }, 1500);
-
-      setTgPolling(true);
+      // Poll the server for confirmation. The user completes auth by
+      // tapping the "Открыть Telegram" anchor in the card we now show —
+      // that navigation is a direct user gesture, no popup blocker.
       let attempts = 0;
       const maxAttempts = 60;
-
       tgPollRef.current = setInterval(async () => {
         attempts++;
         if (attempts > maxAttempts) {
-          clearInterval(tgPollRef.current!);
-          tgPollRef.current = null;
-          setTgPolling(false);
-          setTgLoading(false);
+          cancelTgAuth();
           showToast("Время ожидания истекло. Попробуйте снова.", "error");
           return;
         }
-
         try {
           const check = await telegramCheck(token);
           const data = check.data as { status: string; token?: string; user?: User };
           if (data.status === "ok" && data.token && data.user) {
-            clearInterval(tgPollRef.current!);
-            tgPollRef.current = null;
-            setTgPolling(false);
+            if (tgPollRef.current) {
+              clearInterval(tgPollRef.current);
+              tgPollRef.current = null;
+            }
+            setTgAuthToken(null);
             setAuth(data.token, data.user);
             showToast("Вход выполнен через Telegram", "success");
             navigate("/");
           }
         } catch (err) {
           if (err instanceof ApiError && err.status === 404) {
-            clearInterval(tgPollRef.current!);
-            tgPollRef.current = null;
-            setTgPolling(false);
-            setTgLoading(false);
+            cancelTgAuth();
             showToast("Время ожидания истекло. Попробуйте снова.", "error");
           }
         }
@@ -343,7 +345,51 @@ export function LoginPage() {
         )}
 
         {/* Social Login — hidden during profile step */}
-        {step !== "profile" && (
+        {step !== "profile" && tgAuthToken && (
+          <div className="tg-auth-card">
+            <svg
+              className="tg-auth-icon"
+              width="40" height="40" viewBox="0 0 24 24" fill="#2aabee"
+              aria-hidden="true"
+            >
+              <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+            </svg>
+            <h3 className="tg-auth-title">Подтвердите вход</h3>
+            <p className="tg-auth-body">
+              Откройте Telegram и нажмите «Старт» в боте — мы подхватим
+              подтверждение автоматически.
+            </p>
+            <a
+              href={`tg://resolve?domain=${TG_BOT_NAME}&start=login_${tgAuthToken}`}
+              className="btn-tg-login tg-auth-primary"
+            >
+              Открыть Telegram
+            </a>
+            <a
+              href={`https://t.me/${TG_BOT_NAME}?start=login_${tgAuthToken}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="tg-auth-fallback"
+            >
+              Не открылось? Открыть в браузере
+            </a>
+            <div className="tg-auth-waiting" role="status" aria-live="polite">
+              <span className="tg-auth-dots" aria-hidden="true">
+                <span /><span /><span />
+              </span>
+              Ждём подтверждения…
+            </div>
+            <button
+              type="button"
+              className="btn-link tg-auth-cancel"
+              onClick={cancelTgAuth}
+            >
+              Отменить
+            </button>
+          </div>
+        )}
+
+        {step !== "profile" && !tgAuthToken && (
           <>
             <div className="social-login-section">
               <button
@@ -367,7 +413,7 @@ export function LoginPage() {
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
                 </svg>
-                {tgPolling ? "Ожидание подтверждения..." : "Войти через Telegram"}
+                {tgLoading ? "Подключение…" : "Войти через Telegram"}
               </button>
             </div>
 
@@ -378,7 +424,7 @@ export function LoginPage() {
         )}
 
         {/* Phone Step — enter phone, request code */}
-        {step === "phone" && (
+        {step === "phone" && !tgAuthToken && (
           <form onSubmit={handlePhoneRequest}>
             <div className="form-group">
               <label htmlFor="login-phone">Телефон</label>
@@ -411,7 +457,7 @@ export function LoginPage() {
         )}
 
         {/* Code Step — enter code only (no name/role here) */}
-        {step === "code" && (
+        {step === "code" && !tgAuthToken && (
           <form onSubmit={handleCodeVerify}>
             <p className="phone-code-info">
               Звонок на <strong>{phone}</strong>
