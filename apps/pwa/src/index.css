@@ -632,6 +632,17 @@ select {
   border-radius: 2px;
   margin: 8px auto;
 }
+/* Larger touch target around the 4px visual handle — users can grab
+   anywhere along the top strip of the sheet, not just the thin line.
+   touch-action: none stops the browser from interpreting the drag as
+   a vertical scroll before our handlers see it. */
+.sheet-drag-area {
+  padding: 4px 0;
+  touch-action: none;
+  cursor: grab;
+}
+.sheet-drag-area:active { cursor: grabbing; }
+.sheet-drag-area .sheet-handle { margin: 4px auto; }
 .sheet-content {
   padding: 0 16px calc(24px + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
