@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import type { IncidentType, HelpCategory } from "@samur/shared";
 import { INCIDENT_TYPE_LABELS, HELP_CATEGORY_LABELS } from "@samur/shared";
 import { useGeolocation } from "../../hooks/useGeolocation.js";
@@ -105,6 +106,24 @@ export function ReportForm({ onClose, onCreated }: { onClose: () => void; onCrea
     });
     return () => { cancelled = true; };
   }, [position]);
+
+  /** True once the user has done anything beyond the initial open — used
+   * to gate the close path with a confirm so a stray backdrop tap or
+   * misfired X-tap doesn't wipe typed content + picked photos. Contact
+   * name/phone are seeded from the logged-in user, so compare against
+   * those rather than raw truthy. */
+  const hasContent = !!(
+    reportType ||
+    description.trim() ||
+    photos.length > 0 ||
+    severity !== "medium" ||
+    (contactName.trim() && contactName !== (user?.name ?? "")) ||
+    (contactPhone.trim() && contactPhone !== (user?.phone ?? ""))
+  );
+  const attemptClose = useCallback(() => {
+    if (hasContent && !window.confirm("Закрыть? Введённые данные будут потеряны.")) return;
+    onClose();
+  }, [hasContent, onClose]);
 
   const handleSelectIncident = useCallback((type: IncidentType) => {
     setReportType("incident");
@@ -213,26 +232,36 @@ export function ReportForm({ onClose, onCreated }: { onClose: () => void; onCrea
     }
   };
 
-  return (
-    <div className="report-form">
-      <div className="report-form-header">
-        <div className="report-form-header-left">
-          {step > 1 && (
-            <button
-              type="button"
-              className="btn-close"
-              onClick={() => setStep(step - 1)}
-              aria-label="Назад"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-          )}
-          <h2>Сообщить</h2>
-        </div>
-        <button type="button" className="btn-close" onClick={onClose} aria-label="Закрыть">✕</button>
-      </div>
+  return createPortal(
+    <>
+      {/* Backdrop and overlay live inside ReportForm now so the close
+          flow (X button, Escape, backdrop tap) all route through
+          attemptClose and get the same unsaved-content confirm. */}
+      <div
+        className="report-overlay-backdrop"
+        onClick={attemptClose}
+        onTouchMove={(e) => e.preventDefault()}
+      />
+      <div className="report-overlay">
+        <div className="report-form">
+          <div className="report-form-header">
+            <div className="report-form-header-left">
+              {step > 1 && (
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setStep(step - 1)}
+                  aria-label="Назад"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+              )}
+              <h2>Сообщить</h2>
+            </div>
+            <button type="button" className="btn-close" onClick={attemptClose} aria-label="Закрыть">✕</button>
+          </div>
 
       {step === 1 && (
         <div className="report-step">
@@ -431,6 +460,9 @@ export function ReportForm({ onClose, onCreated }: { onClose: () => void; onCrea
           )}
         </div>
       )}
-    </div>
+        </div>
+      </div>
+    </>,
+    document.body,
   );
 }

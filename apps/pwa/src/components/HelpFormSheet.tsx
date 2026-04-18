@@ -89,14 +89,30 @@ export function HelpFormSheet({ tab, onClose }: Props) {
     return () => { document.body.style.overflow = prev; };
   }, []);
 
+  /** True whenever the user has typed anything meaningful — used to gate
+   * the close path with a confirm, so a stray backdrop tap doesn't wipe
+   * a description + photos the user spent a minute assembling. */
+  const hasContent = !!(
+    category ||
+    description.trim() ||
+    (address && editingAddress) ||
+    contactName.trim() ||
+    contactPhone.trim() ||
+    photos.length > 0
+  );
+  const attemptClose = useCallback(() => {
+    if (hasContent && !window.confirm("Закрыть? Введённые данные будут потеряны.")) return;
+    onClose();
+  }, [hasContent, onClose]);
+
   // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") attemptClose();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [attemptClose]);
 
   // Auto-fill from user
   useEffect(() => {
@@ -222,12 +238,12 @@ export function HelpFormSheet({ tab, onClose }: Props) {
   const contactSummary = [contactName, contactPhone].filter(Boolean).join(" \u00B7 ");
 
   return createPortal(
-    <div className="sheet-overlay" onClick={onClose}>
+    <div className="sheet-overlay" onClick={attemptClose}>
       <div className="sheet sheet--tall" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="sheet-form-header">
           <h3>{tab === "offer" ? "Предложить помощь" : "Запросить помощь"}</h3>
-          <button className="btn-close" onClick={onClose} aria-label="Закрыть">
+          <button className="btn-close" onClick={attemptClose} aria-label="Закрыть">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <line x1="6" y1="6" x2="18" y2="18" />
               <line x1="6" y1="18" x2="18" y2="6" />

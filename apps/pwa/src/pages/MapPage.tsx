@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { createPortal } from "react-dom";
 import type { Incident, HelpRequest, Shelter, RiverLevel, EarthquakeEvent } from "@samur/shared";
 import { MapView, type MapViewHandle, type MarkerType } from "../components/map/MapView.js";
 import { LayerToggle } from "../components/map/LayerToggle.js";
@@ -742,20 +741,14 @@ export function MapPage() {
         </button>
       )}
 
-      {showReport && createPortal(
-        <>
-          <div className="report-overlay-backdrop" onClick={() => setShowReport(false)} onTouchMove={(e) => e.preventDefault()} />
-          <div className="report-overlay">
-            <ReportForm
-              onClose={() => setShowReport(false)}
-              onCreated={(lat, lng) => {
-                // Fly to the newly created item after a short delay for WebSocket marker to arrive
-                setTimeout(() => mapViewRef.current?.flyTo(lng, lat, 15), 400);
-              }}
-            />
-          </div>
-        </>,
-        document.body,
+      {showReport && (
+        <ReportForm
+          onClose={() => setShowReport(false)}
+          onCreated={(lat, lng) => {
+            // Fly to the newly created item after a short delay for WebSocket marker to arrive
+            setTimeout(() => mapViewRef.current?.flyTo(lng, lat, 15), 400);
+          }}
+        />
       )}
     </div>
   );
