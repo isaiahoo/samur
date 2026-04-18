@@ -525,9 +525,9 @@ export function HelpPage() {
   );
 }
 
-/** Age-bucket for a response's last status change. Drives the colored
- * tint on the response strip + decides which inline nudges to show.
- * Thresholds match the Phase-3 reaper (which auto-cancels at 6h). */
+/** Age-bucket for a response's last status change. Drives the pulse
+ * intensity on the current progress dot + the tone of the inline note.
+ * Thresholds match the Phase-3 reaper (auto-cancels at 6 h). */
 type ResponseAge = "fresh" | "due" | "stale";
 function ageBucket(updatedAt: string | null | undefined, status: string | null | undefined): ResponseAge {
   if (!updatedAt || status !== "responded") return "fresh";
@@ -545,6 +545,70 @@ function formatAgeShort(updatedAt: string | null | undefined): string | null {
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours} ч`;
   return `${Math.floor(hours / 24)} д`;
+}
+
+/** Four-step commitment lifecycle visualized as dots + connectors. The
+ * current dot pulses when the response ages past its threshold so the
+ * signal reaches peripheral vision without tinting the whole card. */
+const STATUS_STEPS: Array<{ key: HelpResponseStatus; label: string }> = [
+  { key: "responded", label: "откликнулись" },
+  { key: "on_way", label: "в пути" },
+  { key: "arrived", label: "на месте" },
+  { key: "helped", label: "помогли" },
+];
+
+function nextActionLabel(status: HelpResponseStatus | null | undefined): { label: string; target: HelpResponseStatus } | null {
+  if (status === "responded") return { label: "Я в пути", target: "on_way" };
+  if (status === "on_way") return { label: "На месте", target: "arrived" };
+  if (status === "arrived") return { label: "Помог", target: "helped" };
+  return null;
+}
+
+function ResponseProgress({
+  status,
+  age,
+}: {
+  status: HelpResponseStatus;
+  age: ResponseAge;
+}) {
+  const currentIdx = STATUS_STEPS.findIndex((s) => s.key === status);
+  return (
+    <div className="rp-track" role="progressbar" aria-valuemin={0} aria-valuemax={STATUS_STEPS.length - 1} aria-valuenow={currentIdx < 0 ? 0 : currentIdx}>
+      <div className="rp-row">
+        {STATUS_STEPS.map((s, i) => {
+          const done = i < currentIdx;
+          const current = i === currentIdx;
+          const dotClass = done
+            ? "rp-dot rp-dot--done"
+            : current
+              ? `rp-dot rp-dot--current rp-dot--${age}`
+              : "rp-dot";
+          return (
+            <div key={s.key} className="rp-step">
+              <span className={dotClass} aria-hidden="true" />
+              {i < STATUS_STEPS.length - 1 && (
+                <span className={`rp-line ${done ? "rp-line--done" : ""}`} aria-hidden="true" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="rp-labels">
+        {STATUS_STEPS.map((s, i) => {
+          const current = i === currentIdx;
+          const done = i < currentIdx;
+          return (
+            <span
+              key={s.key}
+              className={`rp-label ${current ? "rp-label--current" : ""} ${done ? "rp-label--done" : ""}`}
+            >
+              {s.label}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function HelpCard({
@@ -599,77 +663,13 @@ function HelpCard({
       data-urgency={item.urgency}
       style={animDelay ? { "--anim-delay": `${animDelay}ms` } as CSSProperties : undefined}
     >
-      {/* Response strip — pinned at the top of cards where I'm actively
-          helping. Shows current status, age since last state change, and
-          one-tap advance actions so volunteers can progress the
-          commitment without opening the detail sheet. Clicks on the
-          buttons stopPropagation so they don't also open the sheet. */}
-      {isActiveMyResponse && (
-        <div className={`help-card-response-strip help-card-response-strip--${age}`}>
-          <div className="help-card-response-head">
-            <span className="help-card-response-state">
-              {item.myResponseStatus === "responded" && "Вы откликнулись"}
-              {item.myResponseStatus === "on_way" && "Вы в пути"}
-              {item.myResponseStatus === "arrived" && "Вы на месте"}
-            </span>
-            {ageLabel && (
-              <span className="help-card-response-age" title="Время с последнего обновления статуса">
-                · {ageLabel}
-              </span>
-            )}
-            {unread > 0 && (
-              <span className="help-card-unread">
-                {unread} {unread === 1 ? "новое" : "новых"}
-              </span>
-            )}
-          </div>
-          {age === "due" && item.myResponseStatus === "responded" && (
-            <div className="help-card-response-nudge">
-              Прошло больше 2 часов. Подтвердите, что вы в пути, или отмените отклик.
-            </div>
-          )}
-          {age === "stale" && item.myResponseStatus === "responded" && (
-            <div className="help-card-response-nudge help-card-response-nudge--stale">
-              Отклик устаревает. Ещё актуально?
-            </div>
-          )}
-          <div className="help-card-response-actions">
-            {item.myResponseStatus === "responded" && (
-              <button
-                type="button"
-                className="help-card-advance-btn help-card-advance-btn--primary"
-                onClick={(e) => stopAndRun(e, () => onUpdateResponseStatus(item.id, "on_way"))}
-              >
-                Я в пути
-              </button>
-            )}
-            {item.myResponseStatus === "on_way" && (
-              <button
-                type="button"
-                className="help-card-advance-btn help-card-advance-btn--primary"
-                onClick={(e) => stopAndRun(e, () => onUpdateResponseStatus(item.id, "arrived"))}
-              >
-                На месте
-              </button>
-            )}
-            {item.myResponseStatus === "arrived" && (
-              <button
-                type="button"
-                className="help-card-advance-btn help-card-advance-btn--primary"
-                onClick={(e) => stopAndRun(e, () => onUpdateResponseStatus(item.id, "helped"))}
-              >
-                Помог
-              </button>
-            )}
-            <button
-              type="button"
-              className="help-card-advance-btn help-card-advance-btn--muted"
-              onClick={(e) => stopAndRun(e, () => onUpdateResponseStatus(item.id, "cancelled"))}
-            >
-              Отменить
-            </button>
-          </div>
-        </div>
+      {/* Unread chip — small, corner-pinned. Replaces the old chunky strip
+          for showing "there's a new message in this thread". Age signal
+          moved to the progress dots below (no more full-card tint). */}
+      {isActiveMyResponse && unread > 0 && (
+        <span className="help-card-unread-pill" aria-label={`${unread} новых сообщений`}>
+          {unread}
+        </span>
       )}
       {photos.length > 0 && (
         <div className="help-card-hero" onClick={() => setLightboxIndex(0)}>
@@ -719,46 +719,96 @@ function HelpCard({
           </span>
         </div>
       </div>
-      <div className="help-card-actions">
-        {(() => {
-          const responses = item.responses ?? [];
-          const activeResponses = responses.filter((r) => r.status !== "cancelled");
-          const myResponse = currentUserId
-            ? responses.find((r) => r.userId === currentUserId && r.status !== "cancelled")
-            : null;
-          // Response count hint — encourages coordination ("3 already responded, I'll pick another")
-          const responseCountLabel = activeResponses.length > 0
-            ? `${activeResponses.length} ${activeResponses.length === 1 ? "отклик" : "отклика"}`
-            : null;
-          const showRespond = isNeed && !isMine && !myResponse && item.status !== "completed" && item.status !== "cancelled";
-          const phone = item.contactPhone ?? item.author?.phone ?? null;
+      {(() => {
+        const responses = item.responses ?? [];
+        const activeResponses = responses.filter((r) => r.status !== "cancelled");
+        const myResponse = currentUserId
+          ? responses.find((r) => r.userId === currentUserId && r.status !== "cancelled")
+          : null;
+        const responseCountLabel = activeResponses.length > 0
+          ? `${activeResponses.length} ${activeResponses.length === 1 ? "отклик" : "отклика"}`
+          : null;
+        const showRespond = isNeed && !isMine && !myResponse && item.status !== "completed" && item.status !== "cancelled";
+        const phone = item.contactPhone ?? item.author?.phone ?? null;
 
+        // Active-response cards get the unified commitment footer:
+        // progress timeline + dominant primary CTA + muted secondary
+        // actions. No separate status strip, no card-wide tint.
+        if (isActiveMyResponse && item.myResponseStatus) {
+          const next = nextActionLabel(item.myResponseStatus);
           return (
-            <>
-              {showRespond && (
-                <button className="btn btn-primary btn-sm" onClick={() => onClaim(item.id)}>
-                  Откликнуться
+            <div className="help-card-commitment">
+              <ResponseProgress status={item.myResponseStatus} age={age} />
+              {age === "due" && item.myResponseStatus === "responded" && (
+                <p className="help-card-commitment-note">
+                  Прошло {ageLabel ?? "больше 2 часов"} — подтвердите или отмените.
+                </p>
+              )}
+              {age === "stale" && item.myResponseStatus === "responded" && (
+                <p className="help-card-commitment-note help-card-commitment-note--stale">
+                  Ещё актуально? Отклик висит {ageLabel}.
+                </p>
+              )}
+              <div className="help-card-commitment-actions">
+                {next && (
+                  <button
+                    type="button"
+                    className={`help-card-primary-btn help-card-primary-btn--${age}`}
+                    onClick={(e) => stopAndRun(e, () => onUpdateResponseStatus(item.id, next.target))}
+                  >
+                    {next.label}
+                    <span className="help-card-primary-arrow" aria-hidden="true">→</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="help-card-muted-link"
+                  onClick={(e) => stopAndRun(e, () => onUpdateResponseStatus(item.id, "cancelled"))}
+                >
+                  Отменить
                 </button>
-              )}
-              {phone && (
-                <a href={`tel:${phone}`} className="help-card-phone" aria-label="Позвонить">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                </a>
-              )}
-              {responseCountLabel && item.status !== "open" && (
-                <span className="help-card-status">
-                  {HELP_REQUEST_STATUS_LABELS[item.status]} · {responseCountLabel}
-                </span>
-              )}
-              {responseCountLabel && item.status === "open" && (
-                <span className="help-card-status help-card-status--soft">
-                  {responseCountLabel}
-                </span>
-              )}
-            </>
+                {phone && (
+                  <a
+                    href={`tel:${phone}`}
+                    className="help-card-muted-icon"
+                    aria-label="Позвонить"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  </a>
+                )}
+              </div>
+            </div>
           );
-        })()}
-      </div>
+        }
+
+        // Discovery / own-request cards: Respond CTA (when applicable)
+        // + phone + response count. Unchanged behaviour.
+        return (
+          <div className="help-card-actions">
+            {showRespond && (
+              <button className="btn btn-primary btn-sm" onClick={() => onClaim(item.id)}>
+                Откликнуться
+              </button>
+            )}
+            {phone && (
+              <a href={`tel:${phone}`} className="help-card-phone" aria-label="Позвонить">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+              </a>
+            )}
+            {responseCountLabel && item.status !== "open" && (
+              <span className="help-card-status">
+                {HELP_REQUEST_STATUS_LABELS[item.status]} · {responseCountLabel}
+              </span>
+            )}
+            {responseCountLabel && item.status === "open" && (
+              <span className="help-card-status help-card-status--soft">
+                {responseCountLabel}
+              </span>
+            )}
+          </div>
+        );
+      })()}
       {lightboxIndex !== null && (
         <ImageLightbox
           urls={photos}

@@ -2852,35 +2852,10 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 
 .help-card--mine { border-left-color: var(--color-primary); }
+/* Active-response cards get just a subtle left-accent; no card-wide tint
+   — the commitment footer below does the heavy lifting visually. */
 .help-card--responding {
   border-left: 4px solid #059669;
-  background: linear-gradient(to right, rgba(16, 185, 129, 0.05), transparent 40%);
-}
-.help-card-response-strip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 12px;
-  background: rgba(16, 185, 129, 0.1);
-  border-bottom: 1px solid rgba(16, 185, 129, 0.2);
-  font-size: 12px;
-  font-weight: 600;
-}
-.help-card-response-state {
-  color: #047857;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.help-card-response-state::before {
-  content: "●";
-  color: #10b981;
-  animation: pulse 2s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
 }
 .help-card-unread {
   font-size: 11px;
@@ -2889,6 +2864,26 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   border-radius: 10px;
   background: #dc2626;
   color: #fff;
+}
+/* Small corner pill — replaces the old "X новых" bar for in-thread
+   unread messages. Stays out of the way until there's signal to show. */
+.help-card-unread-pill {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #dc2626;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 10px;
+  line-height: 1;
+  z-index: 1;
 }
 .help-section-divider {
   height: 1px;
@@ -2950,113 +2945,218 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   text-align: center;
 }
 
-/* ── Age-aware response strip ─────────────────────────────────────────── */
-/* Volunteer commitment freshness, colour-shifted with age. The strip
-   already has a green baseline from .help-card-response-strip above; the
-   --due / --stale modifiers below override it without resetting every
-   unrelated rule. */
-.help-card-response-strip {
+/* ── Commitment footer (active responses) ─────────────────────────────── */
+/* Replaces the old heavy status strip with a single cohesive block:
+   progress timeline + optional note + dominant primary CTA + muted
+   secondary actions. Lives in the flow of the card, not stuck on top. */
+.help-card-commitment {
+  padding: 12px 14px 14px;
+  border-top: 1px solid rgba(100, 116, 139, 0.12);
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  align-items: stretch;
-  padding: 8px 12px;
+  gap: 10px;
 }
-.help-card-response-head {
+
+/* Progress timeline — 4 dots + 3 connectors + labels. Reads "where am I
+   in this commitment" at a glance, no text required for the fresh case. */
+.rp-track {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rp-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 0;
 }
-.help-card-response-age {
-  color: #64748b;
-  font-weight: 500;
-  font-size: 11px;
-}
-.help-card-response-strip--due {
-  background: rgba(245, 158, 11, 0.12);
-  border-bottom-color: rgba(245, 158, 11, 0.3);
-}
-.help-card-response-strip--due .help-card-response-state { color: #b45309; }
-.help-card-response-strip--due .help-card-response-state::before { color: #f59e0b; }
-.help-card--age-due.help-card--responding {
-  border-left-color: #f59e0b;
-  background: linear-gradient(to right, rgba(245, 158, 11, 0.07), transparent 40%);
-}
-.help-card-response-strip--stale {
-  background: rgba(220, 38, 38, 0.12);
-  border-bottom-color: rgba(220, 38, 38, 0.3);
-}
-.help-card-response-strip--stale .help-card-response-state { color: #991b1b; }
-.help-card-response-strip--stale .help-card-response-state::before { color: #dc2626; }
-.help-card--age-stale.help-card--responding {
-  border-left-color: #dc2626;
-  background: linear-gradient(to right, rgba(220, 38, 38, 0.08), transparent 40%);
-}
-.help-card-response-nudge {
-  font-size: 12px;
-  font-weight: 500;
-  color: #92400e;
-  background: rgba(245, 158, 11, 0.15);
-  border-radius: 6px;
-  padding: 6px 8px;
-  line-height: 1.4;
-}
-.help-card-response-nudge--stale {
-  color: #991b1b;
-  background: rgba(220, 38, 38, 0.15);
-}
-.help-card-response-actions {
+.rp-step {
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 0;
+  flex: 1;
 }
-.help-card-advance-btn {
-  padding: 5px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  font-family: inherit;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
+.rp-step:last-child { flex: 0 0 auto; }
+.rp-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #cbd5e1;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  transition: background 0.18s, border-color 0.18s, box-shadow 0.18s;
 }
-.help-card-advance-btn--primary {
+.rp-dot--done {
+  background: #10b981;
+  border-color: #10b981;
+}
+.rp-dot--current {
   background: #fff;
   border-color: #10b981;
-  color: #047857;
+  border-width: 3px;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
 }
-.help-card-advance-btn--primary:hover,
-.help-card-advance-btn--primary:focus-visible {
-  background: #ecfdf5;
-  outline: none;
-}
-.help-card-response-strip--due .help-card-advance-btn--primary {
+.rp-dot--current.rp-dot--fresh { animation: rp-pulse-fresh 2.4s ease-in-out infinite; }
+.rp-dot--current.rp-dot--due {
   border-color: #f59e0b;
-  color: #b45309;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3);
+  animation: rp-pulse-due 1.8s ease-in-out infinite;
 }
-.help-card-response-strip--due .help-card-advance-btn--primary:hover,
-.help-card-response-strip--due .help-card-advance-btn--primary:focus-visible {
-  background: #fef3c7;
-}
-.help-card-response-strip--stale .help-card-advance-btn--primary {
+.rp-dot--current.rp-dot--stale {
   border-color: #dc2626;
-  color: #991b1b;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.35);
+  animation: rp-pulse-stale 1.2s ease-in-out infinite;
 }
-.help-card-response-strip--stale .help-card-advance-btn--primary:hover,
-.help-card-response-strip--stale .help-card-advance-btn--primary:focus-visible {
-  background: #fee2e2;
+@keyframes rp-pulse-fresh {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15); }
+  50%      { box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.3); }
 }
-.help-card-advance-btn--muted {
-  background: transparent;
-  border-color: var(--color-border);
-  color: var(--color-muted);
+@keyframes rp-pulse-due {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25); }
+  50%      { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.4); }
 }
-.help-card-advance-btn--muted:hover,
-.help-card-advance-btn--muted:focus-visible {
-  background: #f1f5f9;
-  color: #475569;
+@keyframes rp-pulse-stale {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.3); }
+  50%      { box-shadow: 0 0 0 7px rgba(220, 38, 38, 0.5); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rp-dot--current { animation: none; }
+}
+.rp-line {
+  flex: 1 1 auto;
+  height: 2px;
+  background: #e2e8f0;
+  min-width: 14px;
+}
+.rp-line--done { background: #10b981; }
+.rp-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 0 4px;
+}
+.rp-label {
+  flex: 1;
+  font-size: 10px;
+  color: #94a3b8;
+  text-align: center;
+  line-height: 1.2;
+}
+.rp-label:first-child { text-align: left; }
+.rp-label:last-child  { text-align: right; }
+.rp-label--done    { color: #64748b; }
+.rp-label--current { color: #047857; font-weight: 700; }
+
+/* Subtle note that appears only when the card's dot pulse isn't enough. */
+.help-card-commitment-note {
+  font-size: 12px;
+  color: #b45309;
+  margin: 0;
+  line-height: 1.4;
+}
+.help-card-commitment-note--stale { color: #b91c1c; }
+
+/* Action row — dominant primary CTA + muted secondary controls. */
+.help-card-commitment-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.help-card-primary-btn {
+  flex: 1 1 140px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #059669;
+  color: #fff;
+  border: 0;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.12s, transform 0.08s;
+  box-shadow: 0 1px 2px rgba(16, 185, 129, 0.2);
+}
+.help-card-primary-btn:hover,
+.help-card-primary-btn:focus-visible {
+  background: #047857;
   outline: none;
 }
+.help-card-primary-btn:active { transform: scale(0.98); }
+.help-card-primary-btn--due {
+  background: #f59e0b;
+  box-shadow: 0 1px 2px rgba(245, 158, 11, 0.3);
+}
+.help-card-primary-btn--due:hover,
+.help-card-primary-btn--due:focus-visible { background: #d97706; }
+.help-card-primary-btn--stale {
+  background: #dc2626;
+  box-shadow: 0 1px 2px rgba(220, 38, 38, 0.3);
+  animation: rp-pulse-stale-btn 1.6s ease-in-out infinite;
+}
+.help-card-primary-btn--stale:hover,
+.help-card-primary-btn--stale:focus-visible { background: #b91c1c; animation: none; }
+@keyframes rp-pulse-stale-btn {
+  0%, 100% { box-shadow: 0 1px 2px rgba(220, 38, 38, 0.3), 0 0 0 0 rgba(220, 38, 38, 0.4); }
+  50%      { box-shadow: 0 1px 2px rgba(220, 38, 38, 0.4), 0 0 0 6px rgba(220, 38, 38, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .help-card-primary-btn--stale { animation: none; }
+}
+.help-card-primary-arrow {
+  font-size: 16px;
+  font-weight: 700;
+  transition: transform 0.15s;
+}
+.help-card-primary-btn:hover .help-card-primary-arrow { transform: translateX(2px); }
+
+.help-card-muted-link {
+  background: transparent;
+  border: 0;
+  padding: 6px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(100, 116, 139, 0.3);
+  transition: color 0.12s, text-decoration-color 0.12s;
+}
+.help-card-muted-link:hover,
+.help-card-muted-link:focus-visible {
+  color: #dc2626;
+  text-decoration-color: #dc2626;
+  outline: none;
+}
+.help-card-muted-icon {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  background: transparent;
+  border-radius: 50%;
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  text-decoration: none;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.help-card-muted-icon:hover,
+.help-card-muted-icon:focus-visible {
+  background: #f1f5f9;
+  color: #2563eb;
+  border-color: #bfdbfe;
+  outline: none;
+}
+/* Help card needs relative for the unread-pill corner-pin to work. */
+.help-card { position: relative; }
 
 /* ── Help card body (clickable area for detail) ────────── */
 .help-card-body { cursor: pointer; }
