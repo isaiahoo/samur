@@ -156,16 +156,19 @@ export function Layout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileOpen, loggedIn]);
 
-  // Close profile menu on outside click
+  // Close profile menu on outside tap. pointerdown is the unified
+  // mouse/touch/pen event — mousedown alone was unreliable on iOS
+  // Safari (taps in certain scroll regions didn't fire the synthetic
+  // mousedown, so the menu stuck open until the next interaction).
   useEffect(() => {
     if (!profileOpen) return;
-    const handler = (e: MouseEvent) => {
+    const handler = (e: PointerEvent) => {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileOpen(false);
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("pointerdown", handler);
+    return () => document.removeEventListener("pointerdown", handler);
   }, [profileOpen]);
 
   const handleProfileClick = () => {
