@@ -12,15 +12,20 @@
  * Strategy:
  *   1. If the request carries Cloudflare's `CF-Connecting-IP` AND a
  *      `CF-Ray` header (proof it actually traversed CF's edge), use
- *      CF-Connecting-IP — Cloudflare sets it unambiguously to the
- *      original client IP.
- *   2. Otherwise fall back to the leftmost value of `X-Forwarded-For`,
- *      which nginx appends with the real client IP on grey cloud.
+ *      CF-Connecting-IP — Cloudflare sets it unambiguously.
+ *   2. Otherwise use `X-Real-IP`, which nginx sets with
+ *      `proxy_set_header X-Real-IP $remote_addr`. Crucially,
+ *      `proxy_set_header` OVERWRITES the header — a client-supplied
+ *      X-Real-IP is always replaced by the real connecting IP.
  *   3. Last resort: the socket address (direct connection, no proxy).
  *
- * Spoof-resistance: a direct attacker bypassing Cloudflare and setting a
- * fake `CF-Connecting-IP` header won't have a valid `CF-Ray`, so the
- * header is rejected and we fall through to XFF (which nginx controls).
+ * Why we do NOT read X-Forwarded-For: nginx's `$proxy_add_x_forwarded_for`
+ * APPENDS to any client-supplied XFF rather than resetting it. An
+ * attacker who sends `X-Forwarded-For: 1.2.3.4` becomes the leftmost
+ * token in the final chain, and any `split(",")[0]` reader keys them as
+ * `1.2.3.4`. That would let a single IP rotate through infinite
+ * rate-limit buckets — especially damaging for the uploads limiter
+ * (anon 10/hr cap) which is IP-keyed.
  */
 import type { Request } from "express";
 
@@ -34,9 +39,9 @@ export function getRealIp(req: Request): string {
     return cfIp.trim();
   }
 
-  const xff = req.headers["x-forwarded-for"];
-  if (typeof xff === "string" && xff.length > 0) {
-    return xff.split(",")[0].trim();
+  const realIp = req.headers["x-real-ip"];
+  if (typeof realIp === "string" && realIp.length > 0) {
+    return realIp.trim();
   }
 
   return req.socket.remoteAddress ?? "unknown";

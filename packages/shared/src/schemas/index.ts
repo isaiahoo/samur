@@ -12,7 +12,19 @@ const phone = z.string()
   })
   .pipe(z.string().regex(/^\+?[0-9]{7,15}$/, "Неверный формат телефона"));
 const cuid = z.string().min(1);
-const photoUrl = z.string().min(1).max(500).regex(/^\/api\/v1\/uploads\/[a-f0-9]+\.\w+$/, "Недопустимый URL фото");
+/** Accepted photo URLs: only our own uploads endpoint, only the exact
+ * filename shape multer produces (32 hex chars from crypto.randomBytes(16)),
+ * only the image extensions we accept on upload. The previous regex
+ * allowed any `[a-f0-9]+\.\w+` and a sibling schema (chat messages)
+ * even allowed arbitrary absolute URLs — which let a hostile sender
+ * smuggle tracking pixels or other external URLs that every recipient
+ * would load on render. */
+const photoUrl = z.string()
+  .max(80, "Недопустимый URL фото")
+  .regex(
+    /^\/api\/v1\/uploads\/[a-f0-9]{32}\.(jpg|png|webp|heic|heif)$/,
+    "Недопустимый URL фото",
+  );
 
 export const UserRoleSchema = z.enum([
   "resident",
@@ -86,7 +98,7 @@ export const CreateHelpResponseSchema = z.object({
 
 export const CreateHelpMessageSchema = z.object({
   body: z.string().trim().max(2000).default(""),
-  photoUrls: z.array(z.string().url().or(z.string().startsWith("/")))
+  photoUrls: z.array(photoUrl)
     .max(5, "Максимум 5 фото в сообщении")
     .default([]),
 }).refine(

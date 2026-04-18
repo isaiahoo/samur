@@ -9,6 +9,14 @@ const LIMITS = {
   anonymous: { points: 90, duration: 60 },
   authenticated: { points: 300, duration: 60 },
   coordinator: { points: 600, duration: 60 },
+  // Uploads are hourly and much tighter than the global per-minute
+  // limit: each request can write up to 5 × 5 MB to disk, so a 90/min
+  // anon cap translates to 450 MB/min/IP of durable storage writes,
+  // which is a usable storage-exhaustion tool. Per-hour windows make
+  // each ceiling the actual daily budget a well-behaved caller needs.
+  uploadsAnonymous: { points: 10, duration: 3600 },
+  uploadsAuthenticated: { points: 60, duration: 3600 },
+  uploadsCoordinator: { points: 200, duration: 3600 },
 } as const;
 
 let limiters: Record<string, RateLimiterRedis | RateLimiterMemory>;
@@ -36,6 +44,9 @@ export function initRateLimiter(redisClient: Redis | null): void {
     anonymous: create("anon", LIMITS.anonymous),
     authenticated: create("auth", LIMITS.authenticated),
     coordinator: create("coord", LIMITS.coordinator),
+    uploadsAnonymous: create("up_anon", LIMITS.uploadsAnonymous),
+    uploadsAuthenticated: create("up_auth", LIMITS.uploadsAuthenticated),
+    uploadsCoordinator: create("up_coord", LIMITS.uploadsCoordinator),
   };
 
   if (!redisClient) {
@@ -43,35 +54,44 @@ export function initRateLimiter(redisClient: Redis | null): void {
   }
 }
 
+/** Pick the appropriate limiter + key for the caller. Anonymous callers
+ * get keyed by real client IP (CF+nginx chain is unreliable on req.ip);
+ * authenticated callers by user id, with coordinators/admins on a
+ * higher tier. */
+function pickLimiter(
+  req: Request,
+  tier: "global" | "uploads",
+): { key: string; consumeKey: string } {
+  const user = req.user;
+  if (!user) {
+    return {
+      key: tier === "uploads" ? "uploadsAnonymous" : "anonymous",
+      consumeKey: getRealIp(req),
+    };
+  }
+  if (user.role === "coordinator" || user.role === "admin") {
+    return {
+      key: tier === "uploads" ? "uploadsCoordinator" : "coordinator",
+      consumeKey: user.sub,
+    };
+  }
+  return {
+    key: tier === "uploads" ? "uploadsAuthenticated" : "authenticated",
+    consumeKey: user.sub,
+  };
+}
+
 export async function rateLimiterMiddleware(
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  if (!limiters) {
-    return next();
-  }
-
-  const user = req.user;
-  let limiterKey: string;
-  let consumeKey: string;
-
-  if (!user) {
-    limiterKey = "anonymous";
-    // Must use the real client IP — req.ip is unreliable behind CF+nginx.
-    consumeKey = getRealIp(req);
-  } else if (user.role === "coordinator" || user.role === "admin") {
-    limiterKey = "coordinator";
-    consumeKey = user.sub;
-  } else {
-    limiterKey = "authenticated";
-    consumeKey = user.sub;
-  }
-
+  if (!limiters) return next();
+  const { key, consumeKey } = pickLimiter(req, "global");
   try {
-    const result = await limiters[limiterKey].consume(consumeKey);
+    const result = await limiters[key].consume(consumeKey);
     res.setHeader("X-RateLimit-Remaining", result.remainingPoints);
-    res.setHeader("X-RateLimit-Limit", LIMITS[limiterKey as keyof typeof LIMITS].points);
+    res.setHeader("X-RateLimit-Limit", LIMITS[key as keyof typeof LIMITS].points);
     next();
   } catch {
     res.status(429).json({
@@ -79,6 +99,32 @@ export async function rateLimiterMiddleware(
       error: {
         code: "RATE_LIMIT_EXCEEDED",
         message: "Слишком много запросов. Попробуйте позже.",
+      },
+    });
+  }
+}
+
+/** Stricter per-hour limit for file uploads — runs in addition to the
+ * global per-minute limiter. Place AFTER `optionalAuth` in the route
+ * chain so authenticated callers are keyed by user id, not IP. */
+export async function uploadsRateLimiter(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  if (!limiters) return next();
+  const { key, consumeKey } = pickLimiter(req, "uploads");
+  try {
+    const result = await limiters[key].consume(consumeKey);
+    res.setHeader("X-Uploads-RateLimit-Remaining", result.remainingPoints);
+    res.setHeader("X-Uploads-RateLimit-Limit", LIMITS[key as keyof typeof LIMITS].points);
+    next();
+  } catch {
+    res.status(429).json({
+      success: false,
+      error: {
+        code: "UPLOAD_RATE_LIMIT_EXCEEDED",
+        message: "Слишком много загрузок за час. Попробуйте позже.",
       },
     });
   }

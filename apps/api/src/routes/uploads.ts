@@ -6,6 +6,8 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import { AppError } from "../middleware/error.js";
+import { optionalAuth } from "../middleware/auth.js";
+import { uploadsRateLimiter } from "../middleware/rateLimiter.js";
 import { logger } from "../lib/logger.js";
 
 const router = Router();
@@ -52,9 +54,18 @@ const upload = multer({
 /**
  * POST /uploads
  * Upload up to 5 images. Returns array of relative URLs.
+ *
+ * `optionalAuth` (not `requireAuth`) is intentional: anonymous
+ * incident reports still need to attach photos before they submit,
+ * which is a core crisis-platform flow. The `uploadsRateLimiter` makes
+ * up for the lack of authentication by pinning anonymous callers to a
+ * tight per-IP hourly cap. Authenticated callers get a higher ceiling
+ * since we can hold them to their account.
  */
 router.post(
   "/",
+  optionalAuth,
+  uploadsRateLimiter,
   (req: Request, res: Response, next: NextFunction) => {
     upload.array("photos", MAX_FILES)(req, res, (err) => {
       if (err) {
