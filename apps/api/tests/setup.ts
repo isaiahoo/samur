@@ -11,6 +11,7 @@ import cors from "cors";
 import jwt from "jsonwebtoken";
 import { prisma } from "@samur/db";
 import { optionalAuth } from "../src/middleware/auth.js";
+import { initRateLimiter, rateLimiterMiddleware } from "../src/middleware/rateLimiter.js";
 import { notFoundHandler, errorHandler } from "../src/middleware/error.js";
 
 import healthRouter from "../src/routes/health.js";
@@ -24,6 +25,7 @@ import webhooksRouter from "../src/routes/webhooks.js";
 import channelsRouter from "../src/routes/channels.js";
 import uploadsRouter from "../src/routes/uploads.js";
 import moderationRouter from "../src/routes/moderation.js";
+import adminRouter from "../src/routes/admin.js";
 
 export function createTestApp() {
   const app = express();
@@ -42,6 +44,39 @@ export function createTestApp() {
   app.use("/api/v1/channels", channelsRouter);
   app.use("/api/v1/uploads", uploadsRouter);
   app.use("/api/v1/moderation", moderationRouter);
+  app.use("/api/v1/admin", adminRouter);
+
+  app.use(notFoundHandler);
+  app.use(errorHandler);
+
+  return app;
+}
+
+/** Variant of createTestApp that initializes the rate limiter with an
+ * in-memory store (no Redis dependency) AND mounts the global
+ * rateLimiterMiddleware before routes. Used exclusively by the rate-
+ * limiter test file — the default createTestApp skips this so
+ * functional tests don't trip on per-endpoint caps mid-run. */
+export function createRateLimitTestApp() {
+  initRateLimiter(null);
+  const app = express();
+  app.use(cors());
+  app.use(express.json({ limit: "5mb" }));
+  app.use(optionalAuth);
+  app.use(rateLimiterMiddleware);
+
+  app.use("/api/v1", healthRouter);
+  app.use("/api/v1/auth", authRouter);
+  app.use("/api/v1/incidents", incidentsRouter);
+  app.use("/api/v1/help-requests", helpRequestsRouter);
+  app.use("/api/v1/alerts", alertsRouter);
+  app.use("/api/v1/shelters", sheltersRouter);
+  app.use("/api/v1/river-levels", riverLevelsRouter);
+  app.use("/api/v1/webhook", webhooksRouter);
+  app.use("/api/v1/channels", channelsRouter);
+  app.use("/api/v1/uploads", uploadsRouter);
+  app.use("/api/v1/moderation", moderationRouter);
+  app.use("/api/v1/admin", adminRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
