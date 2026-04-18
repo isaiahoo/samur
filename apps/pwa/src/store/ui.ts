@@ -6,6 +6,18 @@ interface ToastItem {
   type: "success" | "error" | "info";
 }
 
+export interface ConfirmOptions {
+  title: string;
+  message?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  destructive?: boolean;
+}
+
+interface ConfirmRequest extends ConfirmOptions {
+  resolve: (ok: boolean) => void;
+}
+
 interface UIState {
   sheetContent: React.ReactNode | null;
   openSheet: (content: React.ReactNode) => void;
@@ -15,6 +27,10 @@ interface UIState {
   toastQueue: ToastItem[];
   showToast: (message: string, type?: "success" | "error" | "info") => void;
   clearToast: () => void;
+
+  confirmRequest: ConfirmRequest | null;
+  confirm: (opts: ConfirmOptions) => Promise<boolean>;
+  resolveConfirm: (ok: boolean) => void;
 
   socketConnected: boolean;
   setSocketConnected: (connected: boolean) => void;
@@ -66,6 +82,18 @@ export const useUIStore = create<UIState>()((set) => ({
     set({ toast: null, toastQueue: [] });
   },
 
+  confirmRequest: null,
+  confirm: (opts) =>
+    new Promise<boolean>((resolve) => {
+      set({ confirmRequest: { ...opts, resolve } });
+    }),
+  resolveConfirm: (ok) => {
+    set((s) => {
+      s.confirmRequest?.resolve(ok);
+      return { confirmRequest: null };
+    });
+  },
+
   socketConnected: false,
   setSocketConnected: (connected) => set({ socketConnected: connected }),
 
@@ -76,3 +104,21 @@ export const useUIStore = create<UIState>()((set) => ({
   reportFormOpen: false,
   setReportFormOpen: (open) => set({ reportFormOpen: open }),
 }));
+
+/** Module-level shortcut for non-hook call sites (event handlers).
+ * Defaults "Отмена" as the cancel label so the 7 destructive-action
+ * sites don't each repeat the same boilerplate. */
+export function confirmAction(opts: {
+  title: string;
+  message?: string;
+  confirmLabel: string;
+  kind?: "default" | "destructive";
+}): Promise<boolean> {
+  return useUIStore.getState().confirm({
+    title: opts.title,
+    message: opts.message,
+    confirmLabel: opts.confirmLabel,
+    cancelLabel: "Отмена",
+    destructive: opts.kind === "destructive",
+  });
+}

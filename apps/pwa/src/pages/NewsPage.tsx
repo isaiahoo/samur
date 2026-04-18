@@ -4,6 +4,7 @@ import type { NewsArticle } from "@samur/shared";
 import { formatRelativeTime } from "@samur/shared";
 import { getNews } from "../services/api.js";
 import { Spinner } from "../components/Spinner.js";
+import { PullToRefresh } from "../components/PullToRefresh.js";
 
 const FEED_LABELS: Record<string, string> = {
   "mchs-dagestan-forecasts": "МЧС",
@@ -64,6 +65,7 @@ export function NewsPage() {
   const hasMore = articles.length < total;
 
   return (
+    <PullToRefresh onRefresh={() => fetchNews(1, activeFeed)} disabled={loading && articles.length === 0}>
     <div className="news-page">
       <div className="news-filters">
         <button
@@ -116,6 +118,7 @@ export function NewsPage() {
         </>
       )}
     </div>
+    </PullToRefresh>
   );
 }
 

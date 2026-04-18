@@ -12,6 +12,7 @@ import { UrgencyBadge } from "./UrgencyBadge.js";
 import { ImageLightbox } from "./ImageLightbox.js";
 import { HelpChat } from "./HelpChat.js";
 import { HelpProgressRail } from "./HelpProgressRail.js";
+import { confirmAction } from "../store/ui.js";
 
 const categoryIcons: Record<string, string> = {
   rescue: "🆘", shelter: "🏠", food: "🍞", water: "💧",
@@ -261,10 +262,14 @@ export function HelpDetailSheet({
           {myActive && myResponse && myResponse.status !== "helped" && (
             <button
               className="detail-cancel-link"
-              onClick={() => {
-                if (window.confirm("Отменить ваш отклик? Чат закроется, а заявитель увидит, что вы не сможете помочь.")) {
-                  onUpdateResponse(item.id, "cancelled");
-                }
+              onClick={async () => {
+                const ok = await confirmAction({
+                  title: "Отменить отклик?",
+                  message: "Чат закроется, а заявитель увидит, что вы не сможете помочь.",
+                  confirmLabel: "Отменить отклик",
+                  kind: "destructive",
+                });
+                if (ok) onUpdateResponse(item.id, "cancelled");
               }}
             >
               Отменить

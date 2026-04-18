@@ -50,29 +50,20 @@ export function AlertsPage() {
   }, [fetchAll, markAllRead]);
 
   // Browser-level notification for critical alerts that arrive while the
-  // tab is open. (Badge/cache updates happen globally in Layout now.)
+  // tab is open. Fires only if the user has already opted in via the
+  // banner below — we never auto-prompt mid-crisis. (Badge/cache updates
+  // happen globally in Layout now.)
   useEffect(() => {
     const newest = alerts[0];
     if (!newest || newest.urgency !== "critical") return;
     if (!isAlertNew(newest, snapshotRef.current)) return;
     if (!("Notification" in window)) return;
-    if (Notification.permission === "granted") {
-      new Notification("Кунак — КРИТИЧЕСКОЕ", {
-        body: newest.title,
-        icon: "/icons/icon-192.png",
-        tag: newest.id,
-      });
-    } else if (Notification.permission !== "denied") {
-      Notification.requestPermission().then((perm) => {
-        if (perm === "granted") {
-          new Notification("Кунак — КРИТИЧЕСКОЕ", {
-            body: newest.title,
-            icon: "/icons/icon-192.png",
-            tag: newest.id,
-          });
-        }
-      });
-    }
+    if (Notification.permission !== "granted") return;
+    new Notification("Кунак — КРИТИЧЕСКОЕ", {
+      body: newest.title,
+      icon: "/icons/icon-192.png",
+      tag: newest.id,
+    });
   }, [alerts]);
 
   const criticalAlerts = alerts.filter(
@@ -87,6 +78,8 @@ export function AlertsPage() {
   return (
     <div className="alerts-page">
       {situation && <SituationSummary data={situation} />}
+
+      <NotifOptIn />
 
       {criticalAlerts.map((a) => (
         <div
@@ -129,6 +122,49 @@ export function AlertsPage() {
       )}
 
       <ContextFeed />
+    </div>
+  );
+}
+
+/** Opt-in banner for browser notifications. Renders only when the API
+ * is available AND the user hasn't decided yet (permission === "default")
+ * AND they haven't dismissed this banner for the session. We never call
+ * requestPermission() outside of a direct user tap on this button —
+ * auto-prompting mid-crisis was startling users and making some deny. */
+function NotifOptIn() {
+  const [perm, setPerm] = useState<NotificationPermission | "unsupported">(
+    () => ("Notification" in window ? Notification.permission : "unsupported"),
+  );
+  const [dismissed, setDismissed] = useState(
+    () => sessionStorage.getItem("samur:notif-optin-dismissed") === "1",
+  );
+
+  if (perm !== "default" || dismissed) return null;
+
+  const enable = async () => {
+    try {
+      const res = await Notification.requestPermission();
+      setPerm(res);
+    } catch {
+      setPerm("denied");
+    }
+  };
+
+  const dismiss = () => {
+    sessionStorage.setItem("samur:notif-optin-dismissed", "1");
+    setDismissed(true);
+  };
+
+  return (
+    <div className="notif-optin">
+      <div className="notif-optin-body">
+        <strong>Включить уведомления?</strong>
+        <p>Получайте мгновенные оповещения о критических инцидентах, даже когда приложение закрыто.</p>
+      </div>
+      <div className="notif-optin-actions">
+        <button className="btn btn-sm btn-secondary" onClick={dismiss}>Позже</button>
+        <button className="btn btn-sm btn-primary" onClick={enable}>Включить</button>
+      </div>
     </div>
   );
 }

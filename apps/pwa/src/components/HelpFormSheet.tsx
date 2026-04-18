@@ -5,7 +5,7 @@ import type { HelpCategory } from "@samur/shared";
 import { HELP_CATEGORIES, HELP_CATEGORY_LABELS } from "@samur/shared";
 import { createHelpRequest, uploadPhotos } from "../services/api.js";
 import { useAuthStore } from "../store/auth.js";
-import { useUIStore } from "../store/ui.js";
+import { useUIStore, confirmAction } from "../store/ui.js";
 import { useGeolocation } from "../hooks/useGeolocation.js";
 import { compressImage } from "../utils/compressImage.js";
 import { CategoryIcon } from "./CategoryIcon.js";
@@ -116,8 +116,16 @@ export function HelpFormSheet({ tab, onClose }: Props) {
   hasContentRef.current = hasContent;
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
-  const attemptClose = useCallback(() => {
-    if (hasContentRef.current && !window.confirm("Закрыть? Введённые данные будут потеряны.")) return;
+  const attemptClose = useCallback(async () => {
+    if (hasContentRef.current) {
+      const ok = await confirmAction({
+        title: "Закрыть?",
+        message: "Введённые данные будут потеряны.",
+        confirmLabel: "Закрыть",
+        kind: "destructive",
+      });
+      if (!ok) return;
+    }
     onCloseRef.current();
   }, []);
 

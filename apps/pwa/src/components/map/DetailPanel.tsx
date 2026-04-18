@@ -11,6 +11,7 @@ import {
 } from "@samur/shared";
 import { UrgencyBadge } from "../UrgencyBadge.js";
 import { ImageLightbox } from "../ImageLightbox.js";
+import { RoutePickerSheet } from "../RoutePickerSheet.js";
 import { RiverLevelDetail } from "./RiverLevelDetail.js";
 import type { SoilMoisturePoint } from "./geoJsonHelpers.js";
 
@@ -95,31 +96,7 @@ export function DetailPanel({ type, data, allRiverLevels, soilMoisture }: Detail
   }
 
   if (type === "shelter") {
-    const s = data as Shelter;
-    const navUrl = `https://yandex.ru/maps/?rtext=~${s.lat},${s.lng}&rtt=auto`;
-    return (
-      <div className="detail-panel">
-        <div className="detail-header">
-          <h3>{s.name}</h3>
-          <span className={`status-badge status-badge--${s.status}`}>
-            {SHELTER_STATUS_LABELS[s.status]}
-          </span>
-        </div>
-        <p>{s.address}</p>
-        <p>Заполненность: {s.currentOccupancy} / {s.capacity}</p>
-        {s.amenities.length > 0 && (
-          <p>Удобства: {s.amenities.map((a) => AMENITY_LABELS[a] ?? a).join(", ")}</p>
-        )}
-        {s.contactPhone && (
-          <a href={`tel:${s.contactPhone}`} className="btn btn-secondary" style={{ marginTop: 8 }}>
-            {s.contactPhone}
-          </a>
-        )}
-        <a href={navUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary" style={{ marginTop: 8 }}>
-          Построить маршрут
-        </a>
-      </div>
-    );
+    return <ShelterDetail data={data as Shelter} />;
   }
 
   if (type === "riverLevel") {
@@ -159,4 +136,44 @@ export function DetailPanel({ type, data, allRiverLevels, soilMoisture }: Detail
   }
 
   return null;
+}
+
+function ShelterDetail({ data: s }: { data: Shelter }) {
+  const [routeOpen, setRouteOpen] = useState(false);
+  return (
+    <div className="detail-panel">
+      <div className="detail-header">
+        <h3>{s.name}</h3>
+        <span className={`status-badge status-badge--${s.status}`}>
+          {SHELTER_STATUS_LABELS[s.status]}
+        </span>
+      </div>
+      <p>{s.address}</p>
+      <p>Заполненность: {s.currentOccupancy} / {s.capacity}</p>
+      {s.amenities.length > 0 && (
+        <p>Удобства: {s.amenities.map((a) => AMENITY_LABELS[a] ?? a).join(", ")}</p>
+      )}
+      {s.contactPhone && (
+        <a href={`tel:${s.contactPhone}`} className="btn btn-secondary" style={{ marginTop: 8 }}>
+          {s.contactPhone}
+        </a>
+      )}
+      <button
+        type="button"
+        className="btn btn-primary"
+        style={{ marginTop: 8 }}
+        onClick={() => setRouteOpen(true)}
+      >
+        Построить маршрут
+      </button>
+      {routeOpen && (
+        <RoutePickerSheet
+          lat={s.lat}
+          lng={s.lng}
+          label={s.name}
+          onClose={() => setRouteOpen(false)}
+        />
+      )}
+    </div>
+  );
 }

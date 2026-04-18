@@ -5,7 +5,7 @@ import { RIVER_TREND_LABELS } from "@samur/shared";
 import { formatRelativeTime } from "@samur/shared";
 import { getRiverLevels, createRiverLevel, deleteRiverLevel } from "../../services/api.js";
 import { Spinner } from "../../components/Spinner.js";
-import { useUIStore } from "../../store/ui.js";
+import { useUIStore, confirmAction } from "../../store/ui.js";
 
 export function RiverLevelsEditor() {
   const [levels, setLevels] = useState<RiverLevel[]>([]);
@@ -28,7 +28,13 @@ export function RiverLevelsEditor() {
   useEffect(() => { fetch(); }, [fetch]);
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Удалить этот замер уровня? Это действие необратимо.")) return;
+    const ok = await confirmAction({
+      title: "Удалить замер уровня?",
+      message: "Это действие необратимо.",
+      confirmLabel: "Удалить",
+      kind: "destructive",
+    });
+    if (!ok) return;
     try {
       await deleteRiverLevel(id);
       setLevels((prev) => prev.filter((l) => l.id !== id));

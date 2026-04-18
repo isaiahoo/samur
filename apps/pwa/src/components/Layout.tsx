@@ -10,6 +10,7 @@ import { getMe, getUserStats, getAlerts, getMyActivity, type MyActivity } from "
 import type { User, UserStats } from "@samur/shared";
 import { pluralizeRu } from "@samur/shared";
 import { BottomSheet } from "./BottomSheet.js";
+import { ConfirmDialog } from "./ConfirmDialog.js";
 import type { Alert as AlertType } from "@samur/shared";
 import { Toast } from "./Toast.js";
 import { SOSButton } from "./SOSButton.js";
@@ -393,6 +394,8 @@ export function Layout() {
       {sheetContent && (
         <BottomSheet onClose={closeSheet}>{sheetContent}</BottomSheet>
       )}
+
+      <ConfirmDialog />
 
       <Toast />
     </div>

@@ -28,14 +28,4 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-document.addEventListener(
-  "click",
-  () => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-  },
-  { once: true },
-);
-
 createRoot(document.getElementById("root")!).render(<App />);

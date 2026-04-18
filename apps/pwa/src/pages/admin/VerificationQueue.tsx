@@ -6,7 +6,7 @@ import { formatRelativeTime } from "@samur/shared";
 import { getIncidents, updateIncident } from "../../services/api.js";
 import { UrgencyBadge } from "../../components/UrgencyBadge.js";
 import { Spinner } from "../../components/Spinner.js";
-import { useUIStore } from "../../store/ui.js";
+import { useUIStore, confirmAction } from "../../store/ui.js";
 
 export function VerificationQueue() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -28,7 +28,15 @@ export function VerificationQueue() {
   useEffect(() => { fetch(); }, [fetch]);
 
   const handleAction = async (id: string, status: "verified" | "false_report") => {
-    if (status === "false_report" && !window.confirm("Отклонить этот инцидент как ложный отчёт?")) return;
+    if (status === "false_report") {
+      const ok = await confirmAction({
+        title: "Отклонить инцидент?",
+        message: "Он будет помечен как ложный отчёт.",
+        confirmLabel: "Отклонить",
+        kind: "destructive",
+      });
+      if (!ok) return;
+    }
     try {
       await updateIncident(id, { status });
       setIncidents((prev) => prev.filter((i) => i.id !== id));

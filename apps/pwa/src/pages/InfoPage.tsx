@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type { Shelter } from "@samur/shared";
 import { SHELTER_STATUS_LABELS, AMENITY_LABELS } from "@samur/shared";
 import { getShelters } from "../services/api.js";
@@ -7,6 +7,8 @@ import { getCachedItems } from "../services/db.js";
 import { Spinner } from "../components/Spinner.js";
 import { useGeolocation } from "../hooks/useGeolocation.js";
 import { calculateDistance, formatDistance } from "@samur/shared";
+import { RoutePickerSheet } from "../components/RoutePickerSheet.js";
+import { PullToRefresh } from "../components/PullToRefresh.js";
 
 export function InfoPage() {
   const [activeSection, setActiveSection] = useState<"info" | "shelters">("info");
@@ -14,27 +16,32 @@ export function InfoPage() {
   const [loading, setLoading] = useState(false);
   const { position, requestPosition } = useGeolocation();
 
+  const fetchShelters = useCallback(async () => {
+    try {
+      const res = await getShelters({ limit: 100, status: "open" });
+      setShelters((res.data ?? []) as Shelter[]);
+    } catch {
+      const cached = await getCachedItems("shelters");
+      setShelters(cached as unknown as Shelter[]);
+    }
+  }, []);
+
   useEffect(() => {
     if (activeSection === "shelters") {
       setLoading(true);
-      getShelters({ limit: 100, status: "open" })
-        .then((res) => setShelters((res.data ?? []) as Shelter[]))
-        .catch(async () => {
-          const cached = await getCachedItems("shelters");
-          setShelters(cached as unknown as Shelter[]);
-        })
-        .finally(() => setLoading(false));
+      fetchShelters().finally(() => setLoading(false));
       requestPosition();
     }
-  }, [activeSection, requestPosition]);
+  }, [activeSection, fetchShelters, requestPosition]);
 
-  const sortedShelters = position
-    ? [...shelters].sort((a, b) => {
-        const da = calculateDistance(position.lat, position.lng, a.lat, a.lng);
-        const db = calculateDistance(position.lat, position.lng, b.lat, b.lng);
-        return da - db;
-      })
-    : shelters;
+  const sortedShelters = useMemo(() => {
+    if (!position) return shelters;
+    return [...shelters].sort((a, b) => {
+      const da = calculateDistance(position.lat, position.lng, a.lat, a.lng);
+      const db = calculateDistance(position.lat, position.lng, b.lat, b.lng);
+      return da - db;
+    });
+  }, [shelters, position]);
 
   return (
     <div className="info-page">
@@ -56,23 +63,25 @@ export function InfoPage() {
       {activeSection === "info" && <EmergencyInfo />}
       {activeSection === "shelters" && (
         loading ? <Spinner /> : (
-          <div className="shelters-list">
-            {sortedShelters.length === 0 ? (
-              <div className="empty-state"><p>Нет доступных убежищ</p></div>
-            ) : (
-              sortedShelters.map((s) => (
-                <ShelterCard
-                  key={s.id}
-                  shelter={s}
-                  distance={
-                    position
-                      ? calculateDistance(position.lat, position.lng, s.lat, s.lng)
-                      : null
-                  }
-                />
-              ))
-            )}
-          </div>
+          <PullToRefresh onRefresh={fetchShelters}>
+            <div className="shelters-list">
+              {sortedShelters.length === 0 ? (
+                <div className="empty-state"><p>Нет доступных убежищ</p></div>
+              ) : (
+                sortedShelters.map((s) => (
+                  <ShelterCard
+                    key={s.id}
+                    shelter={s}
+                    distance={
+                      position
+                        ? calculateDistance(position.lat, position.lng, s.lat, s.lng)
+                        : null
+                    }
+                  />
+                ))
+              )}
+            </div>
+          </PullToRefresh>
         )
       )}
     </div>
@@ -152,7 +161,7 @@ function EmergencyInfo() {
 }
 
 function ShelterCard({ shelter, distance }: { shelter: Shelter; distance: number | null }) {
-  const navUrl = `https://yandex.ru/maps/?rtext=~${shelter.lat},${shelter.lng}&rtt=auto`;
+  const [routeOpen, setRouteOpen] = useState(false);
   const occupancyPct = Math.round((shelter.currentOccupancy / shelter.capacity) * 100);
 
   return (
@@ -193,10 +202,22 @@ function ShelterCard({ shelter, distance }: { shelter: Shelter; distance: number
             Позвонить
           </a>
         )}
-        <a href={navUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm">
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={() => setRouteOpen(true)}
+        >
           Маршрут
-        </a>
+        </button>
       </div>
+      {routeOpen && (
+        <RoutePickerSheet
+          lat={shelter.lat}
+          lng={shelter.lng}
+          label={shelter.name}
+          onClose={() => setRouteOpen(false)}
+        />
+      )}
     </div>
   );
 }

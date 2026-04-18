@@ -23,7 +23,7 @@ import { HelpFormSheet } from "../components/HelpFormSheet.js";
 import { ImageLightbox } from "../components/ImageLightbox.js";
 import { HelpDetailSheet } from "../components/HelpDetailSheet.js";
 import { useAuthStore } from "../store/auth.js";
-import { useUIStore } from "../store/ui.js";
+import { useUIStore, confirmAction } from "../store/ui.js";
 import { useSocketEvent } from "../hooks/useSocket.js";
 import { useGeolocation } from "../hooks/useGeolocation.js";
 import { haversineMeters, formatDistance } from "../utils/distance.js";
@@ -46,6 +46,7 @@ export function HelpPage() {
   const [showForm, setShowForm] = useState(false);
   const [detailItem, setDetailItem] = useState<HelpRequest | null>(null);
   const loadingMore = useRef(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -161,23 +162,32 @@ export function HelpPage() {
     fetchCounts();
   }, [fetchCounts]);
 
+  // Infinite-scroll via IntersectionObserver on a sentinel at the end
+  // of the list. Cheaper than a scroll listener (no per-frame work) and
+  // auto-paginates on short viewports where the sentinel is visible on
+  // first paint — the previous threshold-based scroll handler wouldn't
+  // fire at all until the user nudged the scroller.
   useEffect(() => {
-    const el = document.getElementById("app-main");
-    const scrollEl = el?.querySelector(".tab-alive--visible") ?? document.documentElement;
-    const handleScroll = () => {
-      if (loadingMore.current) return;
-      const target = scrollEl === document.documentElement ? scrollEl : scrollEl as HTMLElement;
-      const { scrollTop, scrollHeight, clientHeight } = target;
-      if (scrollTop + clientHeight >= scrollHeight - 200 && items.length < total) {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    if (items.length >= total) return;
+    // rootMargin pre-loads 200 px before the sentinel enters view, matching
+    // the old scroll-threshold behavior. root=null watches the nearest
+    // scroll ancestor, which handles both the tab-alive overflow container
+    // and the window-level scroller without special-casing either.
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        if (loadingMore.current) return;
         loadingMore.current = true;
         const nextPage = page + 1;
         setPage(nextPage);
         fetchItems(nextPage, true);
-      }
-    };
-    const target = scrollEl === document.documentElement ? window : scrollEl;
-    target.addEventListener("scroll", handleScroll, { passive: true });
-    return () => target.removeEventListener("scroll", handleScroll);
+      },
+      { rootMargin: "200px" },
+    );
+    io.observe(sentinel);
+    return () => io.disconnect();
   }, [items.length, total, page, fetchItems]);
 
   useSocketEvent("help_request:created", (hr) => {
@@ -520,7 +530,7 @@ export function HelpPage() {
             )}
           </section>
           {items.length < total && (
-            <div style={{ padding: 16, textAlign: "center" }}>
+            <div ref={sentinelRef} style={{ padding: 16, textAlign: "center" }}>
               <Spinner size={24} />
             </div>
           )}
@@ -916,10 +926,16 @@ function CommitmentFooter({
                 type="button"
                 role="menuitem"
                 className="help-card-menu-item help-card-menu-item--danger"
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation();
                   setMenuOpen(false);
-                  if (window.confirm("Отменить ваш отклик? Заявитель увидит, что вы не сможете помочь.")) {
+                  const ok = await confirmAction({
+                    title: "Отменить отклик?",
+                    message: "Заявитель увидит, что вы не сможете помочь.",
+                    confirmLabel: "Отменить отклик",
+                    kind: "destructive",
+                  });
+                  if (ok) {
                     onUpdateResponseStatus(item.id, "cancelled");
                   }
                 }}

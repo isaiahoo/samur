@@ -11,7 +11,7 @@ import { formatRelativeTime } from "@samur/shared";
 import { getHelpRequests, updateHelpRequest } from "../../services/api.js";
 import { UrgencyBadge } from "../../components/UrgencyBadge.js";
 import { Spinner } from "../../components/Spinner.js";
-import { useUIStore } from "../../store/ui.js";
+import { useUIStore, confirmAction } from "../../store/ui.js";
 
 export function HelpManagement() {
   const [items, setItems] = useState<HelpRequest[]>([]);
@@ -37,7 +37,15 @@ export function HelpManagement() {
 
   const handleStatusChange = async (id: string, status: HelpRequestStatus) => {
     const isDestructive = status === "cancelled" || status === "completed";
-    if (isDestructive && !window.confirm(`Изменить статус на "${HELP_REQUEST_STATUS_LABELS[status]}"? Это может быть необратимо.`)) return;
+    if (isDestructive) {
+      const ok = await confirmAction({
+        title: `Изменить статус на "${HELP_REQUEST_STATUS_LABELS[status]}"?`,
+        message: "Это может быть необратимо.",
+        confirmLabel: "Изменить",
+        kind: "destructive",
+      });
+      if (!ok) return;
+    }
     try {
       await updateHelpRequest(id, { status });
       setItems((prev) => prev.map((h) => (h.id === id ? { ...h, status } : h)));

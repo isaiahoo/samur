@@ -662,6 +662,94 @@ select {
   min-height: 0;
   overscroll-behavior: contain;
 }
+.ptr-host { position: relative; }
+.ptr-indicator {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  margin-left: -18px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #fff;
+  color: #52525b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-2);
+  z-index: 5;
+  pointer-events: none;
+}
+.ptr-indicator svg { transition: transform 0.15s ease-out; }
+.ptr-indicator--ready svg { transform: rotate(180deg); color: var(--color-primary); }
+.ptr-indicator--refreshing svg { animation: ptrSpin 0.8s linear infinite; color: var(--color-primary); }
+@keyframes ptrSpin { to { transform: rotate(360deg); } }
+@media (prefers-color-scheme: dark) {
+  .ptr-indicator { background: var(--color-surface); color: #a1a1aa; }
+}
+
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 16px;
+  animation: fadeBackdrop 0.15s ease-out;
+}
+@keyframes fadeBackdrop { from { opacity: 0; } to { opacity: 1; } }
+.confirm-dialog {
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: var(--shadow-4);
+  animation: confirmIn 0.18s ease-out;
+}
+@keyframes confirmIn {
+  from { opacity: 0; transform: scale(0.96) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.confirm-title { font-size: 17px; font-weight: 700; margin: 0 0 6px; color: #18181b; line-height: 1.3; }
+.confirm-message { font-size: 14px; line-height: 1.45; color: #52525b; margin: 0 0 18px; }
+.confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.confirm-actions .btn { min-width: 96px; }
+@media (prefers-color-scheme: dark) {
+  .confirm-dialog { background: var(--color-surface); }
+  .confirm-title { color: #f4f4f5; }
+  .confirm-message { color: #a1a1aa; }
+}
+
+.route-picker { padding-top: 4px; }
+.route-picker-title { font-size: 17px; font-weight: 700; margin: 0 0 2px; }
+.route-picker-subtitle { font-size: 13px; color: #71717a; margin: 0 0 14px; }
+.route-picker-list { display: flex; flex-direction: column; gap: 8px; }
+.route-picker-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #f4f4f5;
+  text-decoration: none;
+  color: inherit;
+  min-height: 52px;
+}
+.route-picker-item:active { background: #e4e4e7; }
+.route-picker-name { font-size: 15px; font-weight: 600; color: #18181b; }
+.route-picker-hint { font-size: 12px; color: #71717a; }
+@media (prefers-color-scheme: dark) {
+  .route-picker-subtitle { color: #a1a1aa; }
+  .route-picker-item { background: #27272a; }
+  .route-picker-item:active { background: #3f3f46; }
+  .route-picker-name { color: #f4f4f5; }
+  .route-picker-hint { color: #a1a1aa; }
+}
+
 .sheet-form-header {
   flex-shrink: 0;
   background: var(--color-surface);
@@ -4285,6 +4373,25 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 /* Bottom padding leaves room for the floating SOS button (64px + its
    own safe-area offset) so the context feed doesn't hide underneath. */
 .alerts-page { padding: 0 0 calc(env(safe-area-inset-bottom, 0px) + 96px); }
+
+.notif-optin {
+  margin: 12px 16px;
+  padding: 12px 14px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.notif-optin-body strong { display: block; font-size: 14px; color: #1e3a8a; margin-bottom: 4px; }
+.notif-optin-body p { font-size: 13px; color: #1e40af; line-height: 1.35; margin: 0; }
+.notif-optin-actions { display: flex; gap: 8px; justify-content: flex-end; }
+@media (prefers-color-scheme: dark) {
+  .notif-optin { background: rgba(37, 99, 235, 0.12); border-color: rgba(96, 165, 250, 0.3); }
+  .notif-optin-body strong { color: #bfdbfe; }
+  .notif-optin-body p { color: #93c5fd; }
+}
 .alert-banner {
   padding: 12px 16px;
   display: flex;
