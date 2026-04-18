@@ -40,7 +40,11 @@ a { color: var(--color-primary); text-decoration: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  /* Padding on the sides honours the left/right home-indicator insets in
+     landscape; padding-top pushes the content down below the notch on
+     devices that have one. height: 56px keeps the content area constant
+     — the inset stacks above it (content-box). */
+  padding: env(safe-area-inset-top, 0px) calc(16px + env(safe-area-inset-right, 0px)) 0 calc(16px + env(safe-area-inset-left, 0px));
   height: 56px;
   background: #27272a;
   color: #fff;
@@ -4559,8 +4563,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .login-back-btn {
   position: absolute;
-  top: 16px;
-  left: 16px;
+  top: calc(16px + env(safe-area-inset-top, 0px));
+  left: calc(16px + env(safe-area-inset-left, 0px));
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -6909,7 +6913,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  /* 24px gutter minimum, plus the notch / home-indicator inset on the
+     matching side — otherwise the centred panel can be clipped on
+     landscape / notched devices. */
+  padding:
+    max(24px, env(safe-area-inset-top))
+    max(24px, env(safe-area-inset-right))
+    max(24px, env(safe-area-inset-bottom))
+    max(24px, env(safe-area-inset-left));
   animation: sos-fade-in 0.25s ease-out;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
