@@ -294,7 +294,7 @@ export function getHelpMessages(id: string, opts?: { before?: string; limit?: nu
   if (opts?.before) qs.set("before", opts.before);
   if (opts?.limit) qs.set("limit", String(opts.limit));
   const suffix = qs.toString() ? `?${qs}` : "";
-  return request<ApiResponse & { meta?: { unread: number; lastReadAt: string } }>(
+  return request<ApiResponse & { meta?: { unread: number; lastReadAt: string; joinedAt?: string | null } }>(
     `/help-requests/${id}/messages${suffix}`,
   );
 }

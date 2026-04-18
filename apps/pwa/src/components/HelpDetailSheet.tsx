@@ -427,6 +427,11 @@ export function HelpDetailSheet({
               currentUserId={currentUserId}
               canParticipate={!!(isAuthorMe || myActive)}
               stickyComposer
+              // Active responders + 1 for the author. Matches the
+              // server-side resolveMessageParticipants fan-out list,
+              // so the disclosure agrees with who actually receives
+              // each message.
+              activeParticipantCount={active.length + 1}
               onOpenProfile={openProfile}
             />
           )}

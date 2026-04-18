@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { HelpMessage, HelpMessageReportReason } from "@samur/shared";
+import { pluralizeRu } from "@samur/shared";
 import {
   getHelpMessages,
   sendHelpMessage,
@@ -25,6 +26,11 @@ interface Props {
   canParticipate: boolean;
   currentUserId: string | null;
   stickyComposer?: boolean;
+  /** Count of active participants (author + non-cancelled responders).
+   * Drives the composer disclosure "Видно автору и N откликнувшимся" so
+   * the author knows what they're typing into before they type. When
+   * omitted, the disclosure is hidden. */
+  activeParticipantCount?: number;
   /** Called when the user taps another participant's name in a message.
    * Lets the host (detail sheet) close itself before routing — otherwise
    * navigating to /profile/:id unmounts the page wrapper and the sheet
@@ -89,7 +95,7 @@ type DisplayItem =
   | PendingMessage
   | { kind: "day-header"; label: string; key: string };
 
-export function HelpChat({ requestId, canParticipate, currentUserId, stickyComposer, onOpenProfile }: Props) {
+export function HelpChat({ requestId, canParticipate, currentUserId, stickyComposer, activeParticipantCount, onOpenProfile }: Props) {
   const rootClass = `help-chat${stickyComposer ? " help-chat--inline" : ""}`;
   const [state, setState] = useState<ChatState>(canParticipate ? "loading" : "locked");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -108,6 +114,11 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
    * swap the "Пожаловаться" menu item for a "Отправлено на модерацию"
    * indicator. Session-only, client-side; server is source of truth. */
   const [reportedIds, setReportedIds] = useState<Set<string>>(() => new Set());
+  /** When set, responder's history was server-side filtered to
+   * messages from this timestamp onward. Drives the "Предыдущие
+   * сообщения скрыты" marker at the top of the timeline. null = we
+   * have full history (author or coord/admin). */
+  const [joinedAt, setJoinedAt] = useState<string | null>(null);
   /** Who is currently typing, keyed by userId; expiresAt is the millisecond
    * timestamp at which the indicator for this user should disappear. */
   const [typers, setTypers] = useState<Map<string, { name: string; expiresAt: number }>>(() => new Map());
@@ -153,6 +164,7 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
         const items = (res.data as HelpMessage[]) ?? [];
         setMessages(items);
         setHasMore(items.length >= PAGE_SIZE);
+        setJoinedAt(res.meta?.joinedAt ?? null);
         setState("ready");
         scrollToBottom();
       })
@@ -528,6 +540,13 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
       )}
 
       <div className="help-chat-list" ref={listRef}>
+        {joinedAt && (
+          <div className="help-chat-history-hidden" role="note">
+            Сообщения до вашего отклика скрыты — вы видите переписку
+            начиная с момента, когда откликнулись.
+          </div>
+        )}
+
         {hasMore && (
           <div className="help-chat-load-earlier">
             <button
@@ -727,6 +746,16 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
         </div>
       )}
 
+      {activeParticipantCount !== undefined && activeParticipantCount > 1 && (
+        <div className="help-chat-composer-hint" role="note">
+          {(() => {
+            // The count includes the caller themselves; subtracting
+            // one gives "other participants", which reads naturally.
+            const others = activeParticipantCount - 1;
+            return `Видно ещё ${others} ${pluralizeRu(others, "участнику", "участникам", "участникам")}`;
+          })()}
+        </div>
+      )}
       <form className="help-chat-composer" onSubmit={handleSend}>
         <button
           type="button"

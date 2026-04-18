@@ -27,7 +27,7 @@ import {
   emitSOSCreated,
 } from "../lib/emitter.js";
 import { evictUserFromHelpRoom, clearHelpRoom } from "../socket.js";
-import { assertHelpChatAccess } from "../lib/helpAccess.js";
+import { assertHelpChatAccess, getHelpChatJoinTime } from "../lib/helpAccess.js";
 import { assertOwnedUploads, assertOwnedNewUploads } from "../lib/uploadOwnership.js";
 import { reportsRateLimiter, messagesRateLimiter } from "../middleware/rateLimiter.js";
 import { auditLog } from "../lib/auditLog.js";
@@ -591,6 +591,32 @@ router.post(
         );
       }
 
+      // Participant cap: hard-limit 10 active responders per help
+      // request to keep the hub chat usable. Re-activating a
+      // previously-cancelled response doesn't count (caller is
+      // already "in"). Coordinators and admins bypass the cap — they
+      // operate in a privileged capacity, not as another responder.
+      const isPrivileged = req.user!.role === "coordinator" || req.user!.role === "admin";
+      if (!isPrivileged) {
+        const mine = await prisma.helpResponse.findUnique({
+          where: { helpRequestId_userId: { helpRequestId: id, userId: req.user!.sub } },
+          select: { status: true },
+        });
+        const isReactivating = mine && mine.status === "cancelled";
+        if (!isReactivating) {
+          const activeCount = await prisma.helpResponse.count({
+            where: { helpRequestId: id, status: { not: "cancelled" } },
+          });
+          if (activeCount >= 10) {
+            throw new AppError(
+              409,
+              "RESPONDER_CAP_REACHED",
+              "На эту заявку уже откликнулось максимальное число участников. Попробуйте связаться с автором напрямую.",
+            );
+          }
+        }
+      }
+
       // Upsert: re-activate a previously cancelled response instead of 409'ing.
       const response = await prisma.helpResponse.upsert({
         where: {
@@ -751,10 +777,21 @@ router.get("/:id/messages", requireAuth, async (req, res, next) => {
     const limit = Math.min(Math.max(parseInt(String(req.query.limit)) || 50, 1), 100);
     const before = req.query.before ? new Date(String(req.query.before)) : null;
 
+    // Responders see history from their response time onward — late-
+    // join privacy. Author and coord/admin get null (full history).
+    const joinedAt = await getHelpChatJoinTime(id, req.user!);
+
+    // Build the createdAt filter in one object — two separate
+    // `...(cond ? {createdAt: ...} : {})` spreads on the same key
+    // would clobber each other.
+    const createdAtFilter: { gte?: Date; lt?: Date } = {};
+    if (joinedAt) createdAtFilter.gte = joinedAt;
+    if (before) createdAtFilter.lt = before;
+
     const messages = await prisma.helpMessage.findMany({
       where: {
         helpRequestId: id,
-        ...(before ? { createdAt: { lt: before } } : {}),
+        ...(Object.keys(createdAtFilter).length > 0 ? { createdAt: createdAtFilter } : {}),
       },
       orderBy: { createdAt: "desc" },
       take: limit,
@@ -767,28 +804,35 @@ router.get("/:id/messages", requireAuth, async (req, res, next) => {
       m.deletedAt ? { ...m, body: "", photoUrls: [] } : m,
     );
 
-    // Unread count: anything newer than my last-read watermark. Deleted
-    // messages don't contribute to unread — once content is gone there's
-    // nothing to read.
+    // Unread count: anything newer than max(my last-read watermark,
+    // my join time). Deleted messages don't contribute — once content
+    // is gone there's nothing to read.
     const read = await prisma.helpMessageRead.findUnique({
       where: { helpRequestId_userId: { helpRequestId: id, userId: req.user!.sub } },
       select: { lastReadAt: true },
     });
     const watermark = read?.lastReadAt ?? new Date(0);
+    const unreadCutoff = joinedAt && joinedAt > watermark ? joinedAt : watermark;
     const unread = await prisma.helpMessage.count({
       where: {
         helpRequestId: id,
         deletedAt: null,
         authorId: { not: req.user!.sub },
-        createdAt: { gt: watermark },
+        createdAt: { gt: unreadCutoff },
       },
     });
 
-    // Oldest-first for UI rendering.
+    // Oldest-first for UI rendering. `joinedAt` in meta tells the
+    // client whether to render a "Предыдущие сообщения скрыты" marker
+    // at the top of the timeline.
     res.json({
       success: true,
       data: safeMessages.reverse(),
-      meta: { unread, lastReadAt: watermark.toISOString() },
+      meta: {
+        unread,
+        lastReadAt: watermark.toISOString(),
+        joinedAt: joinedAt?.toISOString() ?? null,
+      },
     });
   } catch (err) {
     next(err);
