@@ -1184,7 +1184,7 @@ router.delete(
 
       await prisma.helpRequest.update({
         where: { id },
-        data: { deletedAt: new Date() },
+        data: { deletedAt: new Date(), deletedBy: req.user!.sub },
       });
 
       clearHelpRoom(id);

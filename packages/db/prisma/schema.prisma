@@ -177,6 +177,9 @@ model Incident {
   createdAt   DateTime       @default(now()) @map("created_at")
   updatedAt   DateTime       @updatedAt @map("updated_at")
   deletedAt   DateTime?      @map("deleted_at")
+  /// Coordinator/admin user id who triggered the soft-delete. NULL on
+  /// natural-expiry paths and legacy rows predating the audit column.
+  deletedBy   String?        @map("deleted_by")
 
   author       User?         @relation("IncidentAuthor", fields: [userId], references: [id], onDelete: SetNull)
   verifier     User?         @relation("IncidentVerifier", fields: [verifiedBy], references: [id], onDelete: SetNull)
@@ -220,6 +223,9 @@ model HelpRequest {
   createdAt    DateTime          @default(now()) @map("created_at")
   updatedAt    DateTime          @updatedAt @map("updated_at")
   deletedAt    DateTime?         @map("deleted_at")
+  /// Coordinator/admin user id who triggered the soft-delete. NULL on
+  /// natural-expiry paths and legacy rows predating the audit column.
+  deletedBy    String?           @map("deleted_by")
 
   author       User?             @relation("HelpRequestAuthor", fields: [userId], references: [id], onDelete: SetNull)
   claimer      User?             @relation("HelpRequestClaimer", fields: [claimedBy], references: [id], onDelete: SetNull)
@@ -378,6 +384,9 @@ model Alert {
   sentAt    DateTime     @default(now()) @map("sent_at")
   expiresAt DateTime?    @map("expires_at")
   deletedAt DateTime?    @map("deleted_at")
+  /// Coordinator/admin user id who triggered the soft-delete. NULL on
+  /// legacy rows predating the audit column.
+  deletedBy String?      @map("deleted_by")
 
   author        User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
   smsBroadcasts SmsBroadcastLog[]
@@ -406,6 +415,9 @@ model Shelter {
   createdAt        DateTime      @default(now()) @map("created_at")
   updatedAt        DateTime      @updatedAt @map("updated_at")
   deletedAt        DateTime?     @map("deleted_at")
+  /// Coordinator/admin user id who triggered the soft-delete. NULL on
+  /// legacy rows predating the audit column.
+  deletedBy        String?       @map("deleted_by")
 
   @@index([status])
   @@index([deletedAt])

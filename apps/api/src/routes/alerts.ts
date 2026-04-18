@@ -417,7 +417,7 @@ router.delete(
 
       await prisma.alert.update({
         where: { id },
-        data: { deletedAt: new Date() },
+        data: { deletedAt: new Date(), deletedBy: req.user!.sub },
       });
 
       res.json({ success: true, data: { id, deleted: true } });
