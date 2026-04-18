@@ -9,6 +9,7 @@ import { AppError } from "../middleware/error.js";
 import { logger } from "../lib/logger.js";
 import { getRedis } from "../lib/redis.js";
 import { signToken } from "../lib/jwt.js";
+import { authAttemptsTotal } from "../lib/metrics.js";
 
 const router = Router();
 
@@ -127,6 +128,7 @@ router.post(
       }
 
       const token = signToken(user.id, user.role, user.tokenVersion);
+      authAttemptsTotal.inc({ flow: "telegram", outcome: "success" });
 
       res.json({
         success: true,

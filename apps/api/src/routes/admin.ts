@@ -6,6 +6,7 @@ import { AppError } from "../middleware/error.js";
 import { incrementTokenVersion } from "../lib/tokenVersion.js";
 import { disconnectUserSockets } from "../socket.js";
 import { auditLog } from "../lib/auditLog.js";
+import { tokensRevokedTotal } from "../lib/metrics.js";
 
 const router = Router();
 
@@ -110,6 +111,7 @@ router.post(
       const newVersion = await incrementTokenVersion(targetId);
       disconnectUserSockets(targetId);
       auditLog({ action: "force_logout_user", actorId: req.user!.sub, targetId });
+      tokensRevokedTotal.inc({ trigger: "force_logout_user" });
 
       res.json({ success: true, data: { userId: targetId, tokenVersion: newVersion } });
     } catch (err) {

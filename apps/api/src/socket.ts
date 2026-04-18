@@ -10,6 +10,7 @@ import { config } from "./config.js";
 import { logger } from "./lib/logger.js";
 import { isHelpChatParticipant } from "./lib/helpAccess.js";
 import { getTokenVersion } from "./lib/tokenVersion.js";
+import { wsConnectionsGauge } from "./lib/metrics.js";
 
 type SamurSocket = Socket<ClientToServerEvents, ServerToClientEvents> & {
   userId?: string;
@@ -127,6 +128,7 @@ export function initSocketIO(
   io.on("connection", (rawSocket) => {
     const socket = rawSocket as SamurSocket;
     logger.debug({ socketId: socket.id }, "Socket connected");
+    wsConnectionsGauge.inc();
 
     // Auto-join the user's own room so the server can target this user
     // across every tab they have open (fan-out for notify events and
@@ -210,6 +212,7 @@ export function initSocketIO(
 
     socket.on("disconnect", () => {
       logger.debug({ socketId: socket.id }, "Socket disconnected");
+      wsConnectionsGauge.dec();
     });
   });
 

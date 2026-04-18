@@ -6,6 +6,7 @@ import { config } from "../config.js";
 import { AppError } from "../middleware/error.js";
 import { logger } from "../lib/logger.js";
 import { signToken } from "../lib/jwt.js";
+import { authAttemptsTotal } from "../lib/metrics.js";
 
 const router = Router();
 
@@ -100,6 +101,7 @@ router.post("/vk", async (req, res, next) => {
     }
 
     const token = signToken(user.id, user.role, user.tokenVersion);
+    authAttemptsTotal.inc({ flow: "vk", outcome: "success" });
 
     res.json({
       success: true,
@@ -250,6 +252,7 @@ router.post("/vk/exchange", async (req, res, next) => {
     }
 
     const token = signToken(user.id, user.role, user.tokenVersion);
+    authAttemptsTotal.inc({ flow: "vk_exchange", outcome: "success" });
 
     res.json({
       success: true,

@@ -7,6 +7,7 @@ import { validateBody, validateQuery } from "../middleware/validate.js";
 import { incidentsRateLimiter } from "../middleware/rateLimiter.js";
 import { auditLog } from "../lib/auditLog.js";
 import { assertOwnedUploads, assertOwnedNewUploads } from "../lib/uploadOwnership.js";
+import { incidentsCreatedTotal } from "../lib/metrics.js";
 import {
   CreateIncidentSchema,
   UpdateIncidentSchema,
@@ -133,6 +134,7 @@ router.post(
       });
 
       emitIncidentCreated(incident as unknown as Incident);
+      incidentsCreatedTotal.inc({ source: incident.source, type: incident.type });
 
       res.status(201).json({ success: true, data: incident });
     } catch (err) {

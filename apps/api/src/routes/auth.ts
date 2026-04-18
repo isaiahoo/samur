@@ -12,6 +12,7 @@ import { incrementTokenVersion } from "../lib/tokenVersion.js";
 import { getRedis } from "../lib/redis.js";
 import { disconnectUserSockets } from "../socket.js";
 import { auditLog } from "../lib/auditLog.js";
+import { authAttemptsTotal, tokensRevokedTotal } from "../lib/metrics.js";
 
 const router = Router();
 /** bcrypt cost factor for new account hashes. 12 is ~4× the work of
@@ -44,6 +45,7 @@ router.post(
 
       const existing = await prisma.user.findUnique({ where: { phone } });
       if (existing) {
+        authAttemptsTotal.inc({ flow: "register", outcome: "phone_exists" });
         throw new AppError(409, "PHONE_EXISTS", "Пользователь с таким номером уже зарегистрирован");
       }
 
@@ -60,6 +62,7 @@ router.post(
 
       const token = signToken(user.id, user.role, user.tokenVersion);
 
+      authAttemptsTotal.inc({ flow: "register", outcome: "success" });
       res.status(201).json({
         success: true,
         data: { token, user: sanitizeUser(user) },
@@ -80,14 +83,17 @@ router.post(
 
       const user = await prisma.user.findUnique({ where: { phone } });
       if (!user || !user.password) {
+        authAttemptsTotal.inc({ flow: "login", outcome: "invalid_credentials" });
         throw new AppError(401, "INVALID_CREDENTIALS", "Неверный номер телефона или пароль");
       }
 
       const valid = await bcrypt.compare(password, user.password);
       if (!valid) {
+        authAttemptsTotal.inc({ flow: "login", outcome: "invalid_credentials" });
         throw new AppError(401, "INVALID_CREDENTIALS", "Неверный номер телефона или пароль");
       }
 
+      authAttemptsTotal.inc({ flow: "login", outcome: "success" });
       const token = signToken(user.id, user.role, user.tokenVersion);
 
       res.json({
@@ -165,6 +171,7 @@ router.patch("/me", requireAuth, async (req, res, next) => {
         } catch { /* ignore */ }
       }
       disconnectUserSockets(user.id);
+      tokensRevokedTotal.inc({ trigger: "role_change" });
     }
 
     // Mint a fresh token on role change so the client can swap it and
@@ -196,6 +203,7 @@ router.post("/logout-all", requireAuth, async (req, res, next) => {
     // on the already-sent tokens until the socket naturally closed.
     disconnectUserSockets(req.user!.sub);
     auditLog({ action: "logout_all", actorId: req.user!.sub });
+    tokensRevokedTotal.inc({ trigger: "logout_all" });
     res.json({ success: true, data: { tokenVersion: newVersion } });
   } catch (err) {
     next(err);

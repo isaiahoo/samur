@@ -31,6 +31,7 @@ import { assertHelpChatAccess, getHelpChatJoinTime } from "../lib/helpAccess.js"
 import { assertOwnedUploads, assertOwnedNewUploads } from "../lib/uploadOwnership.js";
 import { reportsRateLimiter, messagesRateLimiter } from "../middleware/rateLimiter.js";
 import { auditLog } from "../lib/auditLog.js";
+import { helpRequestsCreatedTotal } from "../lib/metrics.js";
 import { computeUserStats, type UserStats } from "../lib/userStats.js";
 import { getRealIp } from "../lib/clientIp.js";
 import { paramId } from "../lib/params.js";
@@ -400,6 +401,7 @@ router.post(
       const typed = hr as unknown as HelpRequest;
       emitSOSCreated(typed);
       emitHelpRequestCreated(typed);
+      helpRequestsCreatedTotal.inc({ source: hr.source, type: "sos" });
 
       res.status(201).json({ success: true, data: hr });
     } catch (err) {
@@ -492,6 +494,7 @@ router.post(
         null,
       ) as unknown as HelpRequest;
       emitHelpRequestCreated(broadcast);
+      helpRequestsCreatedTotal.inc({ source: hr.source, type: hr.type });
 
       const caller = getCaller(req as never);
       const filtered = filterPhones(hr as unknown as HelpRequestWithParties, caller);

@@ -4,6 +4,14 @@ import { RateLimiterRedis, RateLimiterMemory } from "rate-limiter-flexible";
 import type { Redis } from "ioredis";
 import { logger } from "../lib/logger.js";
 import { getRealIp } from "../lib/clientIp.js";
+import { rateLimitHitsTotal } from "../lib/metrics.js";
+
+/** Thin wrapper that flows the limiter/tier labels through to the
+ * Prometheus counter on each 429. Kept here (not in metrics.ts) so
+ * the label vocabulary stays next to the middleware that defines it. */
+function recordHit(limiter: string, tier: string): void {
+  rateLimitHitsTotal.inc({ limiter, tier });
+}
 
 const LIMITS = {
   anonymous: { points: 90, duration: 60 },
@@ -147,6 +155,7 @@ export async function rateLimiterMiddleware(
     res.setHeader("X-RateLimit-Limit", LIMITS[key as keyof typeof LIMITS].points);
     next();
   } catch {
+    recordHit("global", key);
     res.status(429).json({
       success: false,
       error: {
@@ -173,6 +182,7 @@ export async function uploadsRateLimiter(
     res.setHeader("X-Uploads-RateLimit-Limit", LIMITS[key as keyof typeof LIMITS].points);
     next();
   } catch {
+    recordHit("uploads", key);
     res.status(429).json({
       success: false,
       error: {
@@ -211,6 +221,7 @@ export async function messagesRateLimiter(
     res.setHeader("X-Messages-RateLimit-Limit", LIMITS[key as keyof typeof LIMITS].points);
     next();
   } catch {
+    recordHit("messages", key);
     res.status(429).json({
       success: false,
       error: {
@@ -240,6 +251,7 @@ export async function incidentsRateLimiter(
     res.setHeader("X-Incidents-RateLimit-Limit", LIMITS[key as keyof typeof LIMITS].points);
     next();
   } catch {
+    recordHit("incidents", key);
     res.status(429).json({
       success: false,
       error: {
@@ -276,6 +288,7 @@ export async function alertBroadcastRateLimiter(
     res.setHeader("X-Alert-RateLimit-Limit", LIMITS[key as keyof typeof LIMITS].points);
     next();
   } catch {
+    recordHit("alert_broadcast", key);
     res.status(429).json({
       success: false,
       error: {
@@ -317,6 +330,11 @@ export async function authAttemptsRateLimiter(
     ]);
     next();
   } catch {
+    // Either bucket exhausting triggers 429; we label the metric as
+    // "auth_attempts" without differentiating phone-vs-ip to keep the
+    // cardinality low — the dashboards care about "auth cap fired"
+    // more than which side of the join exhausted first.
+    recordHit("auth_attempts", phone ? "phone" : "ip");
     res.status(429).json({
       success: false,
       error: {
@@ -353,6 +371,7 @@ export async function reportsRateLimiter(
     res.setHeader("X-Reports-RateLimit-Limit", LIMITS[key as keyof typeof LIMITS].points);
     next();
   } catch {
+    recordHit("reports", key);
     res.status(429).json({
       success: false,
       error: {

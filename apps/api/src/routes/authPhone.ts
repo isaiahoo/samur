@@ -8,6 +8,7 @@ import { AppError } from "../middleware/error.js";
 import { logger } from "../lib/logger.js";
 import { getRedis } from "../lib/redis.js";
 import { signToken } from "../lib/jwt.js";
+import { authAttemptsTotal } from "../lib/metrics.js";
 
 const router = Router();
 
@@ -174,6 +175,7 @@ router.post(
       await redis.set(codeKey, JSON.stringify(stored), "EX", ttl > 0 ? ttl : CODE_TTL);
 
       if (stored.code !== code) {
+        authAttemptsTotal.inc({ flow: "phone_verify", outcome: "invalid_code" });
         const remaining = MAX_ATTEMPTS - stored.attempts;
         throw new AppError(401, "INVALID_CODE", `Неверный код. Осталось попыток: ${remaining}`);
       }
@@ -221,6 +223,7 @@ router.post(
       }
 
       const token = signToken(user.id, user.role, user.tokenVersion);
+      authAttemptsTotal.inc({ flow: "phone_verify", outcome: "success" });
 
       res.json({
         success: true,

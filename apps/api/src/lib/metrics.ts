@@ -43,6 +43,41 @@ export const helpRequestsCreatedTotal = new Counter({
   registers: [registry],
 });
 
+/** Every time any rate limiter returns 429. `limiter` matches the
+ * middleware name in src/middleware/rateLimiter.ts (global, uploads,
+ * messages, reports, incidents, alert_broadcast, auth_attempts). Lets
+ * ops tune thresholds against real traffic instead of guesses — if a
+ * bucket is tripping legit users in a surge, this shows up here. */
+export const rateLimitHitsTotal = new Counter({
+  name: "samur_rate_limit_hits_total",
+  help: "Total rate-limit 429 responses emitted, labeled by bucket",
+  labelNames: ["limiter", "tier"] as const,
+  registers: [registry],
+});
+
+/** Auth attempts across every flow. `flow` one of: register, login,
+ * phone_request, phone_verify, telegram, vk, vk_exchange. `outcome`
+ * one of: success, invalid_credentials, rate_limited, other_error.
+ * Credential-stuffing signal shows up as a spike in (login,
+ * invalid_credentials) with flat (login, success). */
+export const authAttemptsTotal = new Counter({
+  name: "samur_auth_attempts_total",
+  help: "Authentication attempts across every flow",
+  labelNames: ["flow", "outcome"] as const,
+  registers: [registry],
+});
+
+/** Tokens revoked, labeled by trigger. Together with
+ * authAttemptsTotal this tells ops how often force-logout is used vs
+ * self-initiated logout-all. Spikes in force_logout_user are a
+ * signal of ongoing moderation activity. */
+export const tokensRevokedTotal = new Counter({
+  name: "samur_tokens_revoked_total",
+  help: "JWT revocations via tokenVersion bump",
+  labelNames: ["trigger"] as const,
+  registers: [registry],
+});
+
 // ── Middleware ──────────────────────────────────────────────────────────────
 
 function normalizeRoute(req: Request): string {
