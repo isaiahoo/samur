@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { SOS_SITUATION_LABELS } from "@samur/shared";
 import type { SosSituation } from "@samur/shared";
 import { createSOS } from "../services/api.js";
@@ -12,6 +13,10 @@ type Stage = "idle" | "situation" | "sending" | "sent" | "error";
 
 const HOLD_DURATION = 1200;
 const AUTO_SEND_DELAY = 5000;
+/** Marker attached to the synthetic history entry we push while the SOS
+ * overlay is open. Distinct from BottomSheet / HelpDetailSheet /
+ * ImageLightbox markers so all can coexist on the stack. */
+const SOS_STATE_MARKER = "kunakSos";
 
 export function SOSButton() {
   const reportFormOpen = useUIStore((s) => s.reportFormOpen);
@@ -187,6 +192,45 @@ export function SOSButton() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [stage, cancel, close]);
 
+  // Body scroll lock while the overlay is up — the background was free to
+  // scroll before, which is wrong for a full-screen crisis action.
+  const overlayActive = stage !== "idle";
+  useEffect(() => {
+    if (!overlayActive) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [overlayActive]);
+
+  // Hardware / browser back closes the SOS overlay instead of leaving
+  // the page. Same pushState + popstate pattern as BottomSheet /
+  // HelpDetailSheet / ImageLightbox, keyed to SOS_STATE_MARKER. Refs
+  // keep the handler reading the latest stage/cancel/close without
+  // re-registering on every stage transition.
+  const stageRef = useRef(stage);
+  stageRef.current = stage;
+  const cancelRef = useRef(cancel);
+  cancelRef.current = cancel;
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useEffect(() => {
+    if (!overlayActive) return;
+    window.history.pushState({ [SOS_STATE_MARKER]: true }, "");
+    const onPopState = (e: PopStateEvent) => {
+      if (e.state?.[SOS_STATE_MARKER]) return;
+      const s = stageRef.current;
+      if (s === "sent" || s === "error") closeRef.current();
+      else cancelRef.current();
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      if (window.history.state?.[SOS_STATE_MARKER]) {
+        window.history.back();
+      }
+    };
+  }, [overlayActive]);
+
   // Hide when report form is open — user already chose "+" over SOS
   if (stage === "idle" && reportFormOpen) return null;
 
@@ -232,8 +276,10 @@ export function SOSButton() {
     );
   }
 
-  // Full-screen overlay for all active stages
-  return (
+  // Full-screen overlay for all active stages, portaled to document.body
+  // so no transformed ancestor (e.g. the crisis-mode layout transform)
+  // can trap the fixed overlay.
+  return createPortal(
     <div className="sos-overlay" role="alertdialog" aria-label="Экстренный сигнал SOS" aria-modal="true">
       {stage === "situation" && (
         <div className="sos-panel">
@@ -353,7 +399,8 @@ export function SOSButton() {
           <button className="sos-cancel-btn" onClick={cancel}>Закрыть</button>
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
 
