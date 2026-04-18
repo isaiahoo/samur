@@ -6650,10 +6650,6 @@ a.tg-auth-fallback {
   -webkit-overflow-scrolling: touch;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   scrollbar-width: none;
-  /* Allow horizontal scroll for the tab row, block vertical pan so a
-     miss-swipe on the tabs doesn't scroll the page underneath. */
-  touch-action: pan-x;
-  overscroll-behavior-x: contain;
 }
 .ep-streams::-webkit-scrollbar { display: none; }
 .ep-stream {
@@ -6840,11 +6836,9 @@ a.tg-auth-fallback {
     backdrop-filter: none;
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
     transition: height 0.28s cubic-bezier(0.32, 0.72, 0, 1);
-    /* Block all browser-default gestures at the sheet level; each
-       interactive region opts in to the ones it needs. Prevents a
-       vertical swipe on the header or tab strip from bubbling out to
-       scroll the body / pan the map. */
-    touch-action: none;
+    /* Keep all vertical gestures (scroll + drag) inside the panel so they
+       don't leak to the MapLibre canvas behind and pan the map. */
+    touch-action: pan-y;
     overscroll-behavior: none;
   }
   .ep--dragging { transition: none; }
@@ -6884,9 +6878,7 @@ a.tg-auth-fallback {
     flex-shrink: 0;
     border-radius: 0;
     padding-top: 4px;
-    /* Header is a tap-only row (title + count + close X). Block any
-       pan so a miss-swipe doesn't leak to scroll the page. */
-    touch-action: none;
+    touch-action: pan-y;
   }
   .ep-body {
     overflow-y: auto;
