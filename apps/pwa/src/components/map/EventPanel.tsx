@@ -36,7 +36,9 @@ const ROW_CAP = 20;
 function readSheetMode(): SheetMode {
   if (typeof window === "undefined") return "half";
   const v = window.localStorage.getItem(SHEET_KEY);
-  if (v === "peek" || v === "half" || v === "full") return v;
+  // Full is a per-session choice — ignore it on read even if a
+  // previous session or build persisted it. Only peek / half stick.
+  if (v === "peek" || v === "half") return v;
   return "half";
 }
 
