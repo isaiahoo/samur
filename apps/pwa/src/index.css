@@ -5296,7 +5296,9 @@ a.tg-auth-fallback {
 }
 .ai-alert-label--elevated { color: #f59e0b; }
 .ai-alert-label--critical {
-  color: #ef4444;
+  /* Same contrast reasoning as .crisis-banner — this label sits over
+     the map with a dark text-shadow halo; #F87171 clears AA. */
+  color: #F87171;
   /* Gentle pulse draws peripheral attention without competing with
      the live SOS button's prominence. */
   animation: ai-alert-label-appear 280ms ease-out, ai-alert-label-pulse 2.6s ease-in-out 280ms infinite;
@@ -5907,7 +5909,11 @@ a.tg-auth-fallback {
 /* ── Crisis Mode: Emergency Banner ────────────────────────────────────────── */
 .crisis-banner {
   background: #000;
-  color: #EF4444;
+  /* red-400 (#F87171) on pure black = ~5.7:1 contrast, clears WCAG AA
+     for normal text. The original #EF4444 was only ~4.0:1 and failed.
+     Chevron stripes / borders keep the more saturated red — they're
+     decorative and not subject to text-contrast rules. */
+  color: #F87171;
   font-family: "Courier New", Courier, monospace;
   text-transform: uppercase;
   letter-spacing: 2px;
@@ -5952,7 +5958,9 @@ a.tg-auth-fallback {
   transition: background 0.4s ease, border-color 0.4s ease;
 }
 .crisis-mode .tab { color: #71717a; }
-.crisis-mode .tab--active { color: #EF4444; }
+/* Same contrast reasoning as .crisis-banner — tab-bar background in
+   crisis mode is near-black. */
+.crisis-mode .tab--active { color: #F87171; }
 
 /* ── Crisis Mode: CRT Scanlines (map only) ────────────────────────────────── */
 .crisis-mode .map-page::after {
@@ -6123,7 +6131,7 @@ a.tg-auth-fallback {
   border-color: rgba(239, 68, 68, 0.2);
 }
 .crisis-mode .nerv-layer-item--on {
-  color: #EF4444;
+  color: #F87171;
 }
 .crisis-mode .nerv-layer-item--on .nerv-layer-indicator {
   background: #EF4444;
