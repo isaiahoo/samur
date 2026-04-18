@@ -2,8 +2,6 @@
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 import crypto from "crypto";
 import sharp from "sharp";
 import { prisma } from "@samur/db";
@@ -11,10 +9,15 @@ import { AppError } from "../middleware/error.js";
 import { optionalAuth } from "../middleware/auth.js";
 import { uploadsRateLimiter } from "../middleware/rateLimiter.js";
 import { logger } from "../lib/logger.js";
+import {
+  writeBlob,
+  deleteBlob,
+  getPublicUrl,
+  isRemoteStorageEnabled,
+} from "../lib/storage.js";
 
 const router = Router();
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 const MAX_FILES = 5;
 
@@ -45,12 +48,8 @@ const MAX_EDGE_PX = 2560;
  * — indistinguishable from source on a phone screen, 60-80% smaller. */
 const REENCODE_QUALITY = 85;
 
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
-
 /** Memory storage (not disk) so we control the write ourselves — every
- * byte that lands on disk has already passed through sharp, which
+ * byte that leaves this process has already passed through sharp, which
  * strips EXIF, ICC profile, XMP, and any other metadata. Holding up to
  * 5 × 5 MB in memory per request is bounded by MAX_FILE_SIZE × MAX_FILES
  * and the uploadsRateLimiter ceiling. */
@@ -78,30 +77,37 @@ const upload = multer({
  * HEIC is iOS-native but unsupported in Chrome/Firefox desktop — the
  * conversion fixes both EXIF stripping and cross-browser rendering in
  * one step. Returns the extension the caller should persist the file
- * under (matching the photoUrl regex).
+ * under (matching the photoUrl regex) plus the output content type
+ * for storage metadata.
  */
-async function reencode(file: Express.Multer.File): Promise<{ buffer: Buffer; ext: string }> {
+async function reencode(file: Express.Multer.File): Promise<{ buffer: Buffer; ext: string; mime: string }> {
   const input = sharp(file.buffer, { failOn: "none" })
     .rotate()
     .resize({ width: MAX_EDGE_PX, height: MAX_EDGE_PX, fit: "inside", withoutEnlargement: true });
 
   if (file.mimetype === "image/png") {
-    return { buffer: await input.png({ compressionLevel: 9 }).toBuffer(), ext: "png" };
+    return { buffer: await input.png({ compressionLevel: 9 }).toBuffer(), ext: "png", mime: "image/png" };
   }
   if (file.mimetype === "image/webp") {
-    return { buffer: await input.webp({ quality: REENCODE_QUALITY }).toBuffer(), ext: "webp" };
+    return { buffer: await input.webp({ quality: REENCODE_QUALITY }).toBuffer(), ext: "webp", mime: "image/webp" };
   }
   // JPEG / HEIC / HEIF all normalize to JPEG.
-  return { buffer: await input.jpeg({ quality: REENCODE_QUALITY, mozjpeg: true }).toBuffer(), ext: "jpg" };
+  return { buffer: await input.jpeg({ quality: REENCODE_QUALITY, mozjpeg: true }).toBuffer(), ext: "jpg", mime: "image/jpeg" };
 }
 
 /**
  * POST /uploads
+ *
  * Upload up to 5 images. Each file is re-encoded via sharp before it
- * hits disk — EXIF (including GPS), ICC, XMP, and other metadata are
- * dropped; HEIC is converted to JPEG for cross-browser compatibility;
- * oversize images are resampled to the MAX_EDGE_PX cap. Returns the
- * array of URLs pointing to the re-encoded files.
+ * leaves this process — EXIF (including GPS), ICC, XMP, and other
+ * metadata are dropped; HEIC is converted to JPEG for cross-browser
+ * compatibility; oversize images are resampled to the MAX_EDGE_PX cap.
+ *
+ * Storage backend is chosen by lib/storage.ts based on env: Yandex
+ * Object Storage in prod, local filesystem in dev/tests. The returned
+ * URLs keep the `/api/v1/uploads/[hex].[ext]` shape regardless — in
+ * prod the GET route 302-redirects to the bucket, in dev express.static
+ * serves directly.
  *
  * `optionalAuth` (not `requireAuth`) is intentional: anonymous
  * incident reports still need to attach photos before they submit,
@@ -134,22 +140,26 @@ router.post(
         return next(new AppError(400, "NO_FILES", "Файлы не выбраны"));
       }
 
-      // Track files we've already persisted so a mid-loop failure can
-      // unlink them — otherwise a 2nd-file reencode failure leaves the
-      // 1st file orphaned on disk forever (the client never learns the
-      // URL so it's unreachable garbage).
+      // Track what we've already persisted so a mid-loop failure can
+      // be rolled back — otherwise a 2nd-file reencode failure leaves
+      // the 1st file orphaned in the backend forever (the client
+      // never learns the URL, so it's unreachable garbage).
       const written: string[] = [];
       try {
         const urls: string[] = [];
         const filenames: string[] = [];
         for (const file of files) {
-          const { buffer, ext } = await reencode(file);
+          const { buffer, ext, mime } = await reencode(file);
           const hex = crypto.randomBytes(16).toString("hex");
           const filename = `${hex}.${ext}`;
-          const absPath = path.join(UPLOAD_DIR, filename);
-          await fs.promises.writeFile(absPath, buffer);
-          written.push(absPath);
+          await writeBlob(filename, buffer, mime);
+          written.push(filename);
           filenames.push(filename);
+          // getPublicUrl returns /api/v1/uploads/... on local fs and
+          // the full Yandex URL in remote mode. We always store the
+          // LOCAL shape in photoUrls so the photoUrl regex in the
+          // shared schemas keeps passing; the redirect handler flips
+          // it to the Yandex URL at serve time.
           urls.push(`/api/v1/uploads/${filename}`);
         }
 
@@ -166,15 +176,56 @@ router.post(
           skipDuplicates: true,
         });
 
-        logger.info({ count: files.length, uploaderId }, "Files uploaded (re-encoded)");
+        logger.info(
+          { count: files.length, uploaderId, backend: isRemoteStorageEnabled() ? "yandex" : "local" },
+          "Files uploaded (re-encoded)",
+        );
         res.json({ success: true, data: { urls } });
       } catch (reencodeErr) {
         logger.warn({ err: reencodeErr, orphanCount: written.length }, "Image re-encode failed");
-        await Promise.allSettled(written.map((p) => fs.promises.unlink(p)));
+        await Promise.allSettled(written.map((f) => deleteBlob(f)));
         return next(new AppError(400, "INVALID_IMAGE", "Не удалось обработать изображение"));
       }
     });
   },
 );
+
+/**
+ * GET /uploads/:filename
+ *
+ * Serve a previously-uploaded blob. In remote mode (Yandex configured),
+ * 302-redirects the browser to the public bucket URL — the API node
+ * never proxies bytes, which removes this workload from our bandwidth
+ * envelope. In local mode, the route is unreachable because
+ * express.static claims /api/v1/uploads first in src/index.ts.
+ *
+ * We validate the filename matches our storage shape before
+ * redirecting, so someone passing `..%2F../etc/passwd` can't trick
+ * us into emitting a Location header pointing somewhere unintended.
+ */
+const UPLOAD_FILENAME_RE = /^[a-f0-9]{32}\.(?:jpg|png|webp|heic|heif)$/;
+
+router.get("/:filename", (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!isRemoteStorageEnabled()) {
+      // Local mode: express.static would have served this at the
+      // app-level mount before we reached this router. Hitting here
+      // means the file doesn't exist on disk.
+      return next(new AppError(404, "NOT_FOUND", "Файл не найден"));
+    }
+    const filename = String(req.params.filename || "");
+    if (!UPLOAD_FILENAME_RE.test(filename)) {
+      return next(new AppError(400, "INVALID_FILENAME", "Некорректное имя файла"));
+    }
+    const target = getPublicUrl(filename);
+    // Small Cache-Control so browsers + CDNs cache the 302 itself for a
+    // while — the target URL is static forever per the immutable
+    // filename convention, so re-redirecting every request is waste.
+    res.set("Cache-Control", "public, max-age=3600");
+    res.redirect(302, target);
+  } catch (err) {
+    next(err);
+  }
+});
 
 export default router;

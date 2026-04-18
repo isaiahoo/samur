@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1032.0",
     "@samur/db": "*",
     "@samur/shared": "*",
     "@sentry/node": "^10.48.0",

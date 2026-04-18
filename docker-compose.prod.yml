@@ -81,55 +81,6 @@ services:
           sleep 86400
         done
 
-  # ── Uploads backup cron ──────────────────────────────────────────────────
-  # Mirrors pg-backup for the user-uploaded photos. Runs daily, tars the
-  # uploads volume into /backups/uploads_STAMP.tar.gz, verifies the archive
-  # is readable before pruning anything, keeps 7 days. Uses alpine instead
-  # of postgis to keep the image small — we only need sh/tar/find here.
-  uploads-backup:
-    image: alpine:3.20
-    container_name: samur-uploads-backup
-    restart: always
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    volumes:
-      - uploads:/app/uploads:ro
-      - ./backups:/backups
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        while true; do
-          STAMP=$$(date +%Y%m%d_%H%M%S)
-          TARGET=/backups/uploads_$$STAMP.tar.gz
-          # Tar the volume into a dated tarball. -C + . so filenames
-          # inside the archive are relative (clean restores).
-          if tar -czf "$$TARGET" -C /app/uploads . 2>/tmp/tar.err; then
-            # Integrity check: tar -tzf fully reads + inflates the
-            # archive, catching corrupted/truncated writes the same
-            # way pg-backup uses pg_restore --list.
-            if tar -tzf "$$TARGET" > /dev/null 2>&1; then
-              SIZE=$$(stat -c%s "$$TARGET" 2>/dev/null || echo 0)
-              echo "[$$STAMP] uploads backup OK ($$SIZE bytes)"
-              # Only prune on success — never drop our last known
-              # good archive because today's run failed.
-              find /backups -name "uploads_*.tar.gz" -mtime +7 -delete
-            else
-              echo "[$$STAMP] ERROR: tarball failed tar -tzf integrity check"
-              rm -f "$$TARGET"
-            fi
-          else
-            echo "[$$STAMP] ERROR: tar failed — $$(cat /tmp/tar.err)"
-            rm -f "$$TARGET"
-            # Retry in 5 minutes, same pattern as pg-backup.
-            sleep 300
-            continue
-          fi
-          sleep 86400
-        done
-
   # ── Redis ─────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
@@ -184,6 +135,15 @@ services:
       TILE_PROVIDER: ${TILE_PROVIDER:-maptiler}
       MAPTILER_API_KEY: ${MAPTILER_API_KEY:-}
       ML_SERVICE_URL: http://ml:8000
+      # Yandex Object Storage — see apps/api/src/lib/storage.ts. When
+      # these are all populated (they are in prod /opt/samur/.env),
+      # uploads go to the bucket instead of local fs.
+      YANDEX_STORAGE_ENDPOINT: ${YANDEX_STORAGE_ENDPOINT:-}
+      YANDEX_STORAGE_REGION: ${YANDEX_STORAGE_REGION:-ru-central1}
+      YANDEX_STORAGE_BUCKET: ${YANDEX_STORAGE_BUCKET:-}
+      YANDEX_STORAGE_ACCESS_KEY_ID: ${YANDEX_STORAGE_ACCESS_KEY_ID:-}
+      YANDEX_STORAGE_SECRET_ACCESS_KEY: ${YANDEX_STORAGE_SECRET_ACCESS_KEY:-}
+      YANDEX_STORAGE_PUBLIC_URL: ${YANDEX_STORAGE_PUBLIC_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -191,7 +151,6 @@ services:
         condition: service_healthy
     volumes:
       - ./data/tiles:/app/tiles:ro
-      - uploads:/app/uploads
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/v1/health"]
       interval: 15s
@@ -385,7 +344,6 @@ services:
 volumes:
   pgdata:
   redisdata:
-  uploads:
   certbot-webroot:
   certbot-certs:
   prometheusdata:

@@ -17,6 +17,16 @@ const envSchema = z.object({
   MAPTILER_API_KEY: z.string().default(""),
   TILE_PROVIDER: z.enum(["maptiler", "openfreemap"]).default("maptiler"),
   GREENSMS_TOKEN: z.string().default(""),
+  // Yandex Object Storage — when these are all set we route uploads
+  // through S3 instead of the local filesystem. Leaving them empty
+  // falls back to local fs + express.static, which is what dev and
+  // the test suite rely on. See lib/storage.ts for the dispatch.
+  YANDEX_STORAGE_ENDPOINT: z.string().default(""),
+  YANDEX_STORAGE_REGION: z.string().default("ru-central1"),
+  YANDEX_STORAGE_BUCKET: z.string().default(""),
+  YANDEX_STORAGE_ACCESS_KEY_ID: z.string().default(""),
+  YANDEX_STORAGE_SECRET_ACCESS_KEY: z.string().default(""),
+  YANDEX_STORAGE_PUBLIC_URL: z.string().default(""),
 }).superRefine((cfg, ctx) => {
   // Hard-fail at startup when a production deployment is missing a
   // required secret. Previously these were warn-only and the app kept

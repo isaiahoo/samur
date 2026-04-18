@@ -85,9 +85,15 @@ try {
 const corsOrigins = config.CORS_ORIGINS.split(",").map((s) => s.trim());
 
 // ── Serve uploaded files (no auth needed, cacheable) ──
+// Only mounted when we're on the local-fs storage backend. In remote
+// mode (Yandex Object Storage) the uploadsRouter's GET handler
+// 302-redirects to the bucket public URL; we don't want express.static
+// returning 404 before that handler ever runs.
 import path from "path";
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
-app.use("/api/v1/uploads", cors({ origin: corsOrigins }), express.static(UPLOAD_DIR, { maxAge: "7d" }));
+if (!config.YANDEX_STORAGE_BUCKET) {
+  app.use("/api/v1/uploads", cors({ origin: corsOrigins }), express.static(UPLOAD_DIR, { maxAge: "7d" }));
+}
 
 // ── Tile proxy: mounted BEFORE heavy middleware (no auth/rate-limit/logging) ──
 app.use("/api/v1/tiles", cors({ origin: corsOrigins }), tilesRouter);
