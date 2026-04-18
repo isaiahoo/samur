@@ -408,14 +408,16 @@ export function HelpPage() {
         </div>
       ) : (
         <div className="help-list">
-          {/* Active responses — the requests you're currently helping with.
-              Pinned to the top so you never lose track of a conversation. */}
+          {/* Active responses — commitments the volunteer has made. Pinned
+              to the top with its own muted-zone styling so it reads as a
+              task list, not just another row of cards. */}
           {myResponseItems.length > 0 && (
-            <>
-              <div className="help-my-header help-my-header--responses">
-                Мои отклики ({myResponseItems.length})
+            <section className="help-zone help-zone--commitments" aria-label="Ваши отклики">
+              <div className="help-zone-header">
+                <span className="help-zone-title">Ваши отклики</span>
+                <span className="help-zone-count">{myResponseItems.length}</span>
                 {totalUnread > 0 && (
-                  <span className="help-my-unread">{totalUnread} новых</span>
+                  <span className="help-zone-unread">{totalUnread} новых</span>
                 )}
               </div>
               {myResponseItems.map((hr, i) => (
@@ -427,19 +429,22 @@ export function HelpPage() {
                   userPos={position}
                   currentUserId={user?.id ?? null}
                   onClaim={handleClaim}
+                  onUpdateResponseStatus={handleResponseStatus}
                   onDetail={setDetailItem}
                 />
               ))}
-              {(myItems.length > 0 || otherItems.length > 0) && (
-                <div className="help-section-divider" />
-              )}
-            </>
+            </section>
           )}
 
-          {/* My requests section */}
+          {/* Author's own requests — separate zone so the requester can
+              track who's responded to each. Откликнуться CTA is hidden on
+              own requests (the old code left it visible — a bug). */}
           {myItems.length > 0 && (
-            <>
-              <div className="help-my-header">Ваши заявки ({myItems.length})</div>
+            <section className="help-zone help-zone--own" aria-label="Ваши заявки">
+              <div className="help-zone-header">
+                <span className="help-zone-title">Ваши заявки</span>
+                <span className="help-zone-count">{myItems.length}</span>
+              </div>
               {myItems.map((hr, i) => (
                 <HelpCard
                   key={hr.id}
@@ -450,28 +455,45 @@ export function HelpPage() {
                   userPos={position}
                   currentUserId={user?.id ?? null}
                   onClaim={handleClaim}
+                  onUpdateResponseStatus={handleResponseStatus}
                   onDetail={setDetailItem}
                 />
               ))}
-              {otherItems.length > 0 && (
-                <div className="help-section-divider" />
-              )}
-            </>
+            </section>
           )}
 
-          {/* Other requests */}
-          {otherItems.map((hr, i) => (
-            <HelpCard
-              key={hr.id}
-              item={hr}
-              isNeed={tab === "need"}
-              index={myResponseItems.length + myItems.length + i}
-              userPos={position}
-              currentUserId={user?.id ?? null}
-              onClaim={handleClaim}
-              onDetail={setDetailItem}
-            />
-          ))}
+          {/* Discovery — requests from others that the viewer hasn't
+              responded to. Always present as an explicit zone so new
+              requests have a dedicated home, not "whatever's left". */}
+          <section className="help-zone help-zone--discovery" aria-label="Нужна помощь рядом">
+            <div className="help-zone-header">
+              <span className="help-zone-title">
+                {tab === "need" ? "Нужна помощь рядом" : "Предложения помощи"}
+              </span>
+              <span className="help-zone-count">{otherItems.length}</span>
+            </div>
+            {otherItems.length === 0 ? (
+              <p className="help-zone-empty">
+                {tab === "need"
+                  ? "Сейчас нет открытых заявок рядом. Новые появятся здесь автоматически."
+                  : "Новых предложений нет."}
+              </p>
+            ) : (
+              otherItems.map((hr, i) => (
+                <HelpCard
+                  key={hr.id}
+                  item={hr}
+                  isNeed={tab === "need"}
+                  index={myResponseItems.length + myItems.length + i}
+                  userPos={position}
+                  currentUserId={user?.id ?? null}
+                  onClaim={handleClaim}
+                  onUpdateResponseStatus={handleResponseStatus}
+                  onDetail={setDetailItem}
+                />
+              ))
+            )}
+          </section>
           {items.length < total && (
             <div style={{ padding: 16, textAlign: "center" }}>
               <Spinner size={24} />
@@ -503,6 +525,28 @@ export function HelpPage() {
   );
 }
 
+/** Age-bucket for a response's last status change. Drives the colored
+ * tint on the response strip + decides which inline nudges to show.
+ * Thresholds match the Phase-3 reaper (which auto-cancels at 6h). */
+type ResponseAge = "fresh" | "due" | "stale";
+function ageBucket(updatedAt: string | null | undefined, status: string | null | undefined): ResponseAge {
+  if (!updatedAt || status !== "responded") return "fresh";
+  const mins = (Date.now() - new Date(updatedAt).getTime()) / 60_000;
+  if (mins > 360) return "stale";  // 6 h+
+  if (mins > 120) return "due";    // 2–6 h
+  return "fresh";
+}
+
+function formatAgeShort(updatedAt: string | null | undefined): string | null {
+  if (!updatedAt) return null;
+  const mins = Math.floor((Date.now() - new Date(updatedAt).getTime()) / 60_000);
+  if (mins < 1) return "только что";
+  if (mins < 60) return `${mins} мин`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} ч`;
+  return `${Math.floor(hours / 24)} д`;
+}
+
 function HelpCard({
   item,
   isNeed,
@@ -511,6 +555,7 @@ function HelpCard({
   userPos,
   currentUserId,
   onClaim,
+  onUpdateResponseStatus,
   onDetail,
 }: {
   item: HelpRequest;
@@ -520,6 +565,7 @@ function HelpCard({
   userPos: { lat: number; lng: number } | null;
   currentUserId: string | null;
   onClaim: (id: string) => void;
+  onUpdateResponseStatus: (id: string, status: HelpResponseStatus) => void;
   onDetail: (item: HelpRequest) => void;
 }) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -536,27 +582,93 @@ function HelpCard({
     item.myResponseStatus !== "cancelled" &&
     item.myResponseStatus !== "helped";
   const unread = item.unreadMessages ?? 0;
+  const age = ageBucket(item.myResponseUpdatedAt, item.myResponseStatus);
+  const ageLabel = formatAgeShort(item.myResponseUpdatedAt);
+
+  // Status advance options — stops the click from bubbling to the card's
+  // onDetail handler so users can progress without being pulled into the
+  // detail sheet every time.
+  const stopAndRun = (e: React.MouseEvent, fn: () => void) => {
+    e.stopPropagation();
+    fn();
+  };
 
   return (
     <div
-      className={`help-card ${isMine ? "help-card--mine" : ""} ${isActiveMyResponse ? "help-card--responding" : ""}`}
+      className={`help-card ${isMine ? "help-card--mine" : ""} ${isActiveMyResponse ? "help-card--responding" : ""} help-card--age-${age}`}
       data-urgency={item.urgency}
       style={animDelay ? { "--anim-delay": `${animDelay}ms` } as CSSProperties : undefined}
     >
-      {/* Response badge — pinned strip at the top of cards where I'm actively
-          helping. Tappable through to the detail sheet (parent onClick). */}
+      {/* Response strip — pinned at the top of cards where I'm actively
+          helping. Shows current status, age since last state change, and
+          one-tap advance actions so volunteers can progress the
+          commitment without opening the detail sheet. Clicks on the
+          buttons stopPropagation so they don't also open the sheet. */}
       {isActiveMyResponse && (
-        <div className="help-card-response-strip">
-          <span className="help-card-response-state">
-            {item.myResponseStatus === "responded" && "Вы откликнулись"}
-            {item.myResponseStatus === "on_way" && "Вы в пути"}
-            {item.myResponseStatus === "arrived" && "Вы на месте"}
-          </span>
-          {unread > 0 && (
-            <span className="help-card-unread">
-              {unread} {unread === 1 ? "новое" : "новых"}
+        <div className={`help-card-response-strip help-card-response-strip--${age}`}>
+          <div className="help-card-response-head">
+            <span className="help-card-response-state">
+              {item.myResponseStatus === "responded" && "Вы откликнулись"}
+              {item.myResponseStatus === "on_way" && "Вы в пути"}
+              {item.myResponseStatus === "arrived" && "Вы на месте"}
             </span>
+            {ageLabel && (
+              <span className="help-card-response-age" title="Время с последнего обновления статуса">
+                · {ageLabel}
+              </span>
+            )}
+            {unread > 0 && (
+              <span className="help-card-unread">
+                {unread} {unread === 1 ? "новое" : "новых"}
+              </span>
+            )}
+          </div>
+          {age === "due" && item.myResponseStatus === "responded" && (
+            <div className="help-card-response-nudge">
+              Прошло больше 2 часов. Подтвердите, что вы в пути, или отмените отклик.
+            </div>
           )}
+          {age === "stale" && item.myResponseStatus === "responded" && (
+            <div className="help-card-response-nudge help-card-response-nudge--stale">
+              Отклик устаревает. Ещё актуально?
+            </div>
+          )}
+          <div className="help-card-response-actions">
+            {item.myResponseStatus === "responded" && (
+              <button
+                type="button"
+                className="help-card-advance-btn help-card-advance-btn--primary"
+                onClick={(e) => stopAndRun(e, () => onUpdateResponseStatus(item.id, "on_way"))}
+              >
+                Я в пути
+              </button>
+            )}
+            {item.myResponseStatus === "on_way" && (
+              <button
+                type="button"
+                className="help-card-advance-btn help-card-advance-btn--primary"
+                onClick={(e) => stopAndRun(e, () => onUpdateResponseStatus(item.id, "arrived"))}
+              >
+                На месте
+              </button>
+            )}
+            {item.myResponseStatus === "arrived" && (
+              <button
+                type="button"
+                className="help-card-advance-btn help-card-advance-btn--primary"
+                onClick={(e) => stopAndRun(e, () => onUpdateResponseStatus(item.id, "helped"))}
+              >
+                Помог
+              </button>
+            )}
+            <button
+              type="button"
+              className="help-card-advance-btn help-card-advance-btn--muted"
+              onClick={(e) => stopAndRun(e, () => onUpdateResponseStatus(item.id, "cancelled"))}
+            >
+              Отменить
+            </button>
+          </div>
         </div>
       )}
       {photos.length > 0 && (
@@ -618,7 +730,7 @@ function HelpCard({
           const responseCountLabel = activeResponses.length > 0
             ? `${activeResponses.length} ${activeResponses.length === 1 ? "отклик" : "отклика"}`
             : null;
-          const showRespond = isNeed && !myResponse && item.status !== "completed" && item.status !== "cancelled";
+          const showRespond = isNeed && !isMine && !myResponse && item.status !== "completed" && item.status !== "cancelled";
           const phone = item.contactPhone ?? item.author?.phone ?? null;
 
           return (

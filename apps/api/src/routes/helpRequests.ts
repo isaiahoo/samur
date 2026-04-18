@@ -123,6 +123,7 @@ async function attachCallerActivity<T extends { id: string }>(
   userId: string,
 ): Promise<Array<T & {
   myResponseStatus: string | null;
+  myResponseUpdatedAt: string | null;
   unreadMessages: number;
   lastMessageAt: string | null;
 }>> {
@@ -132,7 +133,7 @@ async function attachCallerActivity<T extends { id: string }>(
   const [myResponses, reads, lastMessages, unreadCounts] = await Promise.all([
     prisma.helpResponse.findMany({
       where: { helpRequestId: { in: ids }, userId },
-      select: { helpRequestId: true, status: true },
+      select: { helpRequestId: true, status: true, updatedAt: true },
     }),
     prisma.helpMessageRead.findMany({
       where: { helpRequestId: { in: ids }, userId },
@@ -160,6 +161,7 @@ async function attachCallerActivity<T extends { id: string }>(
   ]);
 
   const statusByReq = new Map(myResponses.map((r) => [r.helpRequestId, r.status]));
+  const myUpdatedByReq = new Map(myResponses.map((r) => [r.helpRequestId, r.updatedAt]));
   void reads; // kept for future derivations; unread computation uses raw query
   const lastMsgByReq = new Map(
     lastMessages.map((m) => [m.helpRequestId, m._max.createdAt]),
@@ -171,6 +173,10 @@ async function attachCallerActivity<T extends { id: string }>(
   return rows.map((r) => ({
     ...r,
     myResponseStatus: statusByReq.get(r.id) ?? null,
+    // Timestamp of the caller's response's last state change. Drives the
+    // age indicator on the card (amber at 2h, red at 6h) and the
+    // forthcoming auto-stale reaper in Phase 3.
+    myResponseUpdatedAt: myUpdatedByReq.get(r.id)?.toISOString() ?? null,
     unreadMessages: unreadByReq.get(r.id) ?? 0,
     lastMessageAt: lastMsgByReq.get(r.id)?.toISOString() ?? null,
   }));

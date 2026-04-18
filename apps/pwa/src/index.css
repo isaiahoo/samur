@@ -2896,6 +2896,168 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   margin: 8px 0 12px;
 }
 
+/* ── Help-page zones ──────────────────────────────────────────────────── */
+/* Each zone (commitments / own requests / discovery) is its own <section>
+   so the page reads as a stack of jobs-to-be-done, not a single flat
+   list. The discovery zone always renders, even when empty — so new
+   requests have a clear destination instead of drifting to "whatever's
+   left" under other sections. */
+.help-zone {
+  margin-bottom: 14px;
+}
+.help-zone + .help-zone {
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+.help-zone-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+}
+.help-zone--commitments .help-zone-title { color: #047857; }
+.help-zone--discovery   .help-zone-title { color: var(--color-primary); }
+.help-zone-count {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(100, 116, 139, 0.15);
+  color: var(--color-muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.help-zone-unread {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #dc2626;
+  color: #fff;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.help-zone-empty {
+  font-size: 13px;
+  color: var(--color-muted);
+  padding: 16px 4px 4px;
+  margin: 0;
+  text-align: center;
+}
+
+/* ── Age-aware response strip ─────────────────────────────────────────── */
+/* Volunteer commitment freshness, colour-shifted with age. The strip
+   already has a green baseline from .help-card-response-strip above; the
+   --due / --stale modifiers below override it without resetting every
+   unrelated rule. */
+.help-card-response-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+  padding: 8px 12px;
+}
+.help-card-response-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.help-card-response-age {
+  color: #64748b;
+  font-weight: 500;
+  font-size: 11px;
+}
+.help-card-response-strip--due {
+  background: rgba(245, 158, 11, 0.12);
+  border-bottom-color: rgba(245, 158, 11, 0.3);
+}
+.help-card-response-strip--due .help-card-response-state { color: #b45309; }
+.help-card-response-strip--due .help-card-response-state::before { color: #f59e0b; }
+.help-card--age-due.help-card--responding {
+  border-left-color: #f59e0b;
+  background: linear-gradient(to right, rgba(245, 158, 11, 0.07), transparent 40%);
+}
+.help-card-response-strip--stale {
+  background: rgba(220, 38, 38, 0.12);
+  border-bottom-color: rgba(220, 38, 38, 0.3);
+}
+.help-card-response-strip--stale .help-card-response-state { color: #991b1b; }
+.help-card-response-strip--stale .help-card-response-state::before { color: #dc2626; }
+.help-card--age-stale.help-card--responding {
+  border-left-color: #dc2626;
+  background: linear-gradient(to right, rgba(220, 38, 38, 0.08), transparent 40%);
+}
+.help-card-response-nudge {
+  font-size: 12px;
+  font-weight: 500;
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.15);
+  border-radius: 6px;
+  padding: 6px 8px;
+  line-height: 1.4;
+}
+.help-card-response-nudge--stale {
+  color: #991b1b;
+  background: rgba(220, 38, 38, 0.15);
+}
+.help-card-response-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.help-card-advance-btn {
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.help-card-advance-btn--primary {
+  background: #fff;
+  border-color: #10b981;
+  color: #047857;
+}
+.help-card-advance-btn--primary:hover,
+.help-card-advance-btn--primary:focus-visible {
+  background: #ecfdf5;
+  outline: none;
+}
+.help-card-response-strip--due .help-card-advance-btn--primary {
+  border-color: #f59e0b;
+  color: #b45309;
+}
+.help-card-response-strip--due .help-card-advance-btn--primary:hover,
+.help-card-response-strip--due .help-card-advance-btn--primary:focus-visible {
+  background: #fef3c7;
+}
+.help-card-response-strip--stale .help-card-advance-btn--primary {
+  border-color: #dc2626;
+  color: #991b1b;
+}
+.help-card-response-strip--stale .help-card-advance-btn--primary:hover,
+.help-card-response-strip--stale .help-card-advance-btn--primary:focus-visible {
+  background: #fee2e2;
+}
+.help-card-advance-btn--muted {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-muted);
+}
+.help-card-advance-btn--muted:hover,
+.help-card-advance-btn--muted:focus-visible {
+  background: #f1f5f9;
+  color: #475569;
+  outline: none;
+}
+
 /* ── Help card body (clickable area for detail) ────────── */
 .help-card-body { cursor: pointer; }
 

@@ -170,6 +170,9 @@ export interface HelpRequest {
   // so the client can surface "Мои отклики" and unread badges without
   // extra round-trips.
   myResponseStatus?: HelpResponseStatus | null;
+  /** Timestamp of the caller's response's last state change (ISO). Used
+   * client-side for the age-based tint on the response strip. */
+  myResponseUpdatedAt?: string | null;
   unreadMessages?: number;
   lastMessageAt?: string | null;
 }
