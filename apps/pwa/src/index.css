@@ -1029,6 +1029,11 @@ select {
   font-weight: 500;
   z-index: 3000;
   animation: fadeIn 0.2s ease-out;
+  /* Smooth the jump when the on-screen keyboard opens/closes while a
+     toast is already visible — the Toast component bumps `bottom` by the
+     visualViewport occlusion. No effect on appearance animation (which
+     runs on `transform`). */
+  transition: bottom 0.2s ease;
   max-width: calc(100vw - 32px);
   text-align: center;
 }
