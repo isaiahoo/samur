@@ -3257,8 +3257,19 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 /* Help card needs relative for the unread-pill corner-pin to work. */
 .help-card { position: relative; }
 
-/* ── Help card body (clickable area for detail) ────────── */
-.help-card-body { cursor: pointer; }
+/* The whole card is the primary tap target (role="button" on the outer
+   div). Suppress iOS's default grey tap flash so our own :active state
+   is the only feedback, and give keyboard focus a visible ring. */
+.help-card {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.08s ease, background-color 0.12s ease;
+}
+.help-card:active { transform: scale(0.995); }
+.help-card:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
 
 /* ── Card entrance animation ───────────────────────────── */
 @keyframes fadeInUp {

@@ -668,6 +668,19 @@ function HelpCard({
       className={`help-card ${isMine ? "help-card--mine" : ""} ${isActiveMyResponse ? "help-card--responding" : ""} help-card--age-${age}`}
       data-urgency={item.urgency}
       style={animDelay ? { "--anim-delay": `${animDelay}ms` } as CSSProperties : undefined}
+      // Whole card opens the detail — matches the native list-cell idiom
+      // instead of requiring users to find the narrow body strip. Inner
+      // interactives (photo, phone, action buttons, commitment footer)
+      // stop propagation so they keep their own behaviour.
+      role="button"
+      tabIndex={0}
+      onClick={() => onDetail(item)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onDetail(item);
+        }
+      }}
     >
       {/* Unread chip — small, corner-pinned. Replaces the old chunky strip
           for showing "there's a new message in this thread". Age signal
@@ -678,14 +691,17 @@ function HelpCard({
         </span>
       )}
       {photos.length > 0 && (
-        <div className="help-card-hero" onClick={() => setLightboxIndex(0)}>
+        <div
+          className="help-card-hero"
+          onClick={(e) => { e.stopPropagation(); setLightboxIndex(0); }}
+        >
           <img src={photos[0]} alt="" loading={index < 3 ? "eager" : "lazy"} />
           {photos.length > 1 && (
             <span className="help-card-hero-count">+{photos.length - 1}</span>
           )}
         </div>
       )}
-      <div className="help-card-body" onClick={() => onDetail(item)}>
+      <div className="help-card-body">
         <div className="help-card-header">
           <span className="help-card-icon" data-category={item.category} data-urgency={item.urgency}>
             <CategoryIcon category={item.category} size={20} />
@@ -758,12 +774,20 @@ function HelpCard({
         return (
           <div className="help-card-actions">
             {showRespond && (
-              <button className="btn btn-primary btn-sm" onClick={() => onClaim(item.id)}>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={(e) => { e.stopPropagation(); onClaim(item.id); }}
+              >
                 Откликнуться
               </button>
             )}
             {phone && (
-              <a href={`tel:${phone}`} className="help-card-phone" aria-label="Позвонить">
+              <a
+                href={`tel:${phone}`}
+                className="help-card-phone"
+                aria-label="Позвонить"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
               </a>
             )}
