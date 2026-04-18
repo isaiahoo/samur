@@ -213,17 +213,20 @@ export function HelpPage() {
 
   const handleResponseStatus = async (id: string, status: HelpResponseStatus) => {
     try {
-      const res = status === "cancelled"
-        ? await cancelMyHelpResponse(id)
-        : await updateMyHelpResponse(id, status);
+      if (status === "cancelled") {
+        // DELETE /my-response returns { id: responseId, cancelled: true } —
+        // a confirmation blob, not a HelpRequest. Handle it by refreshing
+        // the list so the row drops out of "Ваши отклики" cleanly.
+        await cancelMyHelpResponse(id);
+        setDetailItem(null);
+        handleRefresh();
+        return;
+      }
+      const res = await updateMyHelpResponse(id, status);
       const updated = (res as { data?: HelpRequest }).data;
       if (updated && typeof updated === "object" && "id" in updated) {
         setItems((prev) => prev.map((h) => (h.id === updated.id ? updated : h)));
         setDetailItem(updated);
-      } else if (status === "cancelled") {
-        // DELETE returns { id, cancelled:true } — just refresh the row.
-        handleRefresh();
-        setDetailItem(null);
       }
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Ошибка", "error");
@@ -572,6 +575,7 @@ function ResponseProgress({
   age: ResponseAge;
 }) {
   const currentIdx = STATUS_STEPS.findIndex((s) => s.key === status);
+  const currentLabel = STATUS_STEPS[currentIdx]?.label;
   return (
     <div className="rp-track" role="progressbar" aria-valuemin={0} aria-valuemax={STATUS_STEPS.length - 1} aria-valuenow={currentIdx < 0 ? 0 : currentIdx}>
       <div className="rp-row">
@@ -593,20 +597,11 @@ function ResponseProgress({
           );
         })}
       </div>
-      <div className="rp-labels">
-        {STATUS_STEPS.map((s, i) => {
-          const current = i === currentIdx;
-          const done = i < currentIdx;
-          return (
-            <span
-              key={s.key}
-              className={`rp-label ${current ? "rp-label--current" : ""} ${done ? "rp-label--done" : ""}`}
-            >
-              {s.label}
-            </span>
-          );
-        })}
-      </div>
+      {currentLabel && (
+        <div className={`rp-current-label rp-current-label--${age}`}>
+          Вы {currentLabel}
+        </div>
+      )}
     </div>
   );
 }
@@ -649,14 +644,6 @@ function HelpCard({
   const age = ageBucket(item.myResponseUpdatedAt, item.myResponseStatus);
   const ageLabel = formatAgeShort(item.myResponseUpdatedAt);
 
-  // Status advance options — stops the click from bubbling to the card's
-  // onDetail handler so users can progress without being pulled into the
-  // detail sheet every time.
-  const stopAndRun = (e: React.MouseEvent, fn: () => void) => {
-    e.stopPropagation();
-    fn();
-  };
-
   return (
     <div
       className={`help-card ${isMine ? "help-card--mine" : ""} ${isActiveMyResponse ? "help-card--responding" : ""} help-card--age-${age}`}
@@ -694,9 +681,9 @@ function HelpCard({
               </svg>
               КРИТИЧНО
             </span>
-          ) : (
+          ) : item.urgency === "urgent" ? (
             <UrgencyBadge value={item.urgency} kind="urgency" />
-          )}
+          ) : null}
         </div>
         {item.description && <p className="help-card-desc">{item.description}</p>}
         <div className="help-card-meta">
@@ -732,53 +719,18 @@ function HelpCard({
         const phone = item.contactPhone ?? item.author?.phone ?? null;
 
         // Active-response cards get the unified commitment footer:
-        // progress timeline + dominant primary CTA + muted secondary
-        // actions. No separate status strip, no card-wide tint.
+        // progress timeline + dominant primary CTA + overflow menu. Menu
+        // state is per-card, so the footer lives in its own component.
         if (isActiveMyResponse && item.myResponseStatus) {
-          const next = nextActionLabel(item.myResponseStatus);
           return (
-            <div className="help-card-commitment">
-              <ResponseProgress status={item.myResponseStatus} age={age} />
-              {age === "due" && item.myResponseStatus === "responded" && (
-                <p className="help-card-commitment-note">
-                  Прошло {ageLabel ?? "больше 2 часов"} — подтвердите или отмените.
-                </p>
-              )}
-              {age === "stale" && item.myResponseStatus === "responded" && (
-                <p className="help-card-commitment-note help-card-commitment-note--stale">
-                  Ещё актуально? Отклик висит {ageLabel}.
-                </p>
-              )}
-              <div className="help-card-commitment-actions">
-                {next && (
-                  <button
-                    type="button"
-                    className={`help-card-primary-btn help-card-primary-btn--${age}`}
-                    onClick={(e) => stopAndRun(e, () => onUpdateResponseStatus(item.id, next.target))}
-                  >
-                    {next.label}
-                    <span className="help-card-primary-arrow" aria-hidden="true">→</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="help-card-muted-link"
-                  onClick={(e) => stopAndRun(e, () => onUpdateResponseStatus(item.id, "cancelled"))}
-                >
-                  Отменить
-                </button>
-                {phone && (
-                  <a
-                    href={`tel:${phone}`}
-                    className="help-card-muted-icon"
-                    aria-label="Позвонить"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                  </a>
-                )}
-              </div>
-            </div>
+            <CommitmentFooter
+              item={item}
+              status={item.myResponseStatus}
+              age={age}
+              ageLabel={ageLabel}
+              phone={phone}
+              onUpdateResponseStatus={onUpdateResponseStatus}
+            />
           );
         }
 
@@ -816,6 +768,122 @@ function HelpCard({
           onClose={() => setLightboxIndex(null)}
         />
       )}
+    </div>
+  );
+}
+
+/** Footer shown on active-response cards: progress rail + primary CTA +
+ * overflow menu. Split out so each card owns its own menu-open state. */
+function CommitmentFooter({
+  item,
+  status,
+  age,
+  ageLabel,
+  phone,
+  onUpdateResponseStatus,
+}: {
+  item: HelpRequest;
+  status: HelpResponseStatus;
+  age: ResponseAge;
+  ageLabel: string | null;
+  phone: string | null;
+  onUpdateResponseStatus: (id: string, status: HelpResponseStatus) => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  const next = nextActionLabel(status);
+
+  return (
+    <div className="help-card-commitment">
+      <ResponseProgress status={status} age={age} />
+      {age === "due" && status === "responded" && (
+        <p className="help-card-commitment-note">
+          Прошло {ageLabel ?? "больше 2 часов"} — подтвердите или отмените.
+        </p>
+      )}
+      {age === "stale" && status === "responded" && (
+        <p className="help-card-commitment-note help-card-commitment-note--stale">
+          Ещё актуально? Отклик висит {ageLabel}.
+        </p>
+      )}
+      <div className="help-card-commitment-actions">
+        {next && (
+          <button
+            type="button"
+            className={`help-card-primary-btn help-card-primary-btn--${age}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onUpdateResponseStatus(item.id, next.target);
+            }}
+          >
+            {next.label}
+            <span className="help-card-primary-arrow" aria-hidden="true">→</span>
+          </button>
+        )}
+        {phone && (
+          <a
+            href={`tel:${phone}`}
+            className="help-card-muted-icon"
+            aria-label="Позвонить"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          </a>
+        )}
+        <div className="help-card-menu-wrapper" ref={menuRef}>
+          <button
+            type="button"
+            className="help-card-more-btn"
+            onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
+            aria-label="Ещё"
+            aria-haspopup="true"
+            aria-expanded={menuOpen}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <circle cx="5" cy="12" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="19" cy="12" r="2" />
+            </svg>
+          </button>
+          {menuOpen && (
+            <div className="help-card-menu" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                className="help-card-menu-item help-card-menu-item--danger"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  if (window.confirm("Отменить ваш отклик? Заявитель увидит, что вы не сможете помочь.")) {
+                    onUpdateResponseStatus(item.id, "cancelled");
+                  }
+                }}
+              >
+                Отменить отклик
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

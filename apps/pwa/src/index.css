@@ -3030,23 +3030,18 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   min-width: 14px;
 }
 .rp-line--done { background: #10b981; }
-.rp-labels {
-  display: flex;
-  justify-content: space-between;
-  gap: 4px;
-  padding: 0 4px;
-}
-.rp-label {
-  flex: 1;
-  font-size: 10px;
-  color: #94a3b8;
-  text-align: center;
+/* Single current-step label under the dots — "Вы в пути" etc. Replaces
+   the older four-label stack so the card stays compact. Colour shifts
+   with the age bucket so tired eyes still catch a stale response. */
+.rp-current-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #047857;
   line-height: 1.2;
+  padding: 2px 2px 0;
 }
-.rp-label:first-child { text-align: left; }
-.rp-label:last-child  { text-align: right; }
-.rp-label--done    { color: #64748b; }
-.rp-label--current { color: #047857; font-weight: 700; }
+.rp-current-label--due   { color: #b45309; }
+.rp-current-label--stale { color: #b91c1c; }
 
 /* Subtle note that appears only when the card's dot pulse isn't enough. */
 .help-card-commitment-note {
@@ -3115,26 +3110,72 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .help-card-primary-btn:hover .help-card-primary-arrow { transform: translateX(2px); }
 
-.help-card-muted-link {
-  background: transparent;
-  border: 0;
-  padding: 6px 8px;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  color: #64748b;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-decoration-color: rgba(100, 116, 139, 0.3);
-  transition: color 0.12s, text-decoration-color 0.12s;
+/* Overflow (⋯) trigger + per-card menu popover. Cancel lives here
+   instead of as an inline link so accidental mis-taps don't kill a
+   volunteer's commitment with one finger slip. */
+.help-card-menu-wrapper {
+  position: relative;
+  display: inline-flex;
 }
-.help-card-muted-link:hover,
-.help-card-muted-link:focus-visible {
-  color: #dc2626;
-  text-decoration-color: #dc2626;
+.help-card-more-btn {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  color: #64748b;
+  border-radius: 50%;
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.help-card-more-btn:hover,
+.help-card-more-btn:focus-visible {
+  background: #f1f5f9;
+  color: #334155;
+  border-color: #cbd5e1;
   outline: none;
 }
+.help-card-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  min-width: 180px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.14);
+  padding: 4px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+}
+.help-card-menu-item {
+  background: transparent;
+  border: 0;
+  padding: 10px 12px;
+  text-align: left;
+  font-family: inherit;
+  font-size: 14px;
+  color: #1e293b;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.help-card-menu-item:hover,
+.help-card-menu-item:focus-visible {
+  background: #f1f5f9;
+  outline: none;
+}
+.help-card-menu-item--danger { color: #b91c1c; }
+.help-card-menu-item--danger:hover,
+.help-card-menu-item--danger:focus-visible {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
 .help-card-muted-icon {
   width: 36px;
   height: 36px;

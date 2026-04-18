@@ -21,6 +21,11 @@ interface Props {
   canParticipate: boolean;
   currentUserId: string | null;
   stickyComposer?: boolean;
+  /** Called when the user taps another participant's name in a message.
+   * Lets the host (detail sheet) close itself before routing — otherwise
+   * navigating to /profile/:id unmounts the page wrapper and the sheet
+   * state is lost. When not provided, falls back to plain navigate(). */
+  onOpenProfile?: (userId: string) => void;
 }
 
 type ChatState = "loading" | "locked" | "error" | "ready";
@@ -80,7 +85,7 @@ type DisplayItem =
   | PendingMessage
   | { kind: "day-header"; label: string; key: string };
 
-export function HelpChat({ requestId, canParticipate, currentUserId, stickyComposer }: Props) {
+export function HelpChat({ requestId, canParticipate, currentUserId, stickyComposer, onOpenProfile }: Props) {
   const rootClass = `help-chat${stickyComposer ? " help-chat--inline" : ""}`;
   const [state, setState] = useState<ChatState>(canParticipate ? "loading" : "locked");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -481,7 +486,11 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
                       <button
                         type="button"
                         className="help-chat-msg-author help-chat-msg-author--link"
-                        onClick={() => navigate(`/profile/${m.authorId}`)}
+                        onClick={() => {
+                          const uid = m.authorId!;
+                          if (onOpenProfile) onOpenProfile(uid);
+                          else navigate(`/profile/${uid}`);
+                        }}
                       >
                         {m.author?.name ?? "—"}
                       </button>

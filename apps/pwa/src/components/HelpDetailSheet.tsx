@@ -37,6 +37,11 @@ const ELEVATED_ROLE_LABELS: Record<string, string> = {
   admin: "Администратор",
 };
 
+/** Marker stored on the synthetic history entry we push when the sheet
+ * opens. Used by both popstate (to ignore non-ours) and the unmount
+ * cleanup (to consume the entry only when it's still on top). */
+const SHEET_STATE_MARKER = "kunakSheet";
+
 const RESPONSE_STATUS_LABELS: Record<HelpResponseStatus, string> = {
   responded: "Откликнулся",
   on_way: "В пути",
@@ -117,6 +122,13 @@ export function HelpDetailSheet({
   const photos = item.photoUrls ?? [];
   const openProfile = (userId?: string) => {
     if (!userId) return;
+    // Don't use history.back() here — it races with the follow-up
+    // navigate(). Rewrite our synthetic entry to a neutral state instead
+    // (the unmount cleanup below checks the marker before popping, so a
+    // cleared marker means no double-back on teardown).
+    if (window.history.state?.[SHEET_STATE_MARKER]) {
+      window.history.replaceState(null, "");
+    }
     onClose();
     // Defer so the overlay's exit animation has a frame to start before
     // routing triggers a full re-render.
@@ -145,6 +157,39 @@ export function HelpDetailSheet({
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = prev; };
   }, []);
+
+  // Bind the sheet to browser history so the hardware / browser back button
+  // closes the sheet instead of navigating off the Help page. Push one
+  // synthetic entry on mount; popstate while leaving it → close. Explicit
+  // close goes through history.back(). If the sheet unmounts programmatically
+  // (parent cleared detailItem after a cancel) we also consume the entry so
+  // it doesn't strand on the stack and swallow a future back-press.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    window.history.pushState({ [SHEET_STATE_MARKER]: true }, "");
+    const onPopState = (e: PopStateEvent) => {
+      // e.state is the state we're landing on after the pop. If it's our
+      // marker, the popstate originated elsewhere (nested navigation) and
+      // we should leave the sheet alone.
+      if (e.state?.[SHEET_STATE_MARKER]) return;
+      onCloseRef.current();
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      if (window.history.state?.[SHEET_STATE_MARKER]) {
+        window.history.back();
+      }
+    };
+  }, []);
+  const requestClose = () => {
+    if (window.history.state?.[SHEET_STATE_MARKER]) {
+      window.history.back();
+    } else {
+      onCloseRef.current();
+    }
+  };
 
   // Ref to the scrollable content so we can jump to the bottom on open when
   // there are already messages — the user lands on the latest line of the
@@ -204,7 +249,7 @@ export function HelpDetailSheet({
   const secondaryLabel = isAuthorMe ? "Позвонить волонтёру" : "Позвонить заявителю";
 
   return createPortal(
-    <div className="sheet-overlay" onClick={onClose}>
+    <div className="sheet-overlay" onClick={requestClose}>
       <div className="sheet sheet--tall" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
 
@@ -216,7 +261,11 @@ export function HelpDetailSheet({
           {myActive && myResponse && myResponse.status !== "helped" && (
             <button
               className="detail-cancel-link"
-              onClick={() => onUpdateResponse(item.id, "cancelled")}
+              onClick={() => {
+                if (window.confirm("Отменить ваш отклик? Чат закроется, а заявитель увидит, что вы не сможете помочь.")) {
+                  onUpdateResponse(item.id, "cancelled");
+                }
+              }}
             >
               Отменить
             </button>
@@ -343,6 +392,7 @@ export function HelpDetailSheet({
               currentUserId={currentUserId}
               canParticipate={!!(isAuthorMe || myActive)}
               stickyComposer
+              onOpenProfile={openProfile}
             />
           )}
         </div>

@@ -25,7 +25,8 @@
   "error": {
     "title": "Something went wrong",
     "description": "An unexpected error occurred. Please try refreshing the page.",
-    "reload": "Refresh page"
+    "reload": "Refresh page",
+    "technicalDetails": "Technical details"
   },
   "auth": {
     "login": "Log in",
