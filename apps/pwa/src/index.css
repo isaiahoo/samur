@@ -31,6 +31,18 @@ body {
 }
 a { color: var(--color-primary); text-decoration: none; }
 
+/* iOS Safari auto-zooms on input focus whenever the input's font-size is
+   below 16px — a disruptive visual jump on every keyboard open. This rule
+   establishes a 16px floor on every text-entry surface (checkboxes /
+   radios keep platform defaults). Component-specific rules stay authoritative
+   when they declare an explicit font-size ≥ 16px; this only catches the
+   elements that didn't define one. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+textarea,
+select {
+  font-size: max(16px, 1rem);
+}
+
 .app-layout {
   display: flex;
   flex-direction: column;
@@ -768,7 +780,8 @@ a { color: var(--color-primary); text-decoration: none; }
   padding: 10px 12px;
   border: 1px solid #e4e4e7;
   border-radius: 10px;
-  font-size: 14px;
+  /* 16px floor prevents iOS Safari auto-zoom on focus. */
+  font-size: 16px;
   background: #fafafa;
   color: #27272a;
   resize: none;
@@ -920,7 +933,8 @@ a { color: var(--color-primary); text-decoration: none; }
   padding: 10px 12px;
   border: 1px solid #e4e4e7;
   border-radius: 10px;
-  font-size: 14px;
+  /* 16px floor prevents iOS Safari auto-zoom on focus. */
+  font-size: 16px;
   background: #fafafa;
   color: #27272a;
   margin-bottom: 8px;
@@ -1119,14 +1133,15 @@ a { color: var(--color-primary); text-decoration: none; }
   padding: 10px 12px;
   border: 1px solid #e4e4e7;
   border-radius: 8px;
-  font-size: 14px;
+  /* 16px floor prevents iOS Safari auto-zoom on focus. */
+  font-size: 16px;
   background: #fff;
   color: #27272a;
   min-height: 44px;
 }
 .form-input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
 .form-input:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
-.form-input--sm { padding: 6px 10px; font-size: 13px; min-height: 36px; width: auto; }
+.form-input--sm { padding: 6px 10px; font-size: 16px; min-height: 36px; width: auto; }
 .form-row { display: flex; gap: 12px; }
 .form-row .form-group { flex: 1; }
 textarea.form-input { resize: vertical; min-height: 80px; }
@@ -2873,7 +2888,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   flex: 1;
   border: none;
   background: none;
-  font-size: 14px;
+  /* 16px floor prevents iOS Safari auto-zoom on focus. */
+  font-size: 16px;
   color: var(--color-text);
   outline: none;
   min-height: 28px;
@@ -3944,7 +3960,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 8px 10px;
-  font-size: 14px;
+  /* 16px floor prevents iOS Safari auto-zoom on focus. */
+  font-size: 16px;
   font-family: inherit;
   resize: none;
   background: #fff;
