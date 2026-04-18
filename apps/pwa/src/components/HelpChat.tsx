@@ -147,6 +147,24 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
     markHelpMessagesRead(requestId).catch(() => { /* silent */ });
   }, [requestId, messages.length, state]);
 
+  // Subscribe to the per-request socket room. The server gates membership
+  // (same access rule as the HTTP endpoints) before joining. Rooms don't
+  // survive socket disconnects, so we also re-emit subscribe on every
+  // "connect" event — this runs after automatic reconnects too.
+  useEffect(() => {
+    if (!canParticipate) return;
+    const socket = getSocket();
+    const subscribe = () => {
+      try { socket.emit("help:subscribe", { helpRequestId: requestId }); } catch { /* ignore */ }
+    };
+    subscribe();
+    socket.on("connect", subscribe);
+    return () => {
+      socket.off("connect", subscribe);
+      try { socket.emit("help:unsubscribe", { helpRequestId: requestId }); } catch { /* ignore */ }
+    };
+  }, [requestId, canParticipate]);
+
   useSocketEvent("help_message:created", (msg) => {
     if (msg.helpRequestId !== requestId) return;
     if (state !== "ready") return;

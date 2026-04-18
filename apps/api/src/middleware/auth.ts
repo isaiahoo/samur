@@ -12,6 +12,12 @@ declare global {
   }
 }
 
+/** Algorithm pinning. Without this, an attacker who knows the JWT
+ * library's defaults could forge tokens using "alg":"none" (historically)
+ * or trigger alg-confusion with RS-vs-HS if the secret is ever misused
+ * as a public key. We only issue HS256, so we only verify HS256. */
+const VERIFY_OPTS = { algorithms: ["HS256"] as jwt.Algorithm[] };
+
 /**
  * Extract and verify JWT from Authorization header.
  * If no token is present, req.user remains undefined (anonymous access).
@@ -24,7 +30,7 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction): 
 
   try {
     const token = header.slice(7);
-    const payload = jwt.verify(token, config.JWT_SECRET) as JwtPayload;
+    const payload = jwt.verify(token, config.JWT_SECRET, VERIFY_OPTS) as JwtPayload;
     req.user = payload;
   } catch {
     // Invalid token — treat as anonymous rather than blocking
@@ -47,7 +53,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
   try {
     const token = header.slice(7);
-    const payload = jwt.verify(token, config.JWT_SECRET) as JwtPayload;
+    const payload = jwt.verify(token, config.JWT_SECRET, VERIFY_OPTS) as JwtPayload;
     req.user = payload;
     next();
   } catch {

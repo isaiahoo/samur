@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { getIO } from "../socket.js";
+import { getIO, helpRoom, userRoom } from "../socket.js";
 import { calculateDistance } from "@samur/shared";
 import type {
   Incident,
@@ -73,18 +73,28 @@ export function emitSOSCreated(request: HelpRequest): void {
 }
 
 /**
- * Broadcast a response-status change. Broadcast-wide (all connected clients
- * who are looking at this request pick it up) — the payload carries no phone
- * numbers, so there's no per-viewer filter required.
+ * Deliver an in-app chat message. The full payload (body, photo URLs,
+ * author) is emitted only to sockets inside the help-request room —
+ * i.e. participants who are actively viewing this chat. In parallel we
+ * emit a lightweight `help_message:notify` to every listed participant's
+ * user-room so their Layout can bump unread counters without needing to
+ * receive the message body.
+ *
+ * Callers must pass the authoritative participant list (request author
+ * + non-cancelled responder user IDs). Moderation-only viewers
+ * (coordinator/admin) are excluded from the notify fan-out by design —
+ * they opt into a chat by subscribing to the room, not by being paged.
  */
-/**
- * Broadcast an in-app chat message for a help request. Broadcast-wide; the
- * client filters by whether it's currently viewing the request and is a
- * participant. The payload omits phones (messages carry no phone fields),
- * so there's no leak vector on the socket.
- */
-export function emitHelpMessageCreated(message: HelpMessage): void {
-  getIO().emit("help_message:created", message);
+export function emitHelpMessageCreated(
+  message: HelpMessage,
+  participantIds: string[],
+): void {
+  const io = getIO();
+  io.to(helpRoom(message.helpRequestId)).emit("help_message:created", message);
+  const notify = { helpRequestId: message.helpRequestId, authorId: message.authorId };
+  for (const uid of participantIds) {
+    io.to(userRoom(uid)).emit("help_message:notify", notify);
+  }
 }
 
 export function emitHelpResponseChanged(payload: {

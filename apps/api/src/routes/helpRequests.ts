@@ -24,6 +24,8 @@ import {
   emitHelpMessageCreated,
   emitSOSCreated,
 } from "../lib/emitter.js";
+import { evictUserFromHelpRoom, clearHelpRoom } from "../socket.js";
+import { assertHelpChatAccess } from "../lib/helpAccess.js";
 import { computeUserStats, type UserStats } from "../lib/userStats.js";
 import { getRealIp } from "../lib/clientIp.js";
 import { paramId } from "../lib/params.js";
@@ -654,6 +656,14 @@ router.patch(
         include: { user: { select: { id: true, name: true, role: true, phone: true } } },
       });
 
+      // If the caller just cancelled themselves out of the thread, kick
+      // their sockets out of the chat room so they stop receiving new
+      // messages in realtime. Historical messages stay in their client
+      // cache — that's the documented behavior.
+      if (status === "cancelled") {
+        await evictUserFromHelpRoom(req.user!.sub, id);
+      }
+
       await emitResponseChanged(id, updated);
 
       // Return the full request for easy client-side state swap.
@@ -702,6 +712,7 @@ router.delete("/:id/my-response", requireAuth, async (req, res, next) => {
       include: { user: { select: { id: true, name: true, role: true, phone: true } } },
     });
 
+    await evictUserFromHelpRoom(req.user!.sub, id);
     await emitResponseChanged(id, updated);
     res.json({ success: true, data: { id: mine.id, cancelled: true } });
   } catch (err) {
@@ -711,31 +722,10 @@ router.delete("/:id/my-response", requireAuth, async (req, res, next) => {
 
 // ── In-app messaging ─────────────────────────────────────────────────────
 // Participants: request author, any non-cancelled responder, and
-// coordinator/admin. We check membership on every message endpoint rather
-// than caching a "thread member" table — it's cheap (one PK lookup + one
-// indexed lookup) and stays correct when a responder cancels mid-thread.
-async function assertCanAccessMessages(
-  helpRequestId: string,
-  user: { sub: string; role: string },
-): Promise<void> {
-  if (user.role === "coordinator" || user.role === "admin") return;
-  const hr = await prisma.helpRequest.findFirst({
-    where: { id: helpRequestId, deletedAt: null },
-    select: { userId: true },
-  });
-  if (!hr) throw new AppError(404, "NOT_FOUND", "Запрос помощи не найден");
-  if (hr.userId === user.sub) return;
-  const response = await prisma.helpResponse.findFirst({
-    where: { helpRequestId, userId: user.sub, status: { not: "cancelled" } },
-    select: { id: true },
-  });
-  if (response) return;
-  throw new AppError(
-    403,
-    "NOT_PARTICIPANT",
-    "Обсуждение доступно только автору и откликнувшимся",
-  );
-}
+// coordinator/admin. Access rule lives in lib/helpAccess.ts — shared with
+// the Socket.IO subscribe handler so room access and HTTP access can't
+// drift out of sync.
+const assertCanAccessMessages = assertHelpChatAccess;
 
 // GET /:id/messages — paginated history (newest first via cursor).
 router.get("/:id/messages", requireAuth, async (req, res, next) => {
@@ -813,13 +803,35 @@ router.post(
         create: { helpRequestId: id, userId: req.user!.sub, lastReadAt: message.createdAt },
       });
 
-      emitHelpMessageCreated(message as unknown as HelpMessage);
+      const participantIds = await resolveMessageParticipants(id);
+      emitHelpMessageCreated(message as unknown as HelpMessage, participantIds);
       res.status(201).json({ success: true, data: message });
     } catch (err) {
       next(err);
     }
   },
 );
+
+/** Authoritative participant list for a help-request chat: the request
+ * author plus every non-cancelled responder. Mirrors the HTTP access
+ * rule in assertCanAccessMessages. Coordinator/admin are excluded from
+ * notify fan-out — they opt in by subscribing to the room. */
+async function resolveMessageParticipants(helpRequestId: string): Promise<string[]> {
+  const [hr, responders] = await Promise.all([
+    prisma.helpRequest.findFirst({
+      where: { id: helpRequestId, deletedAt: null },
+      select: { userId: true },
+    }),
+    prisma.helpResponse.findMany({
+      where: { helpRequestId, status: { not: "cancelled" } },
+      select: { userId: true },
+    }),
+  ]);
+  const ids = new Set<string>();
+  if (hr?.userId) ids.add(hr.userId);
+  for (const r of responders) ids.add(r.userId);
+  return Array.from(ids);
+}
 
 // POST /:id/messages/read — advance the caller's last-read watermark to now.
 router.post("/:id/messages/read", requireAuth, async (req, res, next) => {
@@ -888,11 +900,23 @@ router.patch(
       if (req.body.contactName !== undefined) data.contactName = req.body.contactName;
       if (req.body.photoUrls !== undefined) data.photoUrls = req.body.photoUrls;
 
+      let cancelledResponderIds: string[] = [];
       if (newStatus !== undefined) {
         data.status = newStatus;
         // Author / admin can force-close: mark all active responses
         // "cancelled" so the derived-status logic stays coherent next time.
         if (newStatus === "cancelled" || newStatus === "completed") {
+          // Capture affected responders before updating so we can evict
+          // them from the socket room. "completed" flips responses to
+          // "helped" (they're kept as participants for chat follow-up);
+          // "cancelled" is the only branch that removes participation.
+          if (newStatus === "cancelled") {
+            const active = await prisma.helpResponse.findMany({
+              where: { helpRequestId: id, status: { not: "cancelled" } },
+              select: { userId: true },
+            });
+            cancelledResponderIds = active.map((r) => r.userId);
+          }
           await prisma.helpResponse.updateMany({
             where: { helpRequestId: id, status: { not: "cancelled" } },
             data: { status: newStatus === "completed" ? "helped" : "cancelled" },
@@ -916,6 +940,16 @@ router.patch(
           throw new AppError(409, "CONFLICT", "Запись была изменена другим пользователем. Обновите страницу.");
         }
         throw err;
+      }
+
+      // Evict any responders who were just force-cancelled from the
+      // socket chat room — they lose realtime access going forward,
+      // matching the HTTP participant-check rule. Historical messages
+      // in their client cache stay (by design).
+      if (cancelledResponderIds.length > 0) {
+        await Promise.all(
+          cancelledResponderIds.map((uid) => evictUserFromHelpRoom(uid, id)),
+        );
       }
 
       // Socket broadcast goes to every connected client — strip phones before
@@ -961,6 +995,8 @@ router.delete(
         where: { id },
         data: { deletedAt: new Date() },
       });
+
+      clearHelpRoom(id);
 
       res.json({ success: true, data: { id, deleted: true } });
     } catch (err) {

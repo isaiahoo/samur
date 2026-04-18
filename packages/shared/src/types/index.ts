@@ -345,6 +345,11 @@ export interface ServerToClientEvents {
     derivedStatus: HelpRequestStatus;
   }) => void;
   "help_message:created": (message: HelpMessage) => void;
+  /** Lightweight fan-out emitted to every conversation participant's
+   * user-room after a new message is created. Carries no body or photo
+   * URLs so the Layout's unread-badge bump can safely receive it without
+   * joining the per-conversation room. */
+  "help_message:notify": (payload: { helpRequestId: string; authorId: string }) => void;
   "help:typing": (payload: { helpRequestId: string; userId: string; userName: string }) => void;
   "alert:broadcast": (alert: Alert) => void;
   "river_level:updated": (level: RiverLevel) => void;
@@ -356,8 +361,15 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
   "subscribe:area": (sub: { lat: number; lng: number; radius: number }) => void;
   "unsubscribe:area": () => void;
-  /** Transient typing signal. Client throttles to at most once every 3s
-   * per chat; server validates participant access and rebroadcasts with
-   * the sender's userId + name. Not persisted. */
+  /** Join the room for a help-request chat. Server validates that the
+   * caller is the request author, a non-cancelled responder, or a
+   * coordinator/admin before joining. Must be (re)emitted on every
+   * socket (re)connect — rooms don't survive disconnects. */
+  "help:subscribe": (payload: { helpRequestId: string }) => void;
+  /** Leave a previously-joined help-request chat room. */
+  "help:unsubscribe": (payload: { helpRequestId: string }) => void;
+  /** Transient typing signal. Only accepted if the socket is already in
+   * the help-request room (i.e. previously passed help:subscribe's
+   * access check). Server rebroadcasts to the room only. */
   "help:typing": (payload: { helpRequestId: string }) => void;
 }

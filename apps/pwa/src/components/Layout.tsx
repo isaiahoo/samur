@@ -118,22 +118,23 @@ export function Layout() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loggedIn]);
-  // Socket events are broadcast to every connected client, not scoped to
-  // participants — filter here so we only pay for refetches that can
-  // actually change our counts:
+  // Refetch activity counts when something changed that could move our
+  // unread / active-response totals:
   //   - help_response:changed: only "my response state flipped" affects
-  //     our activeResponses / ownOpenRequests counts. Others' responses
-  //     don't.
-  //   - help_message:created: someone else posting may have bumped my
-  //     unread count. My own echoes can't.
+  //     our activeResponses / ownOpenRequests counts. (This event is
+  //     still fanned out globally today; we filter to self here.)
+  //   - help_message:notify: server emits this to each participant's
+  //     user-room after a message is written. Unlike help_message:created
+  //     (room-scoped), notify is safe to broadcast to participants
+  //     because it carries no body — just { helpRequestId, authorId }.
   useSocketEvent("help_response:changed", (payload) => {
     if (!user?.id) return;
     if (payload.user?.id !== user.id) return;
     refreshActivityDebounced();
   });
-  useSocketEvent("help_message:created", (msg) => {
+  useSocketEvent("help_message:notify", (payload) => {
     if (!user?.id) return;
-    if (msg.authorId === user.id) return;
+    if (payload.authorId === user.id) return;
     refreshActivityDebounced();
   });
 
