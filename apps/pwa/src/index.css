@@ -18,6 +18,14 @@
   --z-header: 1000;
   --z-sheet: 2000;
   --z-toast: 3000;
+  /* ── Elevation scale ──────────────────────────────────────────────────
+     Four steps, each ~2× the previous perceived depth. Use these instead
+     of one-off rgba blurs so cards/popovers/sheets at the same semantic
+     layer read consistently. Dark mode overrides these below. */
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-3: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-4: 0 12px 40px rgba(0, 0, 0, 0.18);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -136,7 +144,7 @@ select {
   background: #fff;
   border: 1px solid #e4e4e7;
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-3);
   z-index: 2000;
   overflow: hidden;
   animation: profile-menu-in 0.15s ease-out;
@@ -3286,7 +3294,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.14);
+  box-shadow: var(--shadow-3);
   padding: 4px;
   z-index: 20;
   display: flex;
@@ -5161,7 +5169,7 @@ a.tg-auth-fallback {
   padding: 12px;
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow-3);
   z-index: 50;
   border: 1px solid rgba(0, 0, 0, 0.06);
 }
@@ -7281,6 +7289,12 @@ a.tg-auth-fallback {
     --color-bg: #18181b;
     --color-surface: #27272a;
     --color-border: #3f3f46;
+    /* Dark-mode shadows use pure black at higher alpha — the lighter
+       "rgba black at 6%" of light mode is invisible against #27272a. */
+    --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-2: 0 2px 8px rgba(0, 0, 0, 0.5);
+    --shadow-3: 0 8px 24px rgba(0, 0, 0, 0.55);
+    --shadow-4: 0 12px 40px rgba(0, 0, 0, 0.6);
   }
 
   body {
@@ -8061,6 +8075,46 @@ a.tg-auth-fallback {
   .profile-menu-item:active { background: rgba(255, 255, 255, 0.05); }
   .profile-menu-logout { color: #f87171; }
   .profile-menu-logout:active { background: rgba(239, 68, 68, 0.1); }
+
+  /* ── Achievement tier labels ─────────────────────────────────────────
+     Bronze/gold hues stay close to their brand, bumped a touch brighter
+     so they read on the dark card. Silver was the most muted in light
+     mode — slate-500 is near-invisible at dark-surface contrast, so
+     lift to a proper metallic highlight (slate-300). */
+  .achievement-card--bronze .achievement-tier { color: #d4a373; }
+  .achievement-card--silver .achievement-tier { color: #cbd5e1; }
+  .achievement-card--gold   .achievement-tier { color: #facc15; }
+  .achievement-progress-fill { background: linear-gradient(90deg, #60a5fa, #34d399); }
+
+  /* ── Geo-permission banner (absolute over the map) ──────────────────
+     The amber-on-cream banner was readable in light mode but blinded
+     the map in dark. Swap to a darker amber surface + warm text. */
+  .geo-banner {
+    background: rgba(180, 83, 9, 0.18);
+    border-color: rgba(245, 158, 11, 0.5);
+    color: #fcd34d;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+  .geo-banner-retry { background: #d97706; color: #1f1f23; }
+  .geo-banner-close { color: #fcd34d; }
+
+  /* ── AI-skill accuracy panel (admin) ────────────────────────────────
+     Zero dark-mode coverage before — the whole white table was painful
+     against a dark app chrome. Surface = var(--color-surface); headers
+     in var(--color-surface-raised) stand-in (#1f1f23); text lightened. */
+  .ai-skill-intro p { color: #d4d4d8; }
+  .ai-skill-wrap {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+  }
+  .ai-skill-table th {
+    background: #1f1f23;
+    color: #d4d4d8;
+    border-bottom-color: var(--color-border);
+  }
+  .ai-skill-table td { border-bottom-color: rgba(255, 255, 255, 0.06); }
+  .ai-skill-legend { color: #a1a1aa; }
+  .ai-skill-swatch { border-color: rgba(255, 255, 255, 0.1); }
 
   /* River popup bar */
   .popup-river-bar { background: #3f3f46; }
