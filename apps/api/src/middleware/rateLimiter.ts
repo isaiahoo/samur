@@ -43,6 +43,23 @@ const LIMITS = {
   // a family of 4 stays comfortably under the IP cap.
   authPerPhone: { points: 5, duration: 3600 },
   authPerIP: { points: 50, duration: 3600 },
+  // Incident creation. Anonymous is a core crisis-platform flow (a
+  // passer-by reports a flooded street from their own phone without
+  // signing up), but the global 90/min anon cap = 5400 bogus incidents
+  // per IP per day, which is a usable pollution vector against the
+  // coordinator verification queue. A legit reporter hits 1–2 incidents
+  // per outing; even a volunteer patrolling a district rarely exceeds
+  // 10/hr. Anonymous cap is intentionally tight since we can't
+  // attribute the report to an account.
+  incidentsAnonymous: { points: 5, duration: 3600 },
+  incidentsAuthenticated: { points: 30, duration: 3600 },
+  // Alert broadcasts. Every POST /alerts fans out to every connected
+  // socket and every notification channel (PWA toast, SMS, etc.).
+  // A compromised coordinator account under the global 600/min cap
+  // could fire ~36k platform-wide alerts in an hour — enough to
+  // completely drown real signals. Drop by two orders of magnitude.
+  alertBroadcastCoordinator: { points: 10, duration: 3600 },
+  alertBroadcastAdmin: { points: 30, duration: 3600 },
 } as const;
 
 let limiters: Record<string, RateLimiterRedis | RateLimiterMemory>;
@@ -79,6 +96,10 @@ export function initRateLimiter(redisClient: Redis | null): void {
     messagesCoordinator: create("msg_coord", LIMITS.messagesCoordinator),
     authPerPhone: create("auth_phone", LIMITS.authPerPhone),
     authPerIP: create("auth_ip", LIMITS.authPerIP),
+    incidentsAnonymous: create("inc_anon", LIMITS.incidentsAnonymous),
+    incidentsAuthenticated: create("inc_auth", LIMITS.incidentsAuthenticated),
+    alertBroadcastCoordinator: create("alert_coord", LIMITS.alertBroadcastCoordinator),
+    alertBroadcastAdmin: create("alert_admin", LIMITS.alertBroadcastAdmin),
   };
 
   if (!redisClient) {
@@ -195,6 +216,71 @@ export async function messagesRateLimiter(
       error: {
         code: "MESSAGE_RATE_LIMIT_EXCEEDED",
         message: "Слишком частые сообщения. Подождите немного.",
+      },
+    });
+  }
+}
+
+/** Per-hour limit for incident creation. Anonymous callers still
+ * allowed (core flow), but on a tighter bucket — 5/hr/IP vs
+ * 30/hr/user. Keyed on real IP for anon (via getRealIp, which we
+ * trust since the X-Real-IP fix) and user id otherwise. */
+export async function incidentsRateLimiter(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  if (!limiters) return next();
+  const user = req.user;
+  const key = user ? "incidentsAuthenticated" : "incidentsAnonymous";
+  const consumeKey = user ? user.sub : getRealIp(req);
+  try {
+    const result = await limiters[key].consume(consumeKey);
+    res.setHeader("X-Incidents-RateLimit-Remaining", result.remainingPoints);
+    res.setHeader("X-Incidents-RateLimit-Limit", LIMITS[key as keyof typeof LIMITS].points);
+    next();
+  } catch {
+    res.status(429).json({
+      success: false,
+      error: {
+        code: "INCIDENT_RATE_LIMIT_EXCEEDED",
+        message: "Слишком много отчётов за час. Попробуйте позже.",
+      },
+    });
+  }
+}
+
+/** Per-hour limit for alert broadcasts. Place AFTER requireAuth +
+ * requireRole("coordinator","admin") so req.user.role is populated
+ * and the anon path (which shouldn't even reach here) is already
+ * rejected. Two tiers — admin gets 3× the coordinator ceiling for
+ * script-driven announcements. */
+export async function alertBroadcastRateLimiter(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  if (!limiters) return next();
+  const user = req.user;
+  if (!user) {
+    res.status(401).json({
+      success: false,
+      error: { code: "UNAUTHORIZED", message: "Требуется авторизация" },
+    });
+    return;
+  }
+  const key = user.role === "admin" ? "alertBroadcastAdmin" : "alertBroadcastCoordinator";
+  try {
+    const result = await limiters[key].consume(user.sub);
+    res.setHeader("X-Alert-RateLimit-Remaining", result.remainingPoints);
+    res.setHeader("X-Alert-RateLimit-Limit", LIMITS[key as keyof typeof LIMITS].points);
+    next();
+  } catch {
+    res.status(429).json({
+      success: false,
+      error: {
+        code: "ALERT_RATE_LIMIT_EXCEEDED",
+        message: "Слишком много оповещений за час. Попробуйте позже.",
       },
     });
   }

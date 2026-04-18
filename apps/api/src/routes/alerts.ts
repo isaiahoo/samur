@@ -3,6 +3,7 @@ import { Router } from "express";
 import { prisma, Prisma } from "@samur/db";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { validateBody, validateQuery } from "../middleware/validate.js";
+import { alertBroadcastRateLimiter } from "../middleware/rateLimiter.js";
 import {
   CreateAlertSchema,
   UpdateAlertSchema,
@@ -335,6 +336,7 @@ router.post(
   "/",
   requireAuth,
   requireRole("coordinator", "admin"),
+  alertBroadcastRateLimiter,
   validateBody(CreateAlertSchema),
   async (req, res, next) => {
     try {

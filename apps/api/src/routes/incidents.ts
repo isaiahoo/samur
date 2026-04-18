@@ -2,8 +2,9 @@
 import { Router } from "express";
 import { prisma } from "@samur/db";
 import type { Prisma } from "@prisma/client";
-import { optionalAuth, requireAuth, requireRole } from "../middleware/auth.js";
+import { requireAuth, requireRole } from "../middleware/auth.js";
 import { validateBody, validateQuery } from "../middleware/validate.js";
+import { incidentsRateLimiter } from "../middleware/rateLimiter.js";
 import {
   CreateIncidentSchema,
   UpdateIncidentSchema,
@@ -102,6 +103,7 @@ router.get("/:id", async (req, res, next) => {
 
 router.post(
   "/",
+  incidentsRateLimiter,
   validateBody(CreateIncidentSchema),
   async (req, res, next) => {
     try {
