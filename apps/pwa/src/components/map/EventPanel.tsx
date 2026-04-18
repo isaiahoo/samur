@@ -22,7 +22,11 @@ const SEVERITY_SCORE: Record<string, number> = { critical: 4, high: 3, medium: 2
 // ── Sheet drag / snap ──────────────────────────────────────────────────────
 
 type SheetMode = "peek" | "half" | "full";
-const SHEET_KEY = "ep-sheet-mode";
+/** v2 forces a reset of any sticky "full" value saved during the
+ * short-lived drag-to-close experiment that landed users on a
+ * full-screen panel at every app launch. Old key left intact so a
+ * rollback is non-destructive. */
+const SHEET_KEY = "ep-sheet-mode-v2";
 const OPEN_KEY = "ep-open-sections-v2";
 const EXPAND_KEY = "ep-expand-sections";
 const STREAM_KEY = "ep-active-stream";
