@@ -85,25 +85,27 @@ export function BottomSheet({ children, onClose }: Props) {
     }
   };
 
-  // Drag-to-dismiss. Handlers live only on the top drag strip — touching
-  // scrollable content inside the sheet doesn't initiate a drag, so
-  // scrolling within the sheet still works normally.
-  const handleTouchStart = (e: React.TouchEvent) => {
+  // Drag-to-dismiss. Pointer events + setPointerCapture is the
+  // pattern the EventPanel uses successfully on iOS PWA — plain touch
+  // events can get swallowed by the browser's scroll-chain heuristics
+  // inside the overlay's overflow context. Handlers live only on the
+  // top drag strip so scrolling inside .sheet-content still works.
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (closingRef.current) return;
-    const t = e.touches[0];
-    dragStartRef.current = { y: t.clientY, t: Date.now() };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragStartRef.current = { y: e.clientY, t: Date.now() };
     setDragging(true);
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragStartRef.current) return;
-    const dy = e.touches[0].clientY - dragStartRef.current.y;
+    const dy = e.clientY - dragStartRef.current.y;
     // Upward drag does nothing — clamp at 0 so the sheet can't float
     // above its resting position.
     setDragY(Math.max(0, dy));
   };
 
-  const handleTouchEnd = () => {
+  const handlePointerUp = () => {
     if (!dragStartRef.current) return;
     const elapsed = Math.max(1, Date.now() - dragStartRef.current.t);
     const velocity = dragY / elapsed;
@@ -146,9 +148,10 @@ export function BottomSheet({ children, onClose }: Props) {
       >
         <div
           className="sheet-drag-area"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
         >
           <div className="sheet-handle" />
         </div>
