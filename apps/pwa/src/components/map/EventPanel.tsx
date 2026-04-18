@@ -247,7 +247,10 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
   const onHandleMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragStartRef.current) return;
     const dy = dragStartRef.current.y - e.clientY;
-    const min = heightFor("peek", vh);
+    // Let the user drag below peek so a downward flick feels continuous.
+    // Hard floor at 40px — below that the browser's gesture area gets
+    // too small to reliably receive pointerup.
+    const min = 40;
     const max = heightFor("full", vh);
     const next = Math.max(min, Math.min(max, dragStartRef.current.baseHeight + dy));
     setDragHeight(next);
@@ -257,6 +260,17 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
     if (!dragStartRef.current) return;
     dragStartRef.current = null;
     const current = dragHeight ?? heightFor(sheetMode, vh);
+    // Dismiss zone: if the user released the handle below 60% of peek
+    // height, treat it as a swipe-close and collapse the whole panel
+    // back to its .ep-toggle button state — matches the native "drag
+    // sheet down to dismiss" idiom users expect after step-6's
+    // BottomSheet rewrite.
+    const dismissThreshold = heightFor("peek", vh) * 0.6;
+    if (current < dismissThreshold && onClose) {
+      setDragHeight(null);
+      onClose();
+      return;
+    }
     const modes: SheetMode[] = ["peek", "half", "full"];
     let best: SheetMode = "half";
     let bestDist = Infinity;
@@ -266,7 +280,7 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
     }
     setSheetMode(best);
     setDragHeight(null);
-  }, [dragHeight, sheetMode, vh]);
+  }, [dragHeight, sheetMode, vh, onClose]);
 
   // Sorted (top-20) lists per section
   const sortedIncidents = useMemo(
