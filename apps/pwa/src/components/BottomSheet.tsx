@@ -32,6 +32,11 @@ export function BottomSheet({ children, onClose }: Props) {
   /** Set after a threshold-met touchend so the closing animation plays
    * via CSS transition without re-activating drag state. */
   const closingRef = useRef(false);
+  /** Timer handle for the deferred close-after-animation commit. Cleared
+   * on unmount so a racing parent (sheetContent flipping to null from
+   * elsewhere during the 220 ms close window) doesn't fire a stray
+   * history.back() after the component has already been torn down. */
+  const closeTimerRef = useRef<number | null>(null);
 
   // Body scroll lock — prevents the page behind the sheet from scrolling
   // while the user interacts with sheet content.
@@ -62,6 +67,10 @@ export function BottomSheet({ children, onClose }: Props) {
     window.addEventListener("popstate", onPopState);
     return () => {
       window.removeEventListener("popstate", onPopState);
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
       if (window.history.state?.[SHEET_STATE_MARKER]) {
         window.history.back();
       }
@@ -105,11 +114,16 @@ export function BottomSheet({ children, onClose }: Props) {
     if (shouldClose) {
       // Animate the sheet the rest of the way down via the CSS
       // transition (re-enabled by setting dragging=false), then fire
-      // onClose once the transform is committed.
+      // onClose once the transform is committed. Timer handle stored
+      // so the popstate-effect's cleanup can cancel it if we unmount
+      // before the 220 ms elapses.
       closingRef.current = true;
       setDragging(false);
       setDragY(height);
-      window.setTimeout(() => { requestClose(); }, 220);
+      closeTimerRef.current = window.setTimeout(() => {
+        closeTimerRef.current = null;
+        requestClose();
+      }, 220);
     } else {
       setDragging(false);
       setDragY(0);
