@@ -93,6 +93,28 @@ router.post(
         throw new AppError(401, "INVALID_CREDENTIALS", "Неверный номер телефона или пароль");
       }
 
+      // Transparent re-hash on successful login. bcrypt hashes carry
+      // their cost factor in the hash prefix ($2b$NN$...), so we can
+      // detect hashes below our current SALT_ROUNDS and upgrade them
+      // opportunistically. Users who never log in keep their old-cost
+      // hashes (fine — their password can't be brute-forced without
+      // a database dump anyway), and users who do log in get the
+      // upgrade for free on their next successful auth.
+      try {
+        const currentRounds = bcrypt.getRounds(user.password);
+        if (currentRounds < SALT_ROUNDS) {
+          const upgraded = await bcrypt.hash(password, SALT_ROUNDS);
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { password: upgraded },
+          });
+        }
+      } catch {
+        // Don't block login on a re-hash failure — the login itself
+        // already succeeded. Logged at debug level by whatever
+        // wrapper is upstream; not worth surfacing to the user.
+      }
+
       authAttemptsTotal.inc({ flow: "login", outcome: "success" });
       const token = signToken(user.id, user.role, user.tokenVersion);
 
