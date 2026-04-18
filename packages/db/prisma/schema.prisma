@@ -140,6 +140,12 @@ model User {
   vkId      String?  @unique @map("vk_id")
   tgId      String?  @unique @map("tg_id")
   password  String?
+  /// Monotonic counter baked into every JWT we sign. The middleware
+  /// rejects tokens whose payload.tokenVersion < user.tokenVersion,
+  /// giving us instant revocation (self-logout-everywhere, admin
+  /// force-logout, role-change invalidation) without having to live
+  /// with long-lived uncancellable sessions. See lib/tokenVersion.ts.
+  tokenVersion Int   @default(0) @map("token_version")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

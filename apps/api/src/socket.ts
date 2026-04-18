@@ -9,6 +9,7 @@ import { prisma } from "@samur/db";
 import { config } from "./config.js";
 import { logger } from "./lib/logger.js";
 import { isHelpChatParticipant } from "./lib/helpAccess.js";
+import { getTokenVersion } from "./lib/tokenVersion.js";
 
 type SamurSocket = Socket<ClientToServerEvents, ServerToClientEvents> & {
   userId?: string;
@@ -60,6 +61,19 @@ export function clearHelpRoom(helpRequestId: string): void {
   io.in(helpRoom(helpRequestId)).socketsLeave(helpRoom(helpRequestId));
 }
 
+/** Force-disconnect every open socket belonging to a user. Called
+ * after a tokenVersion bump (logout-all, role change, admin force-
+ * logout) so the user's realtime channel doesn't survive the HTTP
+ * revocation — otherwise a revoked session could keep receiving chat
+ * messages and broadcasts until the socket naturally closed.
+ *
+ * The Redis adapter propagates this across nodes. Matches the fire-
+ * and-forget contract of clearHelpRoom. */
+export function disconnectUserSockets(userId: string): void {
+  if (!io) return;
+  io.in(userRoom(userId)).disconnectSockets(true);
+}
+
 
 export function initSocketIO(
   httpServer: HttpServer,
@@ -86,8 +100,10 @@ export function initSocketIO(
   // Authenticate Socket.IO connections via JWT. Algorithm pinned to
   // HS256 explicitly — without it, a forged token claiming "alg":"none"
   // or "alg":"RS256" with the secret-as-pubkey trick could pass verify
-  // on some jsonwebtoken config paths.
-  io.use((socket, next) => {
+  // on some jsonwebtoken config paths. Also verifies the token's
+  // tokenVersion against the user's current value, so a revoked
+  // session can't open a new socket with its old credentials.
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth.token as string | undefined;
     if (!token) {
       return next(new Error("Требуется авторизация"));
@@ -96,6 +112,10 @@ export function initSocketIO(
       const payload = jwt.verify(token, config.JWT_SECRET, {
         algorithms: ["HS256"],
       }) as JwtPayload;
+      const current = await getTokenVersion(payload.sub);
+      if (current === null || (payload.tokenVersion ?? 0) < current) {
+        return next(new Error("Сессия отозвана"));
+      }
       (socket as SamurSocket).userId = payload.sub;
       (socket as SamurSocket).userRole = payload.role;
       next();

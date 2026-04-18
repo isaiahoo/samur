@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { Router } from "express";
 import crypto from "node:crypto";
-import jwt from "jsonwebtoken";
 import { prisma } from "@samur/db";
 import { config } from "../config.js";
 import { AppError } from "../middleware/error.js";
 import { logger } from "../lib/logger.js";
+import { signToken } from "../lib/jwt.js";
 
 const router = Router();
 
@@ -43,14 +43,6 @@ function verifyVkLaunchParams(
     valid: hmac === sign,
     vkUserId: params.get("vk_user_id"),
   };
-}
-
-function signToken(userId: string, role: string): string {
-  return jwt.sign(
-    { sub: userId, role },
-    config.JWT_SECRET,
-    { expiresIn: config.JWT_EXPIRES_IN } as jwt.SignOptions,
-  );
 }
 
 /**
@@ -107,7 +99,7 @@ router.post("/vk", async (req, res, next) => {
       });
     }
 
-    const token = signToken(user.id, user.role);
+    const token = signToken(user.id, user.role, user.tokenVersion);
 
     res.json({
       success: true,
@@ -257,7 +249,7 @@ router.post("/vk/exchange", async (req, res, next) => {
       }
     }
 
-    const token = signToken(user.id, user.role);
+    const token = signToken(user.id, user.role, user.tokenVersion);
 
     res.json({
       success: true,

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import { prisma } from "@samur/db";
 import { config } from "../config.js";
 import { validateBody } from "../middleware/validate.js";
@@ -8,20 +7,13 @@ import { PhoneRequestSchema, PhoneVerifySchema } from "@samur/shared";
 import { AppError } from "../middleware/error.js";
 import { logger } from "../lib/logger.js";
 import { getRedis } from "../lib/redis.js";
+import { signToken } from "../lib/jwt.js";
 
 const router = Router();
 
 const CODE_TTL = 300; // 5 minutes
 const COOLDOWN_TTL = 120; // 2 minutes between requests per phone
 const MAX_ATTEMPTS = 3;
-
-function signToken(userId: string, role: string): string {
-  return jwt.sign(
-    { sub: userId, role },
-    config.JWT_SECRET,
-    { expiresIn: config.JWT_EXPIRES_IN } as jwt.SignOptions,
-  );
-}
 
 function sanitizeUser(user: {
   id: string;
@@ -225,7 +217,7 @@ router.post(
         logger.info({ userId: user.id }, "Existing user logged in via phone verification");
       }
 
-      const token = signToken(user.id, user.role);
+      const token = signToken(user.id, user.role, user.tokenVersion);
 
       res.json({
         success: true,

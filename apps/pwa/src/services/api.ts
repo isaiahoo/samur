@@ -164,6 +164,17 @@ export function updateProfile(data: { name?: string; role?: string }) {
   });
 }
 
+/** Invalidate every outstanding JWT for the current user across every
+ * device — the server bumps user.tokenVersion, the middleware starts
+ * rejecting tokens on the old version. The caller's own token stops
+ * working the moment the next request lands, so the client should
+ * clear local state and redirect to login immediately after. */
+export function logoutAll() {
+  return request<ApiResponse<{ tokenVersion: number }>>("/auth/logout-all", {
+    method: "POST",
+  });
+}
+
 export async function uploadPhotos(files: File[]): Promise<string[]> {
   const form = new FormData();
   for (const file of files) {

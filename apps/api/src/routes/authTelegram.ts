@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { Router } from "express";
 import crypto from "node:crypto";
-import jwt from "jsonwebtoken";
 import { prisma } from "@samur/db";
 import { config } from "../config.js";
 import { validateBody } from "../middleware/validate.js";
@@ -9,6 +8,7 @@ import { TelegramAuthSchema } from "@samur/shared";
 import { AppError } from "../middleware/error.js";
 import { logger } from "../lib/logger.js";
 import { getRedis } from "../lib/redis.js";
+import { signToken } from "../lib/jwt.js";
 
 const router = Router();
 
@@ -32,14 +32,6 @@ function verifyTelegramAuth(
     .digest("hex");
 
   return hmac === String(data.hash);
-}
-
-function signToken(userId: string, role: string): string {
-  return jwt.sign(
-    { sub: userId, role },
-    config.JWT_SECRET,
-    { expiresIn: config.JWT_EXPIRES_IN } as jwt.SignOptions,
-  );
 }
 
 function sanitizeUser(user: {
@@ -134,7 +126,7 @@ router.post(
         logger.info({ tgId, name: fullName }, "New user registered via Telegram");
       }
 
-      const token = signToken(user.id, user.role);
+      const token = signToken(user.id, user.role, user.tokenVersion);
 
       res.json({
         success: true,

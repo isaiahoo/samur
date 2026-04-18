@@ -355,6 +355,12 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
 export interface JwtPayload {
   sub: string;
   role: UserRole;
+  /** Monotonic counter that matches user.tokenVersion at sign time.
+   * The middleware rejects tokens whose value is below the user's
+   * current version, giving us instant revocation. Optional in the
+   * type for backwards-compat with tokens signed before this field
+   * landed — the middleware treats `undefined` as 0. */
+  tokenVersion?: number;
   iat: number;
   exp: number;
 }
