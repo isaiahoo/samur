@@ -608,7 +608,7 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
         <span className="ep-header-count">{totalCount}</span>
         {onClose && (
           <button ref={closeBtnRef} className="ep-close" onClick={onClose} aria-label="Закрыть">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <line x1="6" y1="6" x2="18" y2="18" />
               <line x1="6" y1="18" x2="18" y2="6" />
             </svg>

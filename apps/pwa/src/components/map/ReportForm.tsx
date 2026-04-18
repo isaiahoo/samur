@@ -268,7 +268,12 @@ export function ReportForm({ onClose, onCreated }: { onClose: () => void; onCrea
               )}
               <h2>Сообщить</h2>
             </div>
-            <button type="button" className="btn-close" onClick={attemptClose} aria-label="Закрыть">✕</button>
+            <button type="button" className="btn-close" onClick={attemptClose} aria-label="Закрыть">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="6" y1="6" x2="18" y2="18" />
+                <line x1="6" y1="18" x2="18" y2="6" />
+              </svg>
+            </button>
           </div>
 
       {step === 1 && (
@@ -386,7 +391,10 @@ export function ReportForm({ onClose, onCreated }: { onClose: () => void; onCrea
                     onClick={() => handleRemovePhoto(i)}
                     aria-label="Удалить фото"
                   >
-                    ✕
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                      <line x1="6" y1="18" x2="18" y2="6" />
+                    </svg>
                   </button>
                 </div>
               ))}

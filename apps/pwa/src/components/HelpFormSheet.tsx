@@ -49,7 +49,7 @@ function UrgencyIcon({ kind }: { kind: "normal" | "urgent" | "critical" }) {
     );
   }
   return (
-    <svg {...common} strokeWidth={2.25}>
+    <svg {...common} strokeWidth={2.5}>
       <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
       <line x1="12" y1="9" x2="12" y2="13" />
       <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -261,7 +261,7 @@ export function HelpFormSheet({ tab, onClose }: Props) {
         <div className="sheet-form-header">
           <h3>{tab === "offer" ? "Предложить помощь" : "Запросить помощь"}</h3>
           <button className="btn-close" onClick={attemptClose} aria-label="Закрыть">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <line x1="6" y1="6" x2="18" y2="18" />
               <line x1="6" y1="18" x2="18" y2="6" />
             </svg>
@@ -356,7 +356,7 @@ export function HelpFormSheet({ tab, onClose }: Props) {
           </div>
           {urgency === "critical" && (
             <div className="qf-critical-warning" role="note">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                 <line x1="12" y1="9" x2="12" y2="13" />
                 <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -402,7 +402,7 @@ export function HelpFormSheet({ tab, onClose }: Props) {
                 disabled={compressing}
                 aria-label="Добавить фото"
               >
-                <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                <svg width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 5v14M5 12h14" />
                 </svg>
                 <span className="photo-slot-hint">Фото</span>

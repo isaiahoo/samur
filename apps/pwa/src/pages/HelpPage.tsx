@@ -343,8 +343,11 @@ export function HelpPage() {
           onChange={(e) => setSearch(e.target.value)}
         />
         {search && (
-          <button className="help-search-clear" onClick={() => setSearch("")}>
-            ✕
+          <button className="help-search-clear" onClick={() => setSearch("")} aria-label="Очистить">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <line x1="6" y1="6" x2="18" y2="18" />
+              <line x1="6" y1="18" x2="18" y2="6" />
+            </svg>
           </button>
         )}
       </div>
