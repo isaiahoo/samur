@@ -7,6 +7,7 @@ import {
   HELP_CATEGORIES,
 } from "@samur/shared";
 import { formatRelativeTime } from "@samur/shared";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   getHelpRequests,
   respondToHelpRequest,
@@ -52,6 +53,8 @@ export function HelpPage() {
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn());
   const showToast = useUIStore((s) => s.showToast);
   const { position, requestPosition } = useGeolocation();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     requestPosition();
@@ -137,6 +140,22 @@ export function HelpPage() {
     setPage(1);
     fetchItems(1);
   }, [fetchItems]);
+
+  // Deep-link support: scroll to the zone anchor when the URL hash matches
+  // (profile menu's "Мои отклики" / "Мои заявки" rows land the user on the
+  // matching section). Clear the hash after scrolling so a later list
+  // refresh (cancel → handleRefresh flips loading) doesn't yank the user
+  // back to the anchor mid-interaction.
+  useEffect(() => {
+    if (!location.hash || loading) return;
+    const id = location.hash.slice(1);
+    const el = document.getElementById(id);
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      navigate(location.pathname + location.search, { replace: true });
+    });
+  }, [location.hash, loading, location.pathname, location.search, navigate]);
 
   useEffect(() => {
     fetchCounts();
@@ -415,7 +434,7 @@ export function HelpPage() {
               to the top with its own muted-zone styling so it reads as a
               task list, not just another row of cards. */}
           {myResponseItems.length > 0 && (
-            <section className="help-zone help-zone--commitments" aria-label="Ваши отклики">
+            <section id="zone-commitments" className="help-zone help-zone--commitments" aria-label="Ваши отклики">
               <div className="help-zone-header">
                 <span className="help-zone-title">Ваши отклики</span>
                 <span className="help-zone-count">{myResponseItems.length}</span>
@@ -443,7 +462,7 @@ export function HelpPage() {
               track who's responded to each. Откликнуться CTA is hidden on
               own requests (the old code left it visible — a bug). */}
           {myItems.length > 0 && (
-            <section className="help-zone help-zone--own" aria-label="Ваши заявки">
+            <section id="zone-own" className="help-zone help-zone--own" aria-label="Ваши заявки">
               <div className="help-zone-header">
                 <span className="help-zone-title">Ваши заявки</span>
                 <span className="help-zone-count">{myItems.length}</span>

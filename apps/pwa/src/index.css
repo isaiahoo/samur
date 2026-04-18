@@ -60,6 +60,7 @@ a { color: var(--color-primary); text-decoration: none; }
 .profile-wrapper { position: relative; }
 
 .profile-btn {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -72,6 +73,30 @@ a { color: var(--color-primary); text-decoration: none; }
   cursor: pointer;
   padding: 0;
   transition: background 0.15s;
+}
+/* Unread-messages dot — pulls the user's eye back to the profile menu
+   when there's chat activity in a thread they're part of. Pulsing keeps
+   the signal alive without being noisy. */
+.profile-btn-dot {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #dc2626;
+  border: 2px solid #0b1220;
+  pointer-events: none;
+  box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6);
+  animation: profile-btn-dot-pulse 2.2s ease-out infinite;
+}
+@keyframes profile-btn-dot-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55); }
+  70%  { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-btn-dot { animation: none; }
 }
 .profile-btn:active { background: #d4d4d8; }
 .profile-btn--auth {
@@ -422,6 +447,39 @@ a { color: var(--color-primary); text-decoration: none; }
 .profile-menu-item:active { background: #f4f4f5; }
 .profile-menu-logout { color: #ef4444; }
 .profile-menu-logout:active { background: #fef2f2; }
+
+/* Activity rows — deep-link shortcuts into /help. Lays out as:
+   [icon] [label, grows] [count pill] [unread chip?] [chevron]. */
+.profile-menu-activity { padding: 11px 16px; }
+.profile-menu-activity-label { flex: 1; text-align: left; color: #18181b; font-weight: 500; }
+.profile-menu-activity-count {
+  min-width: 22px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: #059669;
+  border-radius: 999px;
+  text-align: center;
+  line-height: 1.4;
+}
+.profile-menu-activity-unread {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  background: #dc2626;
+  border-radius: 999px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.profile-menu-chevron {
+  color: #a1a1aa;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+  margin-left: 2px;
+}
 .offline-badge {
   font-size: 11px;
   background: #92400e;
@@ -7814,6 +7872,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   .help-chat-msg-author--link { color: #d4d4d8; }
   .profile-menu-divider { background: var(--color-border); }
   .profile-menu-item { color: #d4d4d8; }
+  .profile-menu-activity-label { color: #f4f4f5; }
+  .profile-menu-chevron { color: #71717a; }
+  .profile-btn-dot { border-color: #0b1220; }
   .profile-menu-item:active { background: rgba(255, 255, 255, 0.05); }
   .profile-menu-logout { color: #f87171; }
   .profile-menu-logout:active { background: rgba(239, 68, 68, 0.1); }

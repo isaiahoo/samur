@@ -6,7 +6,7 @@ import { useAlertsStore, useUnreadCount } from "../store/alerts.js";
 import { useAuthStore } from "../store/auth.js";
 import { useOnline } from "../hooks/useOnline.js";
 import { useSocketEvent } from "../hooks/useSocket.js";
-import { getMe, getUserStats, getAlerts } from "../services/api.js";
+import { getMe, getUserStats, getAlerts, getMyActivity, type MyActivity } from "../services/api.js";
 import type { User, UserStats } from "@samur/shared";
 import { pluralizeRu } from "@samur/shared";
 import { BottomSheet } from "./BottomSheet.js";
@@ -85,6 +85,56 @@ export function Layout() {
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [myStats, setMyStats] = useState<UserStats | null>(null);
+  const [myActivity, setMyActivity] = useState<MyActivity | null>(null);
+  /** Debounce socket-driven activity refetches — a burst of chat messages
+   * or a cascade of response-state updates would otherwise hammer the
+   * endpoint once per event. */
+  const activityRefetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const refreshActivity = () => {
+    if (!loggedIn) return;
+    getMyActivity()
+      .then((res) => {
+        const next = (res.data ?? null) as MyActivity | null;
+        setMyActivity(next);
+      })
+      .catch(() => { /* silent — counts degrade to last-known */ });
+  };
+  const refreshActivityDebounced = () => {
+    if (activityRefetchTimer.current) clearTimeout(activityRefetchTimer.current);
+    activityRefetchTimer.current = setTimeout(refreshActivity, 400);
+  };
+
+  // Initial fetch on login + invalidation on commitment/message events.
+  // The header dot and menu counts rely on this staying live while the
+  // menu is closed — otherwise the user would only learn about unread
+  // replies by opening the menu.
+  useEffect(() => {
+    if (!loggedIn) { setMyActivity(null); return; }
+    refreshActivity();
+    return () => {
+      if (activityRefetchTimer.current) clearTimeout(activityRefetchTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loggedIn]);
+  // Socket events are broadcast to every connected client, not scoped to
+  // participants — filter here so we only pay for refetches that can
+  // actually change our counts:
+  //   - help_response:changed: only "my response state flipped" affects
+  //     our activeResponses / ownOpenRequests counts. Others' responses
+  //     don't.
+  //   - help_message:created: someone else posting may have bumped my
+  //     unread count. My own echoes can't.
+  useSocketEvent("help_response:changed", (payload) => {
+    if (!user?.id) return;
+    if (payload.user?.id !== user.id) return;
+    refreshActivityDebounced();
+  });
+  useSocketEvent("help_message:created", (msg) => {
+    if (!user?.id) return;
+    if (msg.authorId === user.id) return;
+    refreshActivityDebounced();
+  });
 
   // Fetch stats once on login and whenever the profile menu opens — the
   // latter keeps them fresh after the user completes a help (helpsCompleted
@@ -97,6 +147,14 @@ export function Layout() {
       .catch(() => { /* silent — stats are a nicety, not critical */ });
     return () => { cancelled = true; };
   }, [loggedIn, user?.id, profileOpen]);
+
+  // Refresh activity counts when the menu opens too — covers the case
+  // where a socket event was dropped or the user was offline.
+  useEffect(() => {
+    if (!profileOpen || !loggedIn) return;
+    refreshActivity();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileOpen, loggedIn]);
 
   // Close profile menu on outside click
   useEffect(() => {
@@ -152,6 +210,12 @@ export function Layout() {
                   <circle cx="12" cy="7" r="4" />
                 </svg>
               )}
+              {loggedIn && myActivity && myActivity.unreadMessages > 0 && (
+                <span
+                  className="profile-btn-dot"
+                  aria-label={`${myActivity.unreadMessages} ${pluralizeRu(myActivity.unreadMessages, "непрочитанное сообщение", "непрочитанных сообщения", "непрочитанных сообщений")}`}
+                />
+              )}
             </button>
 
             {profileOpen && loggedIn && (
@@ -188,6 +252,49 @@ export function Layout() {
                     </div>
                   )}
                 </div>
+                {myActivity && (myActivity.activeResponses > 0 || myActivity.ownOpenRequests > 0) && (
+                  <>
+                    <div className="profile-menu-divider" />
+                    {myActivity.activeResponses > 0 && (
+                      <button
+                        className="profile-menu-item profile-menu-activity"
+                        onClick={() => {
+                          setProfileOpen(false);
+                          navigate("/help#zone-commitments");
+                        }}
+                      >
+                        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                        <span className="profile-menu-activity-label">Мои отклики</span>
+                        <span className="profile-menu-activity-count">{myActivity.activeResponses}</span>
+                        {myActivity.unreadMessages > 0 && (
+                          <span className="profile-menu-activity-unread">
+                            {myActivity.unreadMessages} {pluralizeRu(myActivity.unreadMessages, "новое", "новых", "новых")}
+                          </span>
+                        )}
+                        <span className="profile-menu-chevron" aria-hidden="true">›</span>
+                      </button>
+                    )}
+                    {myActivity.ownOpenRequests > 0 && (
+                      <button
+                        className="profile-menu-item profile-menu-activity"
+                        onClick={() => {
+                          setProfileOpen(false);
+                          navigate("/help#zone-own");
+                        }}
+                      >
+                        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                          <rect x="4" y="4" width="16" height="16" rx="2" />
+                          <path d="M9 10h6M9 14h4" />
+                        </svg>
+                        <span className="profile-menu-activity-label">Мои заявки</span>
+                        <span className="profile-menu-activity-count">{myActivity.ownOpenRequests}</span>
+                        <span className="profile-menu-chevron" aria-hidden="true">›</span>
+                      </button>
+                    )}
+                  </>
+                )}
                 <div className="profile-menu-divider" />
                 <button
                   className="profile-menu-item"

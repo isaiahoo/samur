@@ -144,6 +144,17 @@ export function getUserStats(id: string) {
   return request<ApiResponse>(`/users/${encodeURIComponent(id)}/stats`);
 }
 
+// Caller's in-flight work snapshot — drives the profile-menu activity rows
+// and the header unread dot. Scoped to the authenticated user.
+export interface MyActivity {
+  activeResponses: number;
+  ownOpenRequests: number;
+  unreadMessages: number;
+}
+export function getMyActivity() {
+  return request<ApiResponse<MyActivity>>("/users/me/activity");
+}
+
 export function updateProfile(data: { name?: string; role?: string }) {
   // Backend returns a fresh JWT alongside the user whenever the role
   // actually changed — callers should swap it into the auth store.
