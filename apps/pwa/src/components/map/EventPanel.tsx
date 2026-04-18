@@ -56,9 +56,14 @@ function readJSONObject(key: string): Record<string, boolean> {
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 
+// Schematic mini-chart: a baseline + a trending segment + a dot marking
+// the current reading. Reads as a sparkline shape rather than an arrow
+// glyph — the old two-stroke arrow rendered as a "Y" at 14 px. Same
+// 3-state data, just a visual vocabulary that matches what a river
+// level actually looks like on a chart.
 function TrendIcon({ trend }: { trend: string }) {
   const common = {
-    width: 14, height: 14, viewBox: "0 0 24 24",
+    width: 16, height: 16, viewBox: "0 0 24 24",
     fill: "none", stroke: "currentColor", strokeWidth: 2.25,
     strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
     "aria-hidden": true,
@@ -66,23 +71,23 @@ function TrendIcon({ trend }: { trend: string }) {
   if (trend === "rising") {
     return (
       <svg {...common} className="ep-row-trend ep-row-trend--up">
-        <path d="M7 17l5-5 5 5" />
-        <path d="M12 12V4" />
+        <path d="M4 17 L11 17 L20 8" />
+        <circle cx="20" cy="8" r="2" fill="currentColor" stroke="none" />
       </svg>
     );
   }
   if (trend === "falling") {
     return (
       <svg {...common} className="ep-row-trend ep-row-trend--down">
-        <path d="M7 7l5 5 5-5" />
-        <path d="M12 12v8" />
+        <path d="M4 8 L13 17 L20 17" />
+        <circle cx="20" cy="17" r="2" fill="currentColor" stroke="none" />
       </svg>
     );
   }
   return (
     <svg {...common} className="ep-row-trend">
-      <path d="M5 12h14" />
-      <path d="M13 6l6 6-6 6" />
+      <path d="M4 12 L20 12" />
+      <circle cx="20" cy="12" r="2" fill="currentColor" stroke="none" />
     </svg>
   );
 }
