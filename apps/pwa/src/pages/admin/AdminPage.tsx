@@ -11,8 +11,9 @@ const StatsDashboard = lazy(() => import("./StatsDashboard.js").then((m) => ({ d
 const RiverLevelsEditor = lazy(() => import("./RiverLevelsEditor.js").then((m) => ({ default: m.RiverLevelsEditor })));
 const AiSkillPanel = lazy(() => import("./AiSkillPanel.js").then((m) => ({ default: m.AiSkillPanel })));
 const MessageReports = lazy(() => import("./MessageReports.js").then((m) => ({ default: m.MessageReports })));
+const UserManagement = lazy(() => import("./UserManagement.js").then((m) => ({ default: m.UserManagement })));
 
-type AdminTab = "verify" | "help" | "reports" | "alert" | "stats" | "rivers" | "aiSkill";
+type AdminTab = "verify" | "help" | "reports" | "users" | "alert" | "stats" | "rivers" | "aiSkill";
 
 export function AdminPage() {
   const [tab, setTab] = useState<AdminTab>("verify");
@@ -26,6 +27,7 @@ export function AdminPage() {
     { key: "verify", label: "Верификация" },
     { key: "help", label: "Заявки" },
     { key: "reports", label: "Жалобы" },
+    { key: "users", label: "Пользователи" },
     { key: "alert", label: "Оповещение" },
     { key: "stats", label: "Статистика" },
     { key: "rivers", label: "Реки" },
@@ -51,6 +53,7 @@ export function AdminPage() {
           {tab === "verify" && <VerificationQueue />}
           {tab === "help" && <HelpManagement />}
           {tab === "reports" && <MessageReports />}
+          {tab === "users" && <UserManagement />}
           {tab === "alert" && <AlertComposer />}
           {tab === "stats" && <StatsDashboard />}
           {tab === "rivers" && <RiverLevelsEditor />}

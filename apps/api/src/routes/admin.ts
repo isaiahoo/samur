@@ -10,6 +10,65 @@ import { auditLog } from "../lib/auditLog.js";
 const router = Router();
 
 /**
+ * GET /admin/users?limit=50&offset=0&search=<string>
+ *
+ * Coordinator/admin-only. Lists users for the operator UI. Paginated;
+ * `search` does a case-insensitive substring match on name or phone.
+ * Password hashes, token versions, and timestamps are omitted — the
+ * caller only needs the fields to render a roster + drive force-
+ * logout. Soft-deletion on users doesn't exist in this codebase, so
+ * no deletedAt filter.
+ */
+router.get(
+  "/users",
+  requireAuth,
+  requireRole("coordinator", "admin"),
+  async (req, res, next) => {
+    try {
+      const limit = Math.min(Math.max(parseInt(String(req.query.limit)) || 50, 1), 100);
+      const offset = Math.max(parseInt(String(req.query.offset)) || 0, 0);
+      const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+
+      const where = search
+        ? {
+            OR: [
+              { name: { contains: search, mode: "insensitive" as const } },
+              { phone: { contains: search } },
+            ],
+          }
+        : {};
+
+      const [items, total] = await Promise.all([
+        prisma.user.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          skip: offset,
+          take: limit,
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            role: true,
+            vkId: true,
+            tgId: true,
+            createdAt: true,
+          },
+        }),
+        prisma.user.count({ where }),
+      ]);
+
+      res.json({
+        success: true,
+        data: items.map((u) => ({ ...u, createdAt: u.createdAt.toISOString() })),
+        meta: { total, limit, offset },
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+/**
  * POST /admin/users/:userId/force-logout
  *
  * Coordinator/admin-only. Bumps the target user's tokenVersion and

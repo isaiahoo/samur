@@ -5287,7 +5287,65 @@ a.tg-auth-fallback {
 }
 .admin-tab--active { color: #fff; border-bottom-color: var(--color-primary); }
 .admin-content { padding: 16px; }
-.admin-filter-row { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; }
+.admin-filter-row { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+
+/* Admin users tab */
+.admin-users-count { color: #71717a; font-size: 13px; margin-left: auto; }
+.user-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.user-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+}
+.user-row-main { flex: 1; min-width: 0; }
+.user-row-name { font-weight: 600; font-size: 14px; color: #18181b; margin-bottom: 2px; }
+.user-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: #71717a;
+  align-items: center;
+}
+.user-row-role {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f4f4f5;
+  color: #52525b;
+  font-weight: 600;
+}
+.user-row-role--coordinator { background: #dbeafe; color: #1e3a8a; }
+.user-row-role--admin { background: #fce7f3; color: #9d174d; }
+.user-row-role--volunteer { background: #dcfce7; color: #14532d; }
+.user-row-phone { font-variant-numeric: tabular-nums; }
+.user-row-providers { color: #a1a1aa; }
+.user-row-joined { color: #a1a1aa; margin-left: auto; }
+.user-row-actions { flex-shrink: 0; }
+.admin-users-pager {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.admin-users-page-info { color: #71717a; font-size: 13px; }
+@media (prefers-color-scheme: dark) {
+  .admin-users-count { color: #a1a1aa; }
+  .user-row { background: var(--color-surface); border-color: var(--color-border); }
+  .user-row-name { color: #f4f4f5; }
+  .user-row-meta { color: #a1a1aa; }
+  .user-row-role { background: #3f3f46; color: #e4e4e7; }
+  .user-row-role--coordinator { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+  .user-row-role--admin { background: rgba(236, 72, 153, 0.22); color: #f9a8d4; }
+  .user-row-role--volunteer { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+  .user-row-joined, .user-row-providers { color: #71717a; }
+  .admin-users-page-info { color: #a1a1aa; }
+}
 
 .ai-skill-intro { margin-bottom: 14px; }
 .ai-skill-intro p { margin: 0 0 6px 0; font-size: 13px; color: #3f3f46; line-height: 1.5; }

@@ -185,6 +185,29 @@ export function forceLogoutUser(userId: string) {
   );
 }
 
+export interface AdminUserSummary {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  role: string;
+  vkId: string | null;
+  tgId: string | null;
+  createdAt: string;
+}
+
+/** Admin-only: paginated user list for the operator UI. `search` does
+ * a case-insensitive substring match on name or phone. */
+export function getUsers(opts?: { limit?: number; offset?: number; search?: string }) {
+  const qs = new URLSearchParams();
+  if (opts?.limit) qs.set("limit", String(opts.limit));
+  if (opts?.offset) qs.set("offset", String(opts.offset));
+  if (opts?.search) qs.set("search", opts.search);
+  const suffix = qs.toString() ? `?${qs}` : "";
+  return request<ApiResponse<AdminUserSummary[]> & { meta?: { total: number; limit: number; offset: number } }>(
+    `/admin/users${suffix}`,
+  );
+}
+
 export async function uploadPhotos(files: File[]): Promise<string[]> {
   const form = new FormData();
   for (const file of files) {
