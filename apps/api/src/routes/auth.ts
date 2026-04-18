@@ -6,6 +6,7 @@ import { prisma } from "@samur/db";
 import { config } from "../config.js";
 import { validateBody } from "../middleware/validate.js";
 import { requireAuth } from "../middleware/auth.js";
+import { authAttemptsRateLimiter } from "../middleware/rateLimiter.js";
 import { LoginSchema, RegisterSchema } from "@samur/shared";
 import type { JwtPayload } from "@samur/shared";
 import { AppError } from "../middleware/error.js";
@@ -37,6 +38,7 @@ function sanitizeUser(user: { id: string; name: string | null; phone: string | n
 router.post(
   "/register",
   validateBody(RegisterSchema),
+  authAttemptsRateLimiter,
   async (req, res, next) => {
     try {
       const { name, phone, password } = req.body;
@@ -72,6 +74,7 @@ router.post(
 router.post(
   "/login",
   validateBody(LoginSchema),
+  authAttemptsRateLimiter,
   async (req, res, next) => {
     try {
       const { phone, password } = req.body;

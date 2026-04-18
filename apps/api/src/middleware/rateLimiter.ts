@@ -33,6 +33,16 @@ const LIMITS = {
   // surge — still well under the global cap.
   messagesAuthenticated: { points: 30, duration: 60 },
   messagesCoordinator: { points: 120, duration: 60 },
+  // Password login / register attempts. The global 90/min anon cap is
+  // far too loose for these endpoints — an attacker with a known phone
+  // number gets 90 password tries/minute against that single account.
+  // Two stacked per-hour buckets: phone-keyed (blunts credential
+  // stuffing against one account) and IP-keyed (blunts spray-and-pray
+  // across many accounts from one source). Legitimate use is ≤3
+  // attempts per user per forgot-password episode; shared Wi-Fi with
+  // a family of 4 stays comfortably under the IP cap.
+  authPerPhone: { points: 5, duration: 3600 },
+  authPerIP: { points: 50, duration: 3600 },
 } as const;
 
 let limiters: Record<string, RateLimiterRedis | RateLimiterMemory>;
@@ -67,6 +77,8 @@ export function initRateLimiter(redisClient: Redis | null): void {
     reportsCoordinator: create("rep_coord", LIMITS.reportsCoordinator),
     messagesAuthenticated: create("msg_auth", LIMITS.messagesAuthenticated),
     messagesCoordinator: create("msg_coord", LIMITS.messagesCoordinator),
+    authPerPhone: create("auth_phone", LIMITS.authPerPhone),
+    authPerIP: create("auth_ip", LIMITS.authPerIP),
   };
 
   if (!redisClient) {
@@ -183,6 +195,47 @@ export async function messagesRateLimiter(
       error: {
         code: "MESSAGE_RATE_LIMIT_EXCEEDED",
         message: "Слишком частые сообщения. Подождите немного.",
+      },
+    });
+  }
+}
+
+/** Per-hour limiter for password login/register attempts. Place AFTER
+ * `validateBody(...)` on the route so `req.body.phone` is the
+ * normalized form (zod transform produces +7XXXXXXXXXX). Consumes
+ * against TWO buckets: the phone's hourly budget and the IP's hourly
+ * budget. Either exhausting returns 429 — the two buckets catch
+ * different attack shapes (one account getting hammered vs one IP
+ * spraying many accounts).
+ *
+ * Consumes on every attempt, successes included — a successful
+ * probe still leaks info. No separate "failure-only" mode: attackers
+ * don't care if their probe succeeds, they care about the response. */
+export async function authAttemptsRateLimiter(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  if (!limiters) return next();
+  const phone = typeof req.body?.phone === "string" ? req.body.phone : null;
+  const ip = getRealIp(req);
+  try {
+    // Promise.all rejects on first failure but both consumes are
+    // already in flight — the "losing" bucket still deducts. That's
+    // intentional: both caps should apply to every attempt. Waiting
+    // for one before starting the other would let an attacker who
+    // exhausts the phone bucket skip the IP count.
+    await Promise.all([
+      phone ? limiters.authPerPhone.consume(phone) : Promise.resolve(null),
+      limiters.authPerIP.consume(ip),
+    ]);
+    next();
+  } catch {
+    res.status(429).json({
+      success: false,
+      error: {
+        code: "AUTH_RATE_LIMIT_EXCEEDED",
+        message: "Слишком много попыток входа. Попробуйте через час.",
       },
     });
   }
