@@ -218,9 +218,13 @@ export function EventPanel({ incidents, helpRequests, shelters, riverLevels, ear
     };
   }, []);
 
-  // Draggable sheet mode
+  // Draggable sheet mode. Only peek / half are persisted — "full" is a
+  // per-session choice: dragging to full is a deliberate "I want to see
+  // everything right now" action, not a preference that should come back
+  // every time the panel reopens.
   const [sheetMode, setSheetMode] = useState<SheetMode>(readSheetMode);
   useEffect(() => {
+    if (sheetMode === "full") return;
     window.localStorage.setItem(SHEET_KEY, sheetMode);
   }, [sheetMode]);
 
