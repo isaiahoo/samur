@@ -9,6 +9,7 @@ import {
   ApiError,
 } from "../services/api.js";
 import { useSocketEvent } from "../hooks/useSocket.js";
+import { getSocket } from "../services/socket.js";
 import { useOnline } from "../hooks/useOnline.js";
 import { useUIStore } from "../store/ui.js";
 import { useNavigate } from "react-router-dom";
@@ -31,6 +32,12 @@ const ROLE_BADGES: Record<string, string> = {
 
 const MAX_PHOTOS = 5;
 const PAGE_SIZE = 50;
+/** Client-side throttle: emit at most one help:typing event every TYPING_EMIT_MS
+ * while the user is composing. The receiver holds the indicator visible
+ * for TYPING_TTL_MS after each event — slightly longer than the emit
+ * interval so a continuously-typing user stays shown without flicker. */
+const TYPING_EMIT_MS = 3000;
+const TYPING_TTL_MS = 5000;
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
@@ -84,6 +91,13 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
   const [draft, setDraft] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [lightbox, setLightbox] = useState<{ urls: string[]; index: number } | null>(null);
+  /** Who is currently typing, keyed by userId; expiresAt is the millisecond
+   * timestamp at which the indicator for this user should disappear. */
+  const [typers, setTypers] = useState<Map<string, { name: string; expiresAt: number }>>(() => new Map());
+  /** Rerender tick — advances every 1s so stale typers prune themselves
+   * without waiting for the next incoming event. */
+  const [, setTypingTick] = useState(0);
+  const lastTypingEmitRef = useRef(0);
 
   const listRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -135,8 +149,49 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
       if (prev.some((m) => m.id === msg.id)) return prev;
       return [...prev, msg];
     });
+    // Also clear the typing indicator for the author — they clearly
+    // finished composing.
+    setTypers((prev) => {
+      if (!prev.has(msg.authorId)) return prev;
+      const next = new Map(prev);
+      next.delete(msg.authorId);
+      return next;
+    });
     scrollToBottom();
   });
+
+  // Receive typing events from other participants. Ignore our own echoes
+  // (server already filters via socket.broadcast, but belt-and-braces).
+  useSocketEvent("help:typing", (payload) => {
+    if (payload.helpRequestId !== requestId) return;
+    if (payload.userId === currentUserId) return;
+    setTypers((prev) => {
+      const next = new Map(prev);
+      next.set(payload.userId, {
+        name: payload.userName || "Участник",
+        expiresAt: Date.now() + TYPING_TTL_MS,
+      });
+      return next;
+    });
+  });
+
+  // Periodic prune — remove expired typers even when no new events arrive.
+  useEffect(() => {
+    if (typers.size === 0) return;
+    const tick = setInterval(() => {
+      const now = Date.now();
+      let changed = false;
+      setTypers((prev) => {
+        const next = new Map(prev);
+        for (const [uid, info] of next) {
+          if (info.expiresAt <= now) { next.delete(uid); changed = true; }
+        }
+        return changed ? next : prev;
+      });
+      setTypingTick((t) => t + 1);
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [typers.size]);
 
   const loadEarlier = useCallback(async () => {
     if (loadingEarlier || messages.length === 0) return;
@@ -448,6 +503,25 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
         )}
       </div>
 
+      {(() => {
+        const now = Date.now();
+        const active = Array.from(typers.values()).filter((t) => t.expiresAt > now);
+        if (active.length === 0) return null;
+        const label = active.length === 1
+          ? `${active[0].name} печатает…`
+          : active.length === 2
+            ? `${active[0].name} и ${active[1].name} печатают…`
+            : "Несколько человек печатают…";
+        return (
+          <div className="help-chat-typing" role="status" aria-live="polite">
+            <span className="help-chat-typing-dots" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </span>
+            <span className="help-chat-typing-text">{label}</span>
+          </div>
+        );
+      })()}
+
       {attachments.length > 0 && (
         <div className="help-chat-attachments" role="list" aria-label="Прикреплённые фото">
           {attachmentPreviews.map((p, i) => (
@@ -491,7 +565,14 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
           className="help-chat-input"
           placeholder={attachments.length > 0 ? "Подпись (необязательно)…" : "Сообщение…"}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            if (!online || state !== "ready") return;
+            const now = Date.now();
+            if (now - lastTypingEmitRef.current < TYPING_EMIT_MS) return;
+            lastTypingEmitRef.current = now;
+            try { getSocket().emit("help:typing", { helpRequestId: requestId }); } catch { /* ignore */ }
+          }}
           rows={2}
           maxLength={2000}
           onKeyDown={(e) => {

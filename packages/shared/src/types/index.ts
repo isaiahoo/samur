@@ -342,6 +342,7 @@ export interface ServerToClientEvents {
     derivedStatus: HelpRequestStatus;
   }) => void;
   "help_message:created": (message: HelpMessage) => void;
+  "help:typing": (payload: { helpRequestId: string; userId: string; userName: string }) => void;
   "alert:broadcast": (alert: Alert) => void;
   "river_level:updated": (level: RiverLevel) => void;
   "shelter:updated": (shelter: Shelter) => void;
@@ -352,4 +353,8 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
   "subscribe:area": (sub: { lat: number; lng: number; radius: number }) => void;
   "unsubscribe:area": () => void;
+  /** Transient typing signal. Client throttles to at most once every 3s
+   * per chat; server validates participant access and rebroadcasts with
+   * the sender's userId + name. Not persisted. */
+  "help:typing": (payload: { helpRequestId: string }) => void;
 }

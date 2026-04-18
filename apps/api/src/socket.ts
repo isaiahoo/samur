@@ -5,11 +5,14 @@ import { createAdapter } from "@socket.io/redis-adapter";
 import jwt from "jsonwebtoken";
 import type { Redis } from "ioredis";
 import type { ServerToClientEvents, ClientToServerEvents, JwtPayload } from "@samur/shared";
+import { prisma } from "@samur/db";
 import { config } from "./config.js";
 import { logger } from "./lib/logger.js";
 
 type SamurSocket = Socket<ClientToServerEvents, ServerToClientEvents> & {
   userId?: string;
+  /** Lazily resolved on first typing event — one DB hit per session. */
+  userName?: string;
   geoSub?: { lat: number; lng: number; radius: number };
 };
 
@@ -70,6 +73,37 @@ export function initSocketIO(
 
     socket.on("unsubscribe:area", () => {
       socket.geoSub = undefined;
+    });
+
+    // Transient typing signal — not persisted. Client throttles to at
+    // most once every 3 s per chat; we just resolve the sender's name
+    // (lazily, cached per socket) and rebroadcast so other participants
+    // can render "X печатает…". Authenticated-only; no DB access check
+    // for the specific help-request (cost isn't worth the protection
+    // — a malicious authenticated user could at most spoof their own
+    // typing indicator into a chat, no data exfiltration).
+    socket.on("help:typing", async (payload) => {
+      if (!socket.userId) return;
+      if (!payload || typeof payload.helpRequestId !== "string") return;
+      if (payload.helpRequestId.length === 0 || payload.helpRequestId.length > 64) return;
+
+      if (!socket.userName) {
+        try {
+          const u = await prisma.user.findUnique({
+            where: { id: socket.userId },
+            select: { name: true },
+          });
+          socket.userName = u?.name ?? "";
+        } catch {
+          return;
+        }
+      }
+
+      socket.broadcast.emit("help:typing", {
+        helpRequestId: payload.helpRequestId,
+        userId: socket.userId,
+        userName: socket.userName,
+      });
     });
 
     socket.on("disconnect", () => {

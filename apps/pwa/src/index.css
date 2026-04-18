@@ -3514,6 +3514,38 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   text-align: center;
 }
 
+/* ── Typing indicator (above composer) ───────────────────────────────── */
+.help-chat-typing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 2px;
+  font-size: 12px;
+  color: #64748b;
+  font-style: italic;
+}
+.help-chat-typing-dots {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+}
+.help-chat-typing-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #94a3b8;
+  animation: help-chat-typing-bounce 1.2s ease-in-out infinite;
+}
+.help-chat-typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+.help-chat-typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes help-chat-typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30%           { transform: translateY(-3px); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .help-chat-typing-dots span { animation: none; opacity: 0.7; }
+}
+
 /* ── Optimistic pending / failed message states ──────────────────────── */
 .help-chat-msg--sending { opacity: 0.68; }
 .help-chat-msg--failed  { border: 1px solid rgba(220, 38, 38, 0.3); }
