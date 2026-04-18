@@ -1270,6 +1270,14 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   background: inherit; padding: 12px 0; margin-bottom: 8px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
+/* Back button + title share the left cluster so step-2+ gets a
+   native-feeling [← Сообщить] grouping without shifting the close X. */
+.report-form-header-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
 .report-form-header h2 { font-size: 18px; font-weight: 600; }
 .report-step { margin-bottom: 20px; }
 .report-cancel-btn {
