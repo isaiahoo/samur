@@ -173,10 +173,30 @@ router.get("/telegram/check", async (req, res, next) => {
     if (!token) {
       throw new AppError(400, "MISSING_TOKEN", "token обязателен");
     }
+    if (token.length > 96) {
+      // Legitimate tokens are 48 hex — reject longer inputs cheaply
+      // before they can touch Redis.
+      throw new AppError(400, "INVALID_TOKEN", "Некорректный токен");
+    }
 
     const redis = getRedis();
     if (!redis) {
       throw new AppError(503, "REDIS_UNAVAILABLE", "Сервис временно недоступен");
+    }
+
+    // Poll-rate cap: at most 30 checks per token per minute. Legit
+    // client polls every ~2 s for 5 min = 150 checks, so a per-minute
+    // cap at 30 covers the legitimate pattern while bounding the
+    // damage of a rogue client hammering the endpoint (budget burn
+    // for other callers sharing the IP-level global limit).
+    const pollKey = `tg_auth_poll:${token}`;
+    const polls = await redis.incr(pollKey);
+    if (polls === 1) {
+      // First poll — set the window TTL.
+      await redis.expire(pollKey, 60);
+    }
+    if (polls > 30) {
+      throw new AppError(429, "POLL_RATE_LIMIT", "Слишком частые запросы проверки.");
     }
 
     const value = await redis.get(`tg_auth:${token}`);

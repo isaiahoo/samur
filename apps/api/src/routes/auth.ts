@@ -11,9 +11,15 @@ import { signToken } from "../lib/jwt.js";
 import { incrementTokenVersion } from "../lib/tokenVersion.js";
 import { getRedis } from "../lib/redis.js";
 import { disconnectUserSockets } from "../socket.js";
+import { auditLog } from "../lib/auditLog.js";
 
 const router = Router();
-const SALT_ROUNDS = 10;
+/** bcrypt cost factor for new account hashes. 12 is ~4× the work of
+ * 10 on the same hardware, still well under the 250 ms ceiling for an
+ * authenticated request. Existing users keep their 10-round hashes —
+ * no forced re-hash; on next successful login we could transparently
+ * re-hash at the higher cost, but that's a follow-up. */
+const SALT_ROUNDS = 12;
 
 function sanitizeUser(user: { id: string; name: string | null; phone: string | null; role: string; vkId: string | null; tgId: string | null; createdAt: Date; updatedAt: Date }) {
   return {
@@ -189,6 +195,7 @@ router.post("/logout-all", requireAuth, async (req, res, next) => {
     // would leave realtime channels (chat, help-request events) open
     // on the already-sent tokens until the socket naturally closed.
     disconnectUserSockets(req.user!.sub);
+    auditLog({ action: "logout_all", actorId: req.user!.sub });
     res.json({ success: true, data: { tokenVersion: newVersion } });
   } catch (err) {
     next(err);

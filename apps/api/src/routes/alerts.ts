@@ -4,6 +4,7 @@ import { prisma, Prisma } from "@samur/db";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { validateBody, validateQuery } from "../middleware/validate.js";
 import { alertBroadcastRateLimiter } from "../middleware/rateLimiter.js";
+import { auditLog } from "../lib/auditLog.js";
 import {
   CreateAlertSchema,
   UpdateAlertSchema,
@@ -420,6 +421,7 @@ router.delete(
         data: { deletedAt: new Date(), deletedBy: req.user!.sub },
       });
 
+      auditLog({ action: "delete_alert", actorId: req.user!.sub, targetId: id });
       res.json({ success: true, data: { id, deleted: true } });
     } catch (err) {
       next(err);

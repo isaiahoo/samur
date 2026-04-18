@@ -30,6 +30,7 @@ import { evictUserFromHelpRoom, clearHelpRoom } from "../socket.js";
 import { assertHelpChatAccess } from "../lib/helpAccess.js";
 import { assertOwnedUploads } from "../lib/uploadOwnership.js";
 import { reportsRateLimiter, messagesRateLimiter } from "../middleware/rateLimiter.js";
+import { auditLog } from "../lib/auditLog.js";
 import { computeUserStats, type UserStats } from "../lib/userStats.js";
 import { getRealIp } from "../lib/clientIp.js";
 import { paramId } from "../lib/params.js";
@@ -940,6 +941,12 @@ router.delete(
         }),
       ]);
       emitHelpMessageDeleted(id, msgId);
+      auditLog({
+        action: "delete_help_message",
+        actorId: req.user!.sub,
+        targetId: msgId,
+        meta: { helpRequestId: id },
+      });
       res.json({ success: true, data: { id: msgId, deleted: true } });
     } catch (err) {
       next(err);
@@ -996,6 +1003,12 @@ router.delete(
       });
       await evictUserFromHelpRoom(targetUserId, id);
       await emitResponseChanged(id, updated);
+      auditLog({
+        action: "remove_help_participant",
+        actorId: req.user!.sub,
+        targetId: targetUserId,
+        meta: { helpRequestId: id },
+      });
       res.json({ success: true, data: { userId: targetUserId, removed: true } });
     } catch (err) {
       next(err);
@@ -1188,6 +1201,7 @@ router.delete(
       });
 
       clearHelpRoom(id);
+      auditLog({ action: "delete_help_request", actorId: req.user!.sub, targetId: id });
 
       res.json({ success: true, data: { id, deleted: true } });
     } catch (err) {

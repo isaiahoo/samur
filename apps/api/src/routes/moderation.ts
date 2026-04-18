@@ -7,6 +7,7 @@ import { validateBody } from "../middleware/validate.js";
 import { ResolveHelpMessageReportSchema } from "@samur/shared";
 import { AppError } from "../middleware/error.js";
 import { emitHelpMessageDeleted } from "../lib/emitter.js";
+import { auditLog } from "../lib/auditLog.js";
 
 const router = Router();
 
@@ -161,6 +162,13 @@ router.patch(
           },
         });
       }
+
+      auditLog({
+        action: "resolve_help_message_report",
+        actorId: req.user!.sub,
+        targetId: reportId,
+        meta: { resolution: action, messageId: report.message.id },
+      });
 
       res.json({
         success: true,

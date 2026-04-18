@@ -77,12 +77,15 @@ router.post(
         throw new AppError(503, "SERVICE_UNAVAILABLE", "Сервис временно недоступен");
       }
 
-      // Rate limit: 1 request per phone per 2 minutes
+      // Rate limit: 1 request per phone per 2 minutes. The old error
+      // surface included the exact remaining TTL — which let an
+      // enumerator infer "phone X just requested OTP N seconds ago",
+      // leaking account-activity timing. Now we return a generic
+      // cooldown response without revealing how fresh the window is.
       const cooldownKey = `phone_cooldown:${digits}`;
       const cooldown = await redis.get(cooldownKey);
       if (cooldown) {
-        const ttl = await redis.ttl(cooldownKey);
-        throw new AppError(429, "RATE_LIMIT", `Подождите ${ttl} сек. перед повторным запросом`);
+        throw new AppError(429, "RATE_LIMIT", "Подождите перед повторным запросом");
       }
 
       // Validate phone length (GreenSMS requires 11+ digits)

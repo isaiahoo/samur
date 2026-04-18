@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { RateLimiterMemory } from "rate-limiter-flexible";
+import { RateLimiterMemory, RateLimiterRedis } from "rate-limiter-flexible";
 import { prisma } from "@samur/db";
 import { Prisma } from "@prisma/client";
+import { getRedis } from "./redis.js";
 
 /**
  * Tier 1 SOS Verification — per-IP rate limiting, anonymous dedup,
@@ -11,12 +12,32 @@ import { Prisma } from "@prisma/client";
  */
 
 // ---------- 1.1 Per-IP SOS Rate Limit ----------
-// 1 SOS per IP per 5 minutes, in-memory (no Redis dependency for safety)
-const sosRateLimiter = new RateLimiterMemory({
-  keyPrefix: "sos_ip",
-  points: 1,
-  duration: 300, // 5 minutes
-});
+// 1 SOS per IP per 5 minutes. Redis-backed when available so the limit
+// survives container restarts and is shared across API nodes — the
+// in-memory fallback would let a spammer reset their bucket by
+// waiting for the next deploy. Memory fallback is kept so local dev
+// without Redis still rate-limits sensibly.
+let sosRateLimiter: RateLimiterRedis | RateLimiterMemory | null = null;
+function getSosLimiter(): RateLimiterRedis | RateLimiterMemory {
+  if (sosRateLimiter) return sosRateLimiter;
+  const redis = getRedis();
+  if (redis) {
+    sosRateLimiter = new RateLimiterRedis({
+      storeClient: redis,
+      keyPrefix: "samur_sos_ip",
+      points: 1,
+      duration: 300,
+      blockDuration: 10,
+    });
+  } else {
+    sosRateLimiter = new RateLimiterMemory({
+      keyPrefix: "samur_sos_ip",
+      points: 1,
+      duration: 300,
+    });
+  }
+  return sosRateLimiter;
+}
 
 export interface SosRateLimitResult {
   allowed: boolean;
@@ -25,7 +46,7 @@ export interface SosRateLimitResult {
 
 export async function checkSosRateLimit(ip: string): Promise<SosRateLimitResult> {
   try {
-    await sosRateLimiter.consume(ip);
+    await getSosLimiter().consume(ip);
     return { allowed: true };
   } catch (err: unknown) {
     const rlErr = err as { msBeforeNext?: number };

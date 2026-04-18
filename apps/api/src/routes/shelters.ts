@@ -13,6 +13,7 @@ import type { Shelter } from "@samur/shared";
 import { AppError } from "../middleware/error.js";
 import { getIdsWithinRadius } from "../lib/spatial.js";
 import { emitShelterUpdated } from "../lib/emitter.js";
+import { auditLog } from "../lib/auditLog.js";
 import { paramId } from "../lib/params.js";
 
 const router = Router();
@@ -186,6 +187,8 @@ router.delete(
         where: { id },
         data: { deletedAt: new Date(), deletedBy: req.user!.sub },
       });
+
+      auditLog({ action: "delete_shelter", actorId: req.user!.sub, targetId: id });
 
       res.json({ success: true, data: { id, deleted: true } });
     } catch (err) {
