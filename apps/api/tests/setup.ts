@@ -9,6 +9,7 @@
 import express from "express";
 import cors from "cors";
 import jwt from "jsonwebtoken";
+import { prisma } from "@samur/db";
 import { optionalAuth } from "../src/middleware/auth.js";
 import { notFoundHandler, errorHandler } from "../src/middleware/error.js";
 
@@ -21,6 +22,8 @@ import sheltersRouter from "../src/routes/shelters.js";
 import riverLevelsRouter from "../src/routes/riverLevels.js";
 import webhooksRouter from "../src/routes/webhooks.js";
 import channelsRouter from "../src/routes/channels.js";
+import uploadsRouter from "../src/routes/uploads.js";
+import moderationRouter from "../src/routes/moderation.js";
 
 export function createTestApp() {
   const app = express();
@@ -37,6 +40,8 @@ export function createTestApp() {
   app.use("/api/v1/river-levels", riverLevelsRouter);
   app.use("/api/v1/webhook", webhooksRouter);
   app.use("/api/v1/channels", channelsRouter);
+  app.use("/api/v1/uploads", uploadsRouter);
+  app.use("/api/v1/moderation", moderationRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
@@ -46,10 +51,47 @@ export function createTestApp() {
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "test-secret-min-16-chars!!";
 
-export function makeToken(userId: string, role: string = "resident"): string {
-  return jwt.sign({ sub: userId, role }, JWT_SECRET, { expiresIn: "1h" });
+/** Sign a JWT. `tokenVersion` is optional — when omitted the token
+ * carries no version field, which the middleware interprets as 0
+ * (the backwards-compat path for legacy tokens). Pass an explicit
+ * number to simulate a specific version for revocation tests. */
+export function makeToken(
+  userId: string,
+  role: string = "resident",
+  tokenVersion?: number,
+): string {
+  const payload: { sub: string; role: string; tokenVersion?: number } = {
+    sub: userId,
+    role,
+  };
+  if (tokenVersion !== undefined) payload.tokenVersion = tokenVersion;
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: "1h", algorithm: "HS256" });
 }
 
 export function makeCoordinatorToken(userId: string): string {
   return makeToken(userId, "coordinator");
+}
+
+/** Convenience: create a user + return { id, token } in one call. The
+ * token is always signed at the user's current tokenVersion (default
+ * 0), so downstream auth checks pass. */
+export async function makeUser(opts: {
+  role?: "resident" | "volunteer" | "coordinator" | "admin";
+  phone?: string;
+  name?: string;
+} = {}): Promise<{ id: string; token: string; role: string }> {
+  const role = opts.role ?? "resident";
+  const user = await prisma.user.create({
+    data: {
+      name: opts.name ?? `Test ${Math.random().toString(36).slice(2, 8)}`,
+      phone: opts.phone ?? `+7999${Math.floor(1000000 + Math.random() * 8999999)}`,
+      role,
+      password: "test-hash",
+    },
+  });
+  return {
+    id: user.id,
+    token: makeToken(user.id, role, user.tokenVersion),
+    role,
+  };
 }
