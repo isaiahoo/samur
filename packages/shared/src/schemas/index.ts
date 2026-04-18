@@ -85,8 +85,14 @@ export const CreateHelpResponseSchema = z.object({
 });
 
 export const CreateHelpMessageSchema = z.object({
-  body: z.string().trim().min(1, "Сообщение не может быть пустым").max(2000),
-});
+  body: z.string().trim().max(2000).default(""),
+  photoUrls: z.array(z.string().url().or(z.string().startsWith("/")))
+    .max(5, "Максимум 5 фото в сообщении")
+    .default([]),
+}).refine(
+  (v) => v.body.length > 0 || v.photoUrls.length > 0,
+  { message: "Добавьте текст или хотя бы одно фото" },
+);
 
 export const AlertUrgencySchema = z.enum(["info", "warning", "critical"]);
 

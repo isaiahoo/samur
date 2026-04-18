@@ -127,6 +127,10 @@ export interface HelpMessage {
   helpRequestId: string;
   authorId: string;
   body: string;
+  /** Optional photo attachments (URLs served by the API). Each message
+   * can carry up to 5 photos; at least one of body/photoUrls is
+   * guaranteed to be non-empty by the API. */
+  photoUrls: string[];
   createdAt: string;
   deletedAt?: string | null;
   author?: HelpRequestParty;

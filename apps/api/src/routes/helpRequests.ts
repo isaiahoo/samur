@@ -794,6 +794,7 @@ router.post(
           helpRequestId: id,
           authorId: req.user!.sub,
           body: req.body.body,
+          photoUrls: req.body.photoUrls ?? [],
         },
         include: { author: { select: { id: true, name: true, role: true } } },
       });

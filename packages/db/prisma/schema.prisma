@@ -260,6 +260,10 @@ model HelpMessage {
   helpRequestId String    @map("help_request_id")
   authorId      String    @map("author_id")
   body          String    @db.Text
+  /// Optional photo attachments (URLs from POST /uploads). Each message
+  /// can carry up to 5 photos; API enforces at least one of body/photos
+  /// is non-empty. Reuses the request-photo storage pipeline.
+  photoUrls     String[]  @default([]) @map("photo_urls")
   createdAt     DateTime  @default(now()) @map("created_at")
   deletedAt     DateTime? @map("deleted_at")
 

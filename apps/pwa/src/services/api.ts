@@ -266,10 +266,13 @@ export function getHelpMessages(id: string, opts?: { before?: string; limit?: nu
     `/help-requests/${id}/messages${suffix}`,
   );
 }
-export function sendHelpMessage(id: string, body: string) {
+export function sendHelpMessage(id: string, payload: { body?: string; photoUrls?: string[] }) {
   return request<ApiResponse>(`/help-requests/${id}/messages`, {
     method: "POST",
-    body: JSON.stringify({ body }),
+    body: JSON.stringify({
+      body: payload.body ?? "",
+      photoUrls: payload.photoUrls ?? [],
+    }),
   });
 }
 export function markHelpMessagesRead(id: string) {
