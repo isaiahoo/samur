@@ -17,11 +17,28 @@ const envSchema = z.object({
   MAPTILER_API_KEY: z.string().default(""),
   TILE_PROVIDER: z.enum(["maptiler", "openfreemap"]).default("maptiler"),
   GREENSMS_TOKEN: z.string().default(""),
+}).superRefine((cfg, ctx) => {
+  // Hard-fail at startup when a production deployment is missing a
+  // required secret. Previously these were warn-only and the app kept
+  // running — an empty WEBHOOK_API_KEY in production caused every
+  // webhook call to 500 silently, and you'd only notice when the SMS
+  // gateway started dropping incident reports. Fail fast instead so
+  // the deploy itself catches the misconfig.
+  if (cfg.NODE_ENV !== "production") return;
+  if (cfg.WEBHOOK_API_KEY.length < 16) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["WEBHOOK_API_KEY"],
+      message: "WEBHOOK_API_KEY must be set and ≥16 characters in production",
+    });
+  }
 });
 
 /**
- * Production-time refinement: enforce stricter defaults.
- * Called after initial parse to warn / override for production safety.
+ * Production-time refinement: apply stricter runtime defaults that
+ * don't warrant hard-failing the boot (e.g. log-level sanitization).
+ * Hard-fail concerns (missing secrets) are enforced via the schema's
+ * superRefine above.
  */
 function refineForProduction(cfg: z.infer<typeof envSchema>): z.infer<typeof envSchema> {
   if (cfg.NODE_ENV !== "production") return cfg;
@@ -31,11 +48,6 @@ function refineForProduction(cfg: z.infer<typeof envSchema>): z.infer<typeof env
     process.stderr.write(`[config] LOG_LEVEL "${cfg.LOG_LEVEL}" overridden to "info" in production\n`);
     cfg.LOG_LEVEL = "info";
     process.env.LOG_LEVEL = "info"; // propagate to logger (reads process.env directly)
-  }
-
-  // Require WEBHOOK_API_KEY in production
-  if (cfg.WEBHOOK_API_KEY.length < 16) {
-    process.stderr.write("[config] WARNING: WEBHOOK_API_KEY is too short (<16 chars) for production\n");
   }
 
   return cfg;

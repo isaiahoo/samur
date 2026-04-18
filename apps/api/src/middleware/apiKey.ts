@@ -6,23 +6,20 @@ import { config } from "../config.js";
 /**
  * Require a valid API key in the X-API-Key header.
  * Used for webhook endpoints (SMS gateway, Meshtastic bridge).
- * In development, skips validation if WEBHOOK_API_KEY is not set.
+ *
+ * Production always has a non-empty key (enforced at config load via
+ * superRefine on WEBHOOK_API_KEY). The only branch where
+ * config.WEBHOOK_API_KEY can be empty is development — and in that
+ * case we skip auth so local integration tests don't need a secret.
  */
 export function requireApiKey(req: Request, res: Response, next: NextFunction): void {
-  const key = req.headers["x-api-key"];
-
   if (!config.WEBHOOK_API_KEY) {
-    if (config.NODE_ENV === "development") {
-      next();
-      return;
-    }
-    res.status(500).json({
-      success: false,
-      error: { code: "SERVER_CONFIG_ERROR", message: "WEBHOOK_API_KEY не настроен" },
-    });
+    // Only reachable in development; production boot fails without a key.
+    next();
     return;
   }
 
+  const key = req.headers["x-api-key"];
   if (
     !key ||
     typeof key !== "string" ||
