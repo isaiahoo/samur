@@ -13,16 +13,26 @@ function filenameFromUrl(url: string): string | null {
   return m ? m[1] : null;
 }
 
-/** Verify that every URL in `urls` references an upload the given user
- * performed. Fails closed: unknown filenames (no matching Upload row)
- * and filenames owned by someone else both throw 403.
+/** Verify that every URL in `urls` references an upload the given
+ * caller performed. Fails closed: unknown filenames (no matching
+ * Upload row) and filenames owned by someone else both throw 403.
  *
- * Used by authenticated write paths that accept attachment URLs (chat
- * message-send). Not applied to incident/help-request POSTs, which are
- * single-author commit flows where referencing another user's photo
- * URL only harms the attacker's own submission.
+ * `ownerId` is `string | null`:
+ *   - authenticated callers pass req.user!.sub — attachments must be
+ *     owned by that user id
+ *   - anonymous callers pass null — attachments must be anonymous
+ *     uploads (uploaderId IS NULL). A logged-in user can never
+ *     attach an anon upload and an anon caller can never attach an
+ *     authenticated user's upload.
+ *
+ * Used by every write path that accepts attachment URLs: chat message
+ * send, incident create/update, help-request create/update. Anonymous
+ * incident POSTs still work — the null===null case.
  */
-export async function assertOwnedUploads(urls: string[], userId: string): Promise<void> {
+export async function assertOwnedUploads(
+  urls: string[],
+  ownerId: string | null,
+): Promise<void> {
   if (urls.length === 0) return;
   const filenames: string[] = [];
   for (const u of urls) {
@@ -36,10 +46,9 @@ export async function assertOwnedUploads(urls: string[], userId: string): Promis
   });
   const byName = new Map(rows.map((r) => [r.filename, r.uploaderId] as const));
   for (const f of filenames) {
-    const owner = byName.get(f);
-    // owner=undefined → no row, owner=null → anonymous upload (not
-    // eligible for authenticated attach), owner=someone else → theft.
-    if (owner !== userId) {
+    // undefined → no row at all; null → anonymous upload; string →
+    // authenticated uploader. Strict equality handles all three.
+    if (byName.get(f) !== ownerId) {
       throw new AppError(
         403,
         "UPLOAD_NOT_OWNED",
@@ -47,4 +56,22 @@ export async function assertOwnedUploads(urls: string[], userId: string): Promis
       );
     }
   }
+}
+
+/** PATCH-friendly variant: only check URLs that are NOT already on
+ * the row being updated. An edit that re-sends the existing
+ * photoUrls plus one new one is fine — only the new one is
+ * ownership-checked. Lets a coordinator patch someone else's
+ * incident without losing the original photos (those were owned by
+ * the original author) while still enforcing that any new photos
+ * they add were uploaded by them. */
+export async function assertOwnedNewUploads(
+  nextUrls: string[],
+  existingUrls: string[],
+  ownerId: string | null,
+): Promise<void> {
+  const existing = new Set(existingUrls);
+  const added = nextUrls.filter((u) => !existing.has(u));
+  if (added.length === 0) return;
+  await assertOwnedUploads(added, ownerId);
 }

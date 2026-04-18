@@ -6,6 +6,7 @@ import { requireAuth, requireRole } from "../middleware/auth.js";
 import { validateBody, validateQuery } from "../middleware/validate.js";
 import { incidentsRateLimiter } from "../middleware/rateLimiter.js";
 import { auditLog } from "../lib/auditLog.js";
+import { assertOwnedUploads, assertOwnedNewUploads } from "../lib/uploadOwnership.js";
 import {
   CreateIncidentSchema,
   UpdateIncidentSchema,
@@ -110,6 +111,12 @@ router.post(
     try {
       const { type, severity, lat, lng, address, description, photoUrls, source } = req.body;
 
+      // Attachment ownership: authenticated callers must own the
+      // photos they attach; anonymous callers must reference
+      // anonymous uploads (uploaderId IS NULL). Strict null===null
+      // equality handles both.
+      await assertOwnedUploads((photoUrls ?? []) as string[], req.user?.sub ?? null);
+
       const incident = await prisma.incident.create({
         data: {
           userId: req.user?.sub ?? null,
@@ -167,7 +174,18 @@ router.patch(
       const data: Prisma.IncidentUpdateInput = {};
       if (req.body.severity !== undefined) data.severity = req.body.severity;
       if (req.body.description !== undefined) data.description = req.body.description;
-      if (req.body.photoUrls !== undefined) data.photoUrls = req.body.photoUrls;
+      if (req.body.photoUrls !== undefined) {
+        // Only enforce ownership on newly-added URLs so a coordinator
+        // editing someone else's incident can keep the original
+        // photos (owned by the original author) while any photos
+        // THEY add must have been uploaded by them.
+        await assertOwnedNewUploads(
+          req.body.photoUrls as string[],
+          existing.photoUrls,
+          req.user!.sub,
+        );
+        data.photoUrls = req.body.photoUrls;
+      }
       if (req.body.status !== undefined) {
         data.status = req.body.status;
         if (req.body.status === "verified" || req.body.status === "false_report") {

@@ -28,7 +28,7 @@ import {
 } from "../lib/emitter.js";
 import { evictUserFromHelpRoom, clearHelpRoom } from "../socket.js";
 import { assertHelpChatAccess } from "../lib/helpAccess.js";
-import { assertOwnedUploads } from "../lib/uploadOwnership.js";
+import { assertOwnedUploads, assertOwnedNewUploads } from "../lib/uploadOwnership.js";
 import { reportsRateLimiter, messagesRateLimiter } from "../middleware/rateLimiter.js";
 import { auditLog } from "../lib/auditLog.js";
 import { computeUserStats, type UserStats } from "../lib/userStats.js";
@@ -459,6 +459,11 @@ router.post(
           throw new AppError(404, "INCIDENT_NOT_FOUND", "Связанный инцидент не найден");
         }
       }
+
+      // Attachment ownership: same rule as incidents — authenticated
+      // callers must own their photos, anonymous callers must reference
+      // anonymous uploads. Blocks cross-user photo theft at create time.
+      await assertOwnedUploads((photoUrls ?? []) as string[], req.user?.sub ?? null);
 
       const hr = await prisma.helpRequest.create({
         data: {
@@ -1102,7 +1107,14 @@ router.patch(
       if (req.body.urgency !== undefined) data.urgency = req.body.urgency;
       if (req.body.contactPhone !== undefined) data.contactPhone = req.body.contactPhone;
       if (req.body.contactName !== undefined) data.contactName = req.body.contactName;
-      if (req.body.photoUrls !== undefined) data.photoUrls = req.body.photoUrls;
+      if (req.body.photoUrls !== undefined) {
+        await assertOwnedNewUploads(
+          req.body.photoUrls as string[],
+          existing.photoUrls,
+          req.user!.sub,
+        );
+        data.photoUrls = req.body.photoUrls;
+      }
 
       let cancelledResponderIds: string[] = [];
       if (newStatus !== undefined) {
