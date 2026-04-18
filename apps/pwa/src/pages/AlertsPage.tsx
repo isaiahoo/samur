@@ -10,7 +10,6 @@ import {
 } from "@samur/shared";
 import { getAlerts, getAlertsSituation } from "../services/api.js";
 import type { AlertsSituation } from "../services/api.js";
-import { Spinner } from "../components/Spinner.js";
 import { SituationSummary } from "../components/alerts/SituationSummary.js";
 import { AlertActions } from "../components/alerts/AlertActions.js";
 import { ContextFeed } from "../components/alerts/ContextFeed.js";
@@ -83,7 +82,7 @@ export function AlertsPage() {
     (a) => a.urgency !== "critical" || dismissedCritical.has(a.id),
   );
 
-  if (loading) return <Spinner />;
+  if (loading) return <AlertsSkeleton />;
 
   return (
     <div className="alerts-page">
@@ -127,6 +126,49 @@ export function AlertsPage() {
       )}
 
       <ContextFeed />
+    </div>
+  );
+}
+
+/** Cold-load placeholder. Mirrors the real chrome (summary chip rail +
+ * 2 alert cards + context-feed header) so the first paint doesn't jump
+ * when data arrives — elements just swap from shimmer to content in
+ * place. Less jarring than a bare centred spinner for a page that is
+ * otherwise the "what's happening" dashboard. */
+function AlertsSkeleton() {
+  return (
+    <div className="alerts-page" aria-busy="true" aria-label="Загрузка оповещений">
+      <div className="situation-summary">
+        <div className="situation-summary-chips">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="skel alerts-skel-chip" />
+          ))}
+        </div>
+      </div>
+
+      <div className="alerts-list">
+        {[0, 1].map((i) => (
+          <div key={i} className="alert-card">
+            <div className="alert-card-header">
+              <span className="skel alerts-skel-pill" />
+              <span className="skel alerts-skel-pill alerts-skel-pill--sm" />
+              <span className="skel alerts-skel-time" />
+            </div>
+            <div className="skel skel-line skel-line--w80" />
+            <div className="skel skel-line skel-line--w60" />
+          </div>
+        ))}
+      </div>
+
+      <div className="context-feed">
+        <div className="skel alerts-skel-section-header" />
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="alerts-skel-ctx-row">
+            <span className="skel alerts-skel-ctx-icon" />
+            <span className="skel alerts-skel-ctx-text" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

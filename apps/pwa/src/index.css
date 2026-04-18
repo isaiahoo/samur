@@ -2865,6 +2865,44 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   100% { background-position: -200% 0; }
 }
 
+/* AlertsPage cold-load skeleton. Sizes mirror the real counterparts so
+   the first paint doesn't shift when data arrives. */
+.alerts-skel-chip {
+  width: 92px; height: 28px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.alerts-skel-pill {
+  width: 70px; height: 18px;
+  border-radius: 999px;
+}
+.alerts-skel-pill--sm { width: 54px; }
+.alerts-skel-time {
+  width: 60px; height: 12px;
+  margin-left: auto;
+  border-radius: 999px;
+}
+.alerts-skel-section-header {
+  width: 140px; height: 14px;
+  margin-bottom: 10px;
+}
+.alerts-skel-ctx-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+.alerts-skel-ctx-icon {
+  width: 18px; height: 18px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.alerts-skel-ctx-text {
+  height: 12px;
+  flex: 1;
+  border-radius: 4px;
+}
+
 /* ── Enhanced empty state ──────────────────────────────── */
 .empty-state-enhanced {
   display: flex;
