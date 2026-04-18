@@ -120,10 +120,18 @@ export function ReportForm({ onClose, onCreated }: { onClose: () => void; onCrea
     (contactName.trim() && contactName !== (user?.name ?? "")) ||
     (contactPhone.trim() && contactPhone !== (user?.phone ?? ""))
   );
+  /** Ref mirrors so any effect using attemptClose (Escape keydown,
+   * future gesture handlers) doesn't re-register on every keystroke —
+   * description lives in component state so every typed character
+   * would otherwise churn listeners. */
+  const hasContentRef = useRef(hasContent);
+  hasContentRef.current = hasContent;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const attemptClose = useCallback(() => {
-    if (hasContent && !window.confirm("Закрыть? Введённые данные будут потеряны.")) return;
-    onClose();
-  }, [hasContent, onClose]);
+    if (hasContentRef.current && !window.confirm("Закрыть? Введённые данные будут потеряны.")) return;
+    onCloseRef.current();
+  }, []);
 
   const handleSelectIncident = useCallback((type: IncidentType) => {
     setReportType("incident");
@@ -307,7 +315,7 @@ export function ReportForm({ onClose, onCreated }: { onClose: () => void; onCrea
             ))}
           </div>
 
-          <button className="report-cancel-btn" onClick={onClose}>Закрыть</button>
+          <button className="report-cancel-btn" onClick={attemptClose}>Закрыть</button>
         </div>
       )}
 

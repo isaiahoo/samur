@@ -81,6 +81,12 @@ export function HelpFormSheet({ tab, onClose }: Props) {
   const showToast = useUIStore((s) => s.showToast);
   const { position, status: geoStatus, requestPosition } = useGeolocation();
   const reverseGeocodeDone = useRef(false);
+  /** True once the user has actually typed in the address field — used
+   * to distinguish a user-committed address from the auto-geocoded
+   * initial value (which, while present, shouldn't count as "unsaved
+   * content" worth confirming before close). Persists after
+   * editingAddress flips back to false. */
+  const addressTouchedRef = useRef(false);
 
   // Lock body scroll
   useEffect(() => {
@@ -91,21 +97,32 @@ export function HelpFormSheet({ tab, onClose }: Props) {
 
   /** True whenever the user has typed anything meaningful — used to gate
    * the close path with a confirm, so a stray backdrop tap doesn't wipe
-   * a description + photos the user spent a minute assembling. */
+   * a description + photos the user spent a minute assembling. Contact
+   * fields compare against the auto-fill defaults (user.name/phone) so
+   * a pristine logged-in sheet doesn't falsely trigger the confirm. */
   const hasContent = !!(
     category ||
     description.trim() ||
-    (address && editingAddress) ||
-    contactName.trim() ||
-    contactPhone.trim() ||
+    addressTouchedRef.current ||
+    (contactName.trim() && contactName !== (user?.name ?? "")) ||
+    (contactPhone.trim() && contactPhone !== (user?.phone ?? "")) ||
     photos.length > 0
   );
+  /** Ref mirror so effect handlers (keydown, etc.) can read the latest
+   * value without re-registering on every keystroke — hasContent is
+   * recomputed every render, so a useCallback([hasContent]) dependency
+   * caused a listener-churn storm while the user was typing. */
+  const hasContentRef = useRef(hasContent);
+  hasContentRef.current = hasContent;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const attemptClose = useCallback(() => {
-    if (hasContent && !window.confirm("Закрыть? Введённые данные будут потеряны.")) return;
-    onClose();
-  }, [hasContent, onClose]);
+    if (hasContentRef.current && !window.confirm("Закрыть? Введённые данные будут потеряны.")) return;
+    onCloseRef.current();
+  }, []);
 
-  // Close on Escape
+  // Close on Escape — handler reads via refs so this effect only runs
+  // once on mount instead of on every render.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") attemptClose();
@@ -412,7 +429,10 @@ export function HelpFormSheet({ tab, onClose }: Props) {
             <input
               className="qf-inline-input"
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={(e) => {
+                setAddress(e.target.value);
+                addressTouchedRef.current = true;
+              }}
               placeholder="Адрес (улица, дом, район)"
               onBlur={() => { if (address) setEditingAddress(false); }}
               autoFocus={editingAddress}
