@@ -211,7 +211,13 @@ router.get("/context", async (_req, res, next) => {
       timestamp: string;
       title: string;
       subtitle?: string;
+      /** In-app route (quake/help/ai-watch kinds) */
       navigateTo?: string;
+      /** External article URL (news kind). When set, the frontend
+       * renders the row as a real <a target="_blank"> so long-press,
+       * share, copy-link, etc. all work natively — matching what the
+       * News tab already does for its own cards. */
+      externalUrl?: string;
       icon: string;
     }
 
@@ -224,7 +230,7 @@ router.get("/context", async (_req, res, next) => {
         timestamp: n.publishedAt.toISOString(),
         title: n.title,
         subtitle: n.feedId,
-        navigateTo: "/news",
+        externalUrl: n.url,
         icon: "📰",
       });
     }

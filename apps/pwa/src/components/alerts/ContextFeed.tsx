@@ -57,6 +57,36 @@ export function ContextFeed() {
           // subtitle since it carries real context (place + depth for
           // quakes, address for help, peak date for AI-watch).
           const showSubtitle = it.kind !== "news" && Boolean(it.subtitle);
+          const inner = (
+            <>
+              <span className="context-row-icon" aria-hidden="true">{it.icon}</span>
+              <span className="context-row-body">
+                <span className="context-row-title">{it.title}</span>
+                {showSubtitle && <span className="context-row-subtitle">{it.subtitle}</span>}
+              </span>
+              <span className="context-row-time">{formatRelativeTime(it.timestamp)}</span>
+            </>
+          );
+          // News items render as a native anchor so long-press, copy
+          // link, and open-in-new-tab behave like any other web link
+          // — matches what the dedicated News tab already does for its
+          // cards. Other kinds (quake / help / ai-watch) are in-app
+          // artifacts and stay as buttons that navigate within the PWA.
+          if (it.kind === "news" && it.externalUrl) {
+            return (
+              <li key={it.id}>
+                <a
+                  href={it.externalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`context-row context-row--${it.kind}`}
+                >
+                  {inner}
+                  <span className="context-row-external" aria-hidden="true">↗</span>
+                </a>
+              </li>
+            );
+          }
           return (
             <li key={it.id}>
               <button
@@ -65,12 +95,7 @@ export function ContextFeed() {
                 onClick={() => it.navigateTo && navigate(it.navigateTo)}
                 disabled={!it.navigateTo}
               >
-                <span className="context-row-icon" aria-hidden="true">{it.icon}</span>
-                <span className="context-row-body">
-                  <span className="context-row-title">{it.title}</span>
-                  {showSubtitle && <span className="context-row-subtitle">{it.subtitle}</span>}
-                </span>
-                <span className="context-row-time">{formatRelativeTime(it.timestamp)}</span>
+                {inner}
               </button>
             </li>
           );

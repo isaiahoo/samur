@@ -3757,6 +3757,24 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   flex-shrink: 0;
   white-space: nowrap;
 }
+/* Small outbound-link glyph on news rows — signals "opens externally"
+   using the universal ↗ convention (Wikipedia/MDN/GitHub), so the
+   user isn't surprised when the article loads in a new tab. */
+.context-row-external {
+  font-size: 12px;
+  color: #a1a1aa;
+  flex-shrink: 0;
+  margin-left: 2px;
+  line-height: 1;
+}
+.context-row--news {
+  text-decoration: none;
+  color: inherit;
+}
+.context-row--news:hover .context-row-external,
+.context-row--news:focus-visible .context-row-external {
+  color: #2563eb;
+}
 /* Per-kind tint: a subtle left-edge accent so the eye can group without
    the feed looking as loud as the alert cards above. */
 .context-row--news     { border-left: 3px solid #fde68a; padding-left: 7px; }

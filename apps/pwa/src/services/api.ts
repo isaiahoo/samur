@@ -300,6 +300,7 @@ export interface AlertsContextItem {
   title: string;
   subtitle?: string;
   navigateTo?: string;
+  externalUrl?: string;
   icon: string;
 }
 export function getAlertsContext() {
