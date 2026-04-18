@@ -8,6 +8,7 @@ import { useOnline } from "../hooks/useOnline.js";
 import { useSocketEvent } from "../hooks/useSocket.js";
 import { getMe, getUserStats, getAlerts } from "../services/api.js";
 import type { User, UserStats } from "@samur/shared";
+import { pluralizeRu } from "@samur/shared";
 import { BottomSheet } from "./BottomSheet.js";
 import type { Alert as AlertType } from "@samur/shared";
 import { Toast } from "./Toast.js";
@@ -165,14 +166,18 @@ export function Layout() {
                   )}
                   {myStats && (
                     <div className="profile-menu-stats">
-                      <span className="profile-menu-stat">
-                        <strong>{myStats.helpsCompleted}</strong>
-                        <small>помощей</small>
-                      </span>
-                      <span className="profile-menu-stat">
-                        <strong>{myStats.requestsResolved}</strong>
-                        <small>закрыто</small>
-                      </span>
+                      {myStats.helpsCompleted > 0 && (
+                        <span className="profile-menu-stat">
+                          <strong>{myStats.helpsCompleted}</strong>
+                          <small>{pluralizeRu(myStats.helpsCompleted, "помощь", "помощи", "помощей")}</small>
+                        </span>
+                      )}
+                      {myStats.requestsResolved > 0 && (
+                        <span className="profile-menu-stat">
+                          <strong>{myStats.requestsResolved}</strong>
+                          <small>закрыто</small>
+                        </span>
+                      )}
                       <span className="profile-menu-stat profile-menu-stat--joined">
                         {(() => {
                           const m = ["янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек"];
