@@ -12,7 +12,8 @@ export type AuditAction =
   | "delete_help_message"
   | "remove_help_participant"
   | "resolve_help_message_report"
-  | "logout_all";
+  | "logout_all"
+  | "force_logout_user";
 
 interface AuditEntry {
   action: AuditAction;

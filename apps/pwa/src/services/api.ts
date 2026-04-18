@@ -175,6 +175,16 @@ export function logoutAll() {
   });
 }
 
+/** Admin-only: force a specific user out of every session. Bumps their
+ * tokenVersion, disconnects their sockets. Requires coordinator/admin
+ * role; self-targeting is rejected server-side (admins use logoutAll). */
+export function forceLogoutUser(userId: string) {
+  return request<ApiResponse<{ userId: string; tokenVersion: number }>>(
+    `/admin/users/${userId}/force-logout`,
+    { method: "POST" },
+  );
+}
+
 export async function uploadPhotos(files: File[]): Promise<string[]> {
   const form = new FormData();
   for (const file of files) {

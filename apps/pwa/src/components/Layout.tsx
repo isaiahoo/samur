@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useRef, useEffect } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { useUIStore } from "../store/ui.js";
+import { useUIStore, confirmAction } from "../store/ui.js";
 import { useAlertsStore, useUnreadCount } from "../store/alerts.js";
 import { useAuthStore } from "../store/auth.js";
 import { useOnline } from "../hooks/useOnline.js";
 import { useSocketEvent } from "../hooks/useSocket.js";
-import { getMe, getUserStats, getAlerts, getMyActivity, type MyActivity } from "../services/api.js";
+import { getMe, getUserStats, getAlerts, getMyActivity, logoutAll, ApiError, type MyActivity } from "../services/api.js";
 import type { User, UserStats } from "@samur/shared";
 import { pluralizeRu } from "@samur/shared";
 import { BottomSheet } from "./BottomSheet.js";
@@ -28,6 +28,7 @@ export function Layout() {
   const closeSheet = useUIStore((s) => s.closeSheet);
   const crisisMode = useUIStore((s) => s.crisisMode);
   const crisisRivers = useUIStore((s) => s.crisisRivers);
+  const showToast = useUIStore((s) => s.showToast);
   const online = useOnline();
   const socketConnected = useUIStore((s) => s.socketConnected);
   const location = useLocation();
@@ -186,6 +187,30 @@ export function Layout() {
     setProfileOpen(false);
   };
 
+  const handleLogoutEverywhere = async () => {
+    setProfileOpen(false);
+    const ok = await confirmAction({
+      title: "Выйти со всех устройств?",
+      message: "Все текущие сессии на этом и других устройствах будут отменены. Вам потребуется войти снова.",
+      confirmLabel: "Выйти везде",
+      kind: "destructive",
+    });
+    if (!ok) return;
+    try {
+      await logoutAll();
+    } catch (err) {
+      // If the call 401s because the backend already invalidated the
+      // in-flight session, the revocation still succeeded — we proceed
+      // with local logout anyway. Any other error, surface + stay
+      // logged in locally so the user can retry.
+      if (!(err instanceof ApiError) || err.status !== 401) {
+        showToast(err instanceof Error ? err.message : "Ошибка", "error");
+        return;
+      }
+    }
+    logout();
+  };
+
   const initial = user?.name?.charAt(0)?.toUpperCase() || "?";
 
   return (
@@ -322,6 +347,16 @@ export function Layout() {
                     <line x1="21" y1="12" x2="9" y2="12" />
                   </svg>
                   Выйти
+                </button>
+                <button className="profile-menu-item profile-menu-logout-all" onClick={handleLogoutEverywhere}>
+                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="17" x2="12" y2="21" />
+                    <line x1="6" y1="7" x2="18" y2="7" />
+                    <line x1="6" y1="11" x2="10" y2="11" />
+                  </svg>
+                  Выйти со всех устройств
                 </button>
               </div>
             )}
