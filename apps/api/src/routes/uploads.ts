@@ -6,6 +6,7 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import sharp from "sharp";
+import { prisma } from "@samur/db";
 import { AppError } from "../middleware/error.js";
 import { optionalAuth } from "../middleware/auth.js";
 import { uploadsRateLimiter } from "../middleware/rateLimiter.js";
@@ -140,6 +141,7 @@ router.post(
       const written: string[] = [];
       try {
         const urls: string[] = [];
+        const filenames: string[] = [];
         for (const file of files) {
           const { buffer, ext } = await reencode(file);
           const hex = crypto.randomBytes(16).toString("hex");
@@ -147,9 +149,24 @@ router.post(
           const absPath = path.join(UPLOAD_DIR, filename);
           await fs.promises.writeFile(absPath, buffer);
           written.push(absPath);
+          filenames.push(filename);
           urls.push(`/api/v1/uploads/${filename}`);
         }
-        logger.info({ count: files.length }, "Files uploaded (re-encoded)");
+
+        // Record each file's uploader so downstream write paths (chat
+        // message-send) can verify attachments belong to the sender.
+        // Anonymous uploads land with uploaderId=null — those can
+        // still be referenced by anonymous-write flows (incident
+        // reports) but will fail any requireAuth-scoped ownership
+        // check. skipDuplicates guards the vanishingly-unlikely
+        // 128-bit random collision, which would otherwise 500 here.
+        const uploaderId = req.user?.sub ?? null;
+        await prisma.upload.createMany({
+          data: filenames.map((f) => ({ filename: f, uploaderId })),
+          skipDuplicates: true,
+        });
+
+        logger.info({ count: files.length, uploaderId }, "Files uploaded (re-encoded)");
         res.json({ success: true, data: { urls } });
       } catch (reencodeErr) {
         logger.warn({ err: reencodeErr, orphanCount: written.length }, "Image re-encode failed");

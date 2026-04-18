@@ -152,6 +152,7 @@ model User {
   helpMessageReads  HelpMessageRead[]
   helpMessageReports HelpMessageReport[] @relation("Reporter")
   helpMessageReportsResolved HelpMessageReport[] @relation("Resolver")
+  uploads           Upload[]
   alerts            Alert[]
 
   @@index([role])
@@ -300,6 +301,27 @@ enum HelpMessageReportStatus {
   open
   resolved_delete
   resolved_dismiss
+}
+
+/// Audit of every file saved by POST /uploads. Used to gate
+/// attachment references in authenticated write paths (chat messages):
+/// clients can only attach photos they themselves uploaded. Anonymous
+/// uploads land with uploaderId=null — those are fine for the
+/// single-author-commit flows that accept anonymous submissions
+/// (incident reports) but must be rejected by any check that requires
+/// a known owner.
+model Upload {
+  /// 32-hex basename + lowercase extension — matches the regex enforced
+  /// on every photoUrl and the multer filename pattern exactly.
+  filename    String   @id
+  uploaderId  String?  @map("uploader_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  uploader User? @relation(fields: [uploaderId], references: [id], onDelete: SetNull)
+
+  @@index([uploaderId])
+  @@index([createdAt])
+  @@map("uploads")
 }
 
 /// User-initiated report on an individual chat message. One report per

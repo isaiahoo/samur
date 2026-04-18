@@ -28,6 +28,7 @@ import {
 } from "../lib/emitter.js";
 import { evictUserFromHelpRoom, clearHelpRoom } from "../socket.js";
 import { assertHelpChatAccess } from "../lib/helpAccess.js";
+import { assertOwnedUploads } from "../lib/uploadOwnership.js";
 import { reportsRateLimiter, messagesRateLimiter } from "../middleware/rateLimiter.js";
 import { computeUserStats, type UserStats } from "../lib/userStats.js";
 import { getRealIp } from "../lib/clientIp.js";
@@ -799,12 +800,15 @@ router.post(
       const id = paramId(req);
       await assertCanAccessMessages(id, req.user!);
 
+      const photoUrls: string[] = req.body.photoUrls ?? [];
+      await assertOwnedUploads(photoUrls, req.user!.sub);
+
       const message = await prisma.helpMessage.create({
         data: {
           helpRequestId: id,
           authorId: req.user!.sub,
           body: req.body.body,
-          photoUrls: req.body.photoUrls ?? [],
+          photoUrls,
         },
         include: { author: { select: { id: true, name: true, role: true } } },
       });
