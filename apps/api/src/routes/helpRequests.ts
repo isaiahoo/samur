@@ -28,7 +28,7 @@ import {
 } from "../lib/emitter.js";
 import { evictUserFromHelpRoom, clearHelpRoom } from "../socket.js";
 import { assertHelpChatAccess } from "../lib/helpAccess.js";
-import { reportsRateLimiter } from "../middleware/rateLimiter.js";
+import { reportsRateLimiter, messagesRateLimiter } from "../middleware/rateLimiter.js";
 import { computeUserStats, type UserStats } from "../lib/userStats.js";
 import { getRealIp } from "../lib/clientIp.js";
 import { paramId } from "../lib/params.js";
@@ -792,6 +792,7 @@ router.get("/:id/messages", requireAuth, async (req, res, next) => {
 router.post(
   "/:id/messages",
   requireAuth,
+  messagesRateLimiter,
   validateBody(CreateHelpMessageSchema),
   async (req, res, next) => {
     try {

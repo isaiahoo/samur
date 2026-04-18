@@ -24,6 +24,15 @@ const LIMITS = {
   // possible (the endpoint is requireAuth).
   reportsAuthenticated: { points: 20, duration: 3600 },
   reportsCoordinator: { points: 200, duration: 3600 },
+  // Chat-message sends. The global 300/min/auth cap works out to ~5
+  // msg/sec — enough for a single user to flood a conversation for a
+  // full minute and take the other end of a hub chat with them.
+  // Tighten to 30/min (0.5/sec sustained) which is still plenty for
+  // rapid human back-and-forth but blunts bot-style spam. Coordinators
+  // get 4× the ceiling for broadcast-style coordination during a
+  // surge — still well under the global cap.
+  messagesAuthenticated: { points: 30, duration: 60 },
+  messagesCoordinator: { points: 120, duration: 60 },
 } as const;
 
 let limiters: Record<string, RateLimiterRedis | RateLimiterMemory>;
@@ -56,6 +65,8 @@ export function initRateLimiter(redisClient: Redis | null): void {
     uploadsCoordinator: create("up_coord", LIMITS.uploadsCoordinator),
     reportsAuthenticated: create("rep_auth", LIMITS.reportsAuthenticated),
     reportsCoordinator: create("rep_coord", LIMITS.reportsCoordinator),
+    messagesAuthenticated: create("msg_auth", LIMITS.messagesAuthenticated),
+    messagesCoordinator: create("msg_coord", LIMITS.messagesCoordinator),
   };
 
   if (!redisClient) {
@@ -134,6 +145,44 @@ export async function uploadsRateLimiter(
       error: {
         code: "UPLOAD_RATE_LIMIT_EXCEEDED",
         message: "Слишком много загрузок за час. Попробуйте позже.",
+      },
+    });
+  }
+}
+
+/** Per-minute limit for chat-message sends. Requires the route to run
+ * `requireAuth` first — anonymous messages aren't allowed. Additive to
+ * the global per-minute limiter, so a spammer hits whichever is
+ * tighter (this one, at 30 vs 300). */
+export async function messagesRateLimiter(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  if (!limiters) return next();
+  const user = req.user;
+  if (!user) {
+    res.status(401).json({
+      success: false,
+      error: { code: "UNAUTHORIZED", message: "Требуется авторизация" },
+    });
+    return;
+  }
+  const key =
+    user.role === "coordinator" || user.role === "admin"
+      ? "messagesCoordinator"
+      : "messagesAuthenticated";
+  try {
+    const result = await limiters[key].consume(user.sub);
+    res.setHeader("X-Messages-RateLimit-Remaining", result.remainingPoints);
+    res.setHeader("X-Messages-RateLimit-Limit", LIMITS[key as keyof typeof LIMITS].points);
+    next();
+  } catch {
+    res.status(429).json({
+      success: false,
+      error: {
+        code: "MESSAGE_RATE_LIMIT_EXCEEDED",
+        message: "Слишком частые сообщения. Подождите немного.",
       },
     });
   }
