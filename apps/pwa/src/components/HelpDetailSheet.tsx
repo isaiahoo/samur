@@ -12,7 +12,8 @@ import { UrgencyBadge } from "./UrgencyBadge.js";
 import { ImageLightbox } from "./ImageLightbox.js";
 import { HelpChat } from "./HelpChat.js";
 import { HelpProgressRail } from "./HelpProgressRail.js";
-import { confirmAction } from "../store/ui.js";
+import { confirmAction, useUIStore } from "../store/ui.js";
+import { removeHelpParticipant, ApiError } from "../services/api.js";
 
 const categoryIcons: Record<string, string> = {
   rescue: "🆘", shelter: "🏠", food: "🍞", water: "💧",
@@ -137,8 +138,28 @@ export function HelpDetailSheet({
   };
 
   const isAuthorMe = !!currentUserId && item.userId === currentUserId;
+  const showToast = useUIStore((s) => s.showToast);
   const responses: HelpResponse[] = item.responses ?? [];
   const active = responses.filter((r) => r.status !== "cancelled");
+
+  const handleRemoveResponder = async (targetUserId: string, targetName: string | null) => {
+    const ok = await confirmAction({
+      title: "Удалить участника из обсуждения?",
+      message: `${targetName ?? "Участник"} потеряет доступ к чату и отклик будет отменён.`,
+      confirmLabel: "Удалить",
+      kind: "destructive",
+    });
+    if (!ok) return;
+    try {
+      await removeHelpParticipant(item.id, targetUserId);
+      showToast("Участник удалён", "success");
+      // help_response:changed socket event refreshes the parent list —
+      // the responder row disappears on the next render via filter.
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Не удалось удалить участника";
+      showToast(msg, "error");
+    }
+  };
   const myResponse = currentUserId
     ? responses.find((r) => r.userId === currentUserId) ?? null
     : null;
@@ -384,6 +405,15 @@ export function HelpDetailSheet({
                       <a href={`tel:${r.user.phone}`} className="detail-responder-phone">
                         {r.user.phone}
                       </a>
+                    )}
+                    {isAuthorMe && r.user?.id && (
+                      <button
+                        type="button"
+                        className="detail-responder-remove"
+                        onClick={() => handleRemoveResponder(r.user!.id, r.user?.name ?? null)}
+                      >
+                        Удалить из обсуждения
+                      </button>
                     )}
                   </li>
                 ))}

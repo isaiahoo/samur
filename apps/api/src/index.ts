@@ -44,6 +44,7 @@ import weatherRouter from "./routes/weather.js";
 import seismicRouter from "./routes/seismic.js";
 import tilesRouter from "./routes/tiles.js";
 import uploadsRouter from "./routes/uploads.js";
+import moderationRouter from "./routes/moderation.js";
 import metricsRouter from "./routes/metrics.js";
 
 const app = express();
@@ -123,6 +124,7 @@ app.use("/api/v1/news", newsRouter);
 app.use("/api/v1/weather", weatherRouter);
 app.use("/api/v1/seismic", seismicRouter);
 app.use("/api/v1/uploads", uploadsRouter);
+app.use("/api/v1/moderation", moderationRouter);
 app.use(metricsRouter);
 
 app.use(notFoundHandler);

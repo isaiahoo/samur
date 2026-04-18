@@ -150,6 +150,8 @@ model User {
   helpResponses     HelpResponse[]
   helpMessages      HelpMessage[]
   helpMessageReads  HelpMessageRead[]
+  helpMessageReports HelpMessageReport[] @relation("Reporter")
+  helpMessageReportsResolved HelpMessageReport[] @relation("Resolver")
   alerts            Alert[]
 
   @@index([role])
@@ -266,14 +268,64 @@ model HelpMessage {
   photoUrls     String[]  @default([]) @map("photo_urls")
   createdAt     DateTime  @default(now()) @map("created_at")
   deletedAt     DateTime? @map("deleted_at")
+  /// Who soft-deleted this message. NULL when it's a natural deletion
+  /// (request teardown) or when the field was added post-hoc. Used for
+  /// moderation audit.
+  deletedBy     String?   @map("deleted_by")
+  /// Why the message was deleted. Values:
+  ///   "moderator_removed" — coordinator/admin via the admin queue or
+  ///                         the direct DELETE endpoint
+  ///   "author_removed"    — (reserved; self-delete is a future feature)
+  deletedReason String?   @map("deleted_reason")
 
   helpRequest HelpRequest @relation(fields: [helpRequestId], references: [id], onDelete: Cascade)
   author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reports     HelpMessageReport[]
 
   @@index([helpRequestId, createdAt])
   @@index([authorId])
   @@index([deletedAt])
   @@map("help_messages")
+}
+
+enum HelpMessageReportReason {
+  abuse
+  spam
+  doxxing
+  off_topic
+  other
+}
+
+enum HelpMessageReportStatus {
+  open
+  resolved_delete
+  resolved_dismiss
+}
+
+/// User-initiated report on an individual chat message. One report per
+/// (message, reporter) — duplicate reports from the same user upsert
+/// rather than create. Coordinators resolve via the admin queue, which
+/// either soft-deletes the message (resolved_delete) or dismisses the
+/// report (resolved_dismiss).
+model HelpMessageReport {
+  id          String                   @id @default(cuid())
+  messageId   String                   @map("message_id")
+  reporterId  String                   @map("reporter_id")
+  reason      HelpMessageReportReason
+  details     String?                  @db.VarChar(500)
+  status      HelpMessageReportStatus  @default(open)
+  resolvedBy  String?                  @map("resolved_by")
+  resolvedAt  DateTime?                @map("resolved_at")
+  createdAt   DateTime                 @default(now()) @map("created_at")
+
+  message   HelpMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  reporter  User        @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  resolver  User?       @relation("Resolver", fields: [resolvedBy], references: [id], onDelete: SetNull)
+
+  @@unique([messageId, reporterId])
+  @@index([status, createdAt])
+  @@index([reporterId])
+  @@map("help_message_reports")
 }
 
 model HelpMessageRead {

@@ -12,6 +12,7 @@ import {
   CreateHelpResponseSchema,
   UpdateMyHelpResponseSchema,
   CreateHelpMessageSchema,
+  CreateHelpMessageReportSchema,
 } from "@samur/shared";
 import type { HelpRequest, HelpRequestParty, HelpRequestStatus, HelpResponseStatus, HelpMessage } from "@samur/shared";
 import { AppError } from "../middleware/error.js";
@@ -22,10 +23,12 @@ import {
   emitHelpRequestUpdated,
   emitHelpResponseChanged,
   emitHelpMessageCreated,
+  emitHelpMessageDeleted,
   emitSOSCreated,
 } from "../lib/emitter.js";
 import { evictUserFromHelpRoom, clearHelpRoom } from "../socket.js";
 import { assertHelpChatAccess } from "../lib/helpAccess.js";
+import { reportsRateLimiter } from "../middleware/rateLimiter.js";
 import { computeUserStats, type UserStats } from "../lib/userStats.js";
 import { getRealIp } from "../lib/clientIp.js";
 import { paramId } from "../lib/params.js";
@@ -728,6 +731,11 @@ router.delete("/:id/my-response", requireAuth, async (req, res, next) => {
 const assertCanAccessMessages = assertHelpChatAccess;
 
 // GET /:id/messages — paginated history (newest first via cursor).
+// Soft-deleted messages are still returned so the UI can render a
+// "[Сообщение удалено]" placeholder in the right spot — but their
+// body and photoUrls are stripped server-side so the content can't be
+// recovered by a chat participant. Admins inspect full deleted content
+// through the moderation queue, not through this endpoint.
 router.get("/:id/messages", requireAuth, async (req, res, next) => {
   try {
     const id = paramId(req);
@@ -739,7 +747,6 @@ router.get("/:id/messages", requireAuth, async (req, res, next) => {
     const messages = await prisma.helpMessage.findMany({
       where: {
         helpRequestId: id,
-        deletedAt: null,
         ...(before ? { createdAt: { lt: before } } : {}),
       },
       orderBy: { createdAt: "desc" },
@@ -749,7 +756,13 @@ router.get("/:id/messages", requireAuth, async (req, res, next) => {
       },
     });
 
-    // Unread count: anything newer than my last-read watermark.
+    const safeMessages = messages.map((m) =>
+      m.deletedAt ? { ...m, body: "", photoUrls: [] } : m,
+    );
+
+    // Unread count: anything newer than my last-read watermark. Deleted
+    // messages don't contribute to unread — once content is gone there's
+    // nothing to read.
     const read = await prisma.helpMessageRead.findUnique({
       where: { helpRequestId_userId: { helpRequestId: id, userId: req.user!.sub } },
       select: { lastReadAt: true },
@@ -767,7 +780,7 @@ router.get("/:id/messages", requireAuth, async (req, res, next) => {
     // Oldest-first for UI rendering.
     res.json({
       success: true,
-      data: messages.reverse(),
+      data: safeMessages.reverse(),
       meta: { unread, lastReadAt: watermark.toISOString() },
     });
   } catch (err) {
@@ -806,6 +819,179 @@ router.post(
       const participantIds = await resolveMessageParticipants(id);
       emitHelpMessageCreated(message as unknown as HelpMessage, participantIds);
       res.status(201).json({ success: true, data: message });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// POST /:id/messages/:msgId/report — flag a message for coordinator review.
+// Rule: reporter must be a chat participant AND cannot report their own
+// message. Duplicate submissions from the same (message, reporter)
+// upsert (update reason/details) rather than create a 2nd row.
+router.post(
+  "/:id/messages/:msgId/report",
+  requireAuth,
+  reportsRateLimiter,
+  validateBody(CreateHelpMessageReportSchema),
+  async (req, res, next) => {
+    try {
+      const id = paramId(req);
+      await assertCanAccessMessages(id, req.user!);
+      const msgId = String(req.params.msgId || "").trim();
+      if (!msgId || msgId.length > 64) {
+        throw new AppError(400, "INVALID_ID", "Некорректный идентификатор сообщения");
+      }
+      const message = await prisma.helpMessage.findFirst({
+        where: { id: msgId, helpRequestId: id },
+        select: { id: true, authorId: true },
+      });
+      if (!message) throw new AppError(404, "NOT_FOUND", "Сообщение не найдено");
+      if (message.authorId === req.user!.sub) {
+        throw new AppError(
+          400,
+          "CANNOT_REPORT_OWN",
+          "Нельзя жаловаться на собственное сообщение",
+        );
+      }
+      const { reason, details } = req.body as {
+        reason: "abuse" | "spam" | "doxxing" | "off_topic" | "other";
+        details?: string;
+      };
+      const report = await prisma.helpMessageReport.upsert({
+        where: {
+          messageId_reporterId: {
+            messageId: msgId,
+            reporterId: req.user!.sub,
+          },
+        },
+        update: {
+          reason,
+          details: details ?? null,
+          // If the same user revisits after a prior resolution,
+          // re-open the report — the coordinator should see the new
+          // submission, not a stale "resolved" row.
+          status: "open",
+          resolvedBy: null,
+          resolvedAt: null,
+        },
+        create: {
+          messageId: msgId,
+          reporterId: req.user!.sub,
+          reason,
+          details: details ?? null,
+        },
+      });
+      res.status(201).json({ success: true, data: { id: report.id, status: report.status } });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// DELETE /:id/messages/:msgId — coordinator/admin soft-delete a message.
+// Atomically resolves every open report on the message as
+// resolved_delete so the queue doesn't show stale entries. Emits
+// help_message:deleted to the chat room so participants' UIs swap to
+// the placeholder without a refresh.
+router.delete(
+  "/:id/messages/:msgId",
+  requireAuth,
+  requireRole("coordinator", "admin"),
+  async (req, res, next) => {
+    try {
+      const id = paramId(req);
+      const msgId = String(req.params.msgId || "").trim();
+      if (!msgId || msgId.length > 64) {
+        throw new AppError(400, "INVALID_ID", "Некорректный идентификатор сообщения");
+      }
+      const existing = await prisma.helpMessage.findFirst({
+        where: { id: msgId, helpRequestId: id },
+        select: { id: true, deletedAt: true },
+      });
+      if (!existing) throw new AppError(404, "NOT_FOUND", "Сообщение не найдено");
+      if (existing.deletedAt) {
+        // Idempotent — already deleted.
+        res.json({ success: true, data: { id: msgId, deleted: true } });
+        return;
+      }
+      const now = new Date();
+      await prisma.$transaction([
+        prisma.helpMessage.update({
+          where: { id: msgId },
+          data: {
+            deletedAt: now,
+            deletedBy: req.user!.sub,
+            deletedReason: "moderator_removed",
+          },
+        }),
+        prisma.helpMessageReport.updateMany({
+          where: { messageId: msgId, status: "open" },
+          data: {
+            status: "resolved_delete",
+            resolvedBy: req.user!.sub,
+            resolvedAt: now,
+          },
+        }),
+      ]);
+      emitHelpMessageDeleted(id, msgId);
+      res.json({ success: true, data: { id: msgId, deleted: true } });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// DELETE /:id/participants/:userId — author or coordinator removes a
+// responder from the chat. Reuses the existing "cancelled" response
+// flow (same downstream effects as self-cancel), plus evicts the
+// removed user's sockets from the room.
+router.delete(
+  "/:id/participants/:userId",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const id = paramId(req);
+      const targetUserId = String(req.params.userId || "").trim();
+      if (!targetUserId || targetUserId.length > 64) {
+        throw new AppError(400, "INVALID_ID", "Некорректный идентификатор пользователя");
+      }
+      const hr = await prisma.helpRequest.findFirst({
+        where: { id, deletedAt: null },
+        select: { userId: true },
+      });
+      if (!hr) throw new AppError(404, "NOT_FOUND", "Запрос помощи не найден");
+      const isAuthor = hr.userId === req.user!.sub;
+      const isStaff = req.user!.role === "coordinator" || req.user!.role === "admin";
+      if (!isAuthor && !isStaff) {
+        throw new AppError(
+          403,
+          "FORBIDDEN",
+          "Удалять участников может только автор запроса или модератор",
+        );
+      }
+      if (targetUserId === hr.userId) {
+        throw new AppError(
+          400,
+          "CANNOT_REMOVE_AUTHOR",
+          "Автор запроса не может быть удалён из обсуждения",
+        );
+      }
+      const resp = await prisma.helpResponse.findFirst({
+        where: { helpRequestId: id, userId: targetUserId, status: { not: "cancelled" } },
+        include: { user: { select: { id: true, name: true, role: true, phone: true } } },
+      });
+      if (!resp) {
+        throw new AppError(404, "NOT_FOUND", "У пользователя нет активного отклика");
+      }
+      const updated = await prisma.helpResponse.update({
+        where: { id: resp.id },
+        data: { status: "cancelled" },
+        include: { user: { select: { id: true, name: true, role: true, phone: true } } },
+      });
+      await evictUserFromHelpRoom(targetUserId, id);
+      await emitResponseChanged(id, updated);
+      res.json({ success: true, data: { userId: targetUserId, removed: true } });
     } catch (err) {
       next(err);
     }

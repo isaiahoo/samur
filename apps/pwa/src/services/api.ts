@@ -292,6 +292,43 @@ export function markHelpMessagesRead(id: string) {
   });
 }
 
+export function reportHelpMessage(
+  id: string,
+  msgId: string,
+  payload: { reason: "abuse" | "spam" | "doxxing" | "off_topic" | "other"; details?: string },
+) {
+  return request<ApiResponse>(`/help-requests/${id}/messages/${msgId}/report`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteHelpMessage(id: string, msgId: string) {
+  return request<ApiResponse>(`/help-requests/${id}/messages/${msgId}`, {
+    method: "DELETE",
+  });
+}
+
+export function removeHelpParticipant(id: string, userId: string) {
+  return request<ApiResponse>(`/help-requests/${id}/participants/${userId}`, {
+    method: "DELETE",
+  });
+}
+
+export function getMessageReports(status: "open" | "resolved_delete" | "resolved_dismiss" | "all" = "open") {
+  return request<ApiResponse>(`/moderation/message-reports?status=${status}`);
+}
+
+export function resolveMessageReport(
+  reportId: string,
+  action: "delete_message" | "dismiss",
+) {
+  return request<ApiResponse>(`/moderation/message-reports/${reportId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ action }),
+  });
+}
+
 export function deleteHelpRequest(id: string) {
   return request<ApiResponse>(`/help-requests/${id}`, { method: "DELETE" });
 }

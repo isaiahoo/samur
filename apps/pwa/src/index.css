@@ -3901,6 +3901,202 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   color: #a1a1aa;
   margin-top: 4px;
   text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Moderation: per-message ⋯ menu for report / admin-delete */
+.help-chat-msg-menu-wrap { position: relative; display: inline-flex; }
+.help-chat-msg-menu-btn {
+  background: transparent;
+  border: none;
+  color: #a1a1aa;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+}
+.help-chat-msg-menu-btn:hover { color: #52525b; background: rgba(0, 0, 0, 0.05); }
+.help-chat-msg-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  right: 0;
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  box-shadow: var(--shadow-3);
+  padding: 4px;
+  z-index: 10;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+}
+.help-chat-msg-menu-item {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  color: #27272a;
+}
+.help-chat-msg-menu-item:hover { background: #f4f4f5; }
+.help-chat-msg-menu-item--danger { color: #dc2626; }
+.help-chat-msg-reported { color: #71717a; font-style: italic; }
+
+/* Deleted-message placeholder — muted italic row, no photos, no body */
+.help-chat-msg--deleted .help-chat-msg-body--deleted {
+  color: #a1a1aa;
+  font-style: italic;
+  font-size: 13px;
+}
+@media (prefers-color-scheme: dark) {
+  .help-chat-msg-menu { background: var(--color-surface); border-color: var(--color-border); }
+  .help-chat-msg-menu-item { color: #e4e4e7; }
+  .help-chat-msg-menu-item:hover { background: #3f3f46; }
+  .help-chat-msg-menu-btn:hover { background: rgba(255, 255, 255, 0.05); color: #e4e4e7; }
+  .help-chat-msg--deleted .help-chat-msg-body--deleted { color: #71717a; }
+}
+
+/* Admin reports queue */
+.admin-reports { padding-bottom: 32px; }
+.admin-subtab {
+  background: none;
+  border: 1px solid #e4e4e7;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #52525b;
+  cursor: pointer;
+  margin-right: 6px;
+  margin-bottom: 6px;
+  min-height: 32px;
+}
+.admin-subtab--active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+.report-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.report-card {
+  background: #fff;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.report-card--open { border-left: 4px solid #f59e0b; }
+.report-card--resolved_delete { border-left: 4px solid #dc2626; opacity: 0.85; }
+.report-card--resolved_dismiss { border-left: 4px solid #71717a; opacity: 0.85; }
+.report-card-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
+.report-card-reason { font-weight: 700; color: #18181b; }
+.report-card-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f4f4f5;
+  color: #52525b;
+  font-weight: 600;
+}
+.report-card-time { color: #a1a1aa; font-size: 12px; margin-left: auto; }
+.report-card-label { font-size: 11px; font-weight: 600; color: #a1a1aa; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+.report-card-quote {
+  background: #f4f4f5;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #27272a;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.report-card-quote--deleted { opacity: 0.7; font-style: italic; }
+.report-card-photos { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.report-card-photo { display: inline-block; width: 64px; height: 64px; border-radius: 6px; overflow: hidden; }
+.report-card-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.report-card-meta { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #52525b; }
+.report-card-meta-label { font-weight: 600; color: #71717a; }
+.report-card-actions { display: flex; gap: 8px; justify-content: flex-end; }
+@media (prefers-color-scheme: dark) {
+  .admin-subtab { background: var(--color-surface); color: #a1a1aa; border-color: var(--color-border); }
+  .admin-subtab--active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+  .report-card { background: var(--color-surface); border-color: var(--color-border); }
+  .report-card-reason { color: #f4f4f5; }
+  .report-card-status { background: #3f3f46; color: #e4e4e7; }
+  .report-card-quote { background: #3f3f46; color: #f4f4f5; }
+  .report-card-meta { color: #a1a1aa; }
+  .report-card-meta-label { color: #71717a; }
+}
+
+/* Author-facing: remove a responder from the chat. Low-contrast link
+   button in the responder row, matching the existing phone-link style. */
+.detail-responder-remove {
+  background: none;
+  border: none;
+  padding: 6px 0 0;
+  margin: 0;
+  color: #b91c1c;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+}
+.detail-responder-remove:hover { color: #991b1b; }
+@media (prefers-color-scheme: dark) {
+  .detail-responder-remove { color: #fca5a5; }
+  .detail-responder-remove:hover { color: #fecaca; }
+}
+
+/* Report-message bottom sheet */
+.report-sheet { padding-top: 4px; display: flex; flex-direction: column; gap: 14px; }
+.report-sheet-title { font-size: 17px; font-weight: 700; margin: 0; }
+.report-sheet-subtitle { font-size: 13px; color: #71717a; margin: 0; line-height: 1.4; }
+.report-sheet-reasons {
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.report-sheet-legend { font-size: 13px; font-weight: 600; color: #52525b; margin-bottom: 4px; }
+.report-sheet-reason {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f4f4f5;
+  cursor: pointer;
+  min-height: 44px;
+  font-size: 14px;
+}
+.report-sheet-reason--active { background: #dbeafe; color: var(--color-primary); font-weight: 600; }
+.report-sheet-reason input { margin: 0; }
+.report-sheet-details-label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #52525b; font-weight: 600; }
+.report-sheet-details {
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+  resize: vertical;
+  min-height: 72px;
+  font-weight: 400;
+  color: #18181b;
+}
+.report-sheet-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.report-sheet-actions .btn { min-width: 110px; }
+@media (prefers-color-scheme: dark) {
+  .report-sheet-subtitle, .report-sheet-legend, .report-sheet-details-label { color: #a1a1aa; }
+  .report-sheet-reason { background: #27272a; color: #e4e4e7; }
+  .report-sheet-reason--active { background: rgba(37, 99, 235, 0.22); color: #93c5fd; }
+  .report-sheet-details { background: #27272a; border-color: var(--color-border); color: #f4f4f5; }
 }
 .help-chat-composer {
   display: flex;

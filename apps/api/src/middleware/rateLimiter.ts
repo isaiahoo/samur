@@ -17,6 +17,13 @@ const LIMITS = {
   uploadsAnonymous: { points: 10, duration: 3600 },
   uploadsAuthenticated: { points: 60, duration: 3600 },
   uploadsCoordinator: { points: 200, duration: 3600 },
+  // Message-report submissions. Report abuse is real, but mass-report
+  // brigading of a single target is also real; 20/hr/user lets a busy
+  // moderator work without friction, stops a brigade before it can
+  // swamp the review queue. Anonymous report submissions aren't
+  // possible (the endpoint is requireAuth).
+  reportsAuthenticated: { points: 20, duration: 3600 },
+  reportsCoordinator: { points: 200, duration: 3600 },
 } as const;
 
 let limiters: Record<string, RateLimiterRedis | RateLimiterMemory>;
@@ -47,6 +54,8 @@ export function initRateLimiter(redisClient: Redis | null): void {
     uploadsAnonymous: create("up_anon", LIMITS.uploadsAnonymous),
     uploadsAuthenticated: create("up_auth", LIMITS.uploadsAuthenticated),
     uploadsCoordinator: create("up_coord", LIMITS.uploadsCoordinator),
+    reportsAuthenticated: create("rep_auth", LIMITS.reportsAuthenticated),
+    reportsCoordinator: create("rep_coord", LIMITS.reportsCoordinator),
   };
 
   if (!redisClient) {
@@ -125,6 +134,42 @@ export async function uploadsRateLimiter(
       error: {
         code: "UPLOAD_RATE_LIMIT_EXCEEDED",
         message: "Слишком много загрузок за час. Попробуйте позже.",
+      },
+    });
+  }
+}
+
+/** Per-hour limit for message-report submissions. Requires the route
+ * to run `requireAuth` first — anonymous reports aren't allowed. */
+export async function reportsRateLimiter(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  if (!limiters) return next();
+  const user = req.user;
+  if (!user) {
+    res.status(401).json({
+      success: false,
+      error: { code: "UNAUTHORIZED", message: "Требуется авторизация" },
+    });
+    return;
+  }
+  const key =
+    user.role === "coordinator" || user.role === "admin"
+      ? "reportsCoordinator"
+      : "reportsAuthenticated";
+  try {
+    const result = await limiters[key].consume(user.sub);
+    res.setHeader("X-Reports-RateLimit-Remaining", result.remainingPoints);
+    res.setHeader("X-Reports-RateLimit-Limit", LIMITS[key as keyof typeof LIMITS].points);
+    next();
+  } catch {
+    res.status(429).json({
+      success: false,
+      error: {
+        code: "REPORT_RATE_LIMIT_EXCEEDED",
+        message: "Слишком много жалоб за час. Попробуйте позже.",
       },
     });
   }

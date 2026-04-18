@@ -1,20 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import type { HelpMessage } from "@samur/shared";
+import type { HelpMessage, HelpMessageReportReason } from "@samur/shared";
 import {
   getHelpMessages,
   sendHelpMessage,
   markHelpMessagesRead,
   uploadPhotos,
+  reportHelpMessage,
+  deleteHelpMessage,
   ApiError,
 } from "../services/api.js";
 import { useSocketEvent } from "../hooks/useSocket.js";
 import { getSocket } from "../services/socket.js";
 import { useOnline } from "../hooks/useOnline.js";
-import { useUIStore } from "../store/ui.js";
+import { useUIStore, confirmAction } from "../store/ui.js";
+import { useAuthStore } from "../store/auth.js";
 import { useNavigate } from "react-router-dom";
 import { compressImage } from "../utils/compressImage.js";
 import { ImageLightbox } from "./ImageLightbox.js";
+import { ReportMessageSheet } from "./ReportMessageSheet.js";
 
 interface Props {
   requestId: string;
@@ -96,6 +100,14 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
   const [draft, setDraft] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [lightbox, setLightbox] = useState<{ urls: string[]; index: number } | null>(null);
+  /** Which message's ⋯ menu is open. null = none. Clears on outside click. */
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  /** Which message the report sheet is open for. null = closed. */
+  const [reportingId, setReportingId] = useState<string | null>(null);
+  /** Message IDs the viewer has already reported this session — used to
+   * swap the "Пожаловаться" menu item for a "Отправлено на модерацию"
+   * indicator. Session-only, client-side; server is source of truth. */
+  const [reportedIds, setReportedIds] = useState<Set<string>>(() => new Set());
   /** Who is currently typing, keyed by userId; expiresAt is the millisecond
    * timestamp at which the indicator for this user should disappear. */
   const [typers, setTypers] = useState<Map<string, { name: string; expiresAt: number }>>(() => new Map());
@@ -109,6 +121,22 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
   const online = useOnline();
   const showToast = useUIStore((s) => s.showToast);
   const navigate = useNavigate();
+  const currentUserRole = useAuthStore((s) => s.user?.role ?? "");
+  const isModerator = currentUserRole === "coordinator" || currentUserRole === "admin";
+
+  // Close the per-message ⋯ menu on any outside pointer. Listener
+  // attaches only while a menu is open so idle HelpChat doesn't pay
+  // for a document-level handler.
+  useEffect(() => {
+    if (openMenuId === null) return;
+    const onPointer = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("[data-chat-menu]")) return;
+      setOpenMenuId(null);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    return () => document.removeEventListener("pointerdown", onPointer);
+  }, [openMenuId]);
 
   const scrollToBottom = useCallback(() => {
     requestAnimationFrame(() => {
@@ -181,6 +209,21 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
       return next;
     });
     scrollToBottom();
+  });
+
+  // Server-side moderation: swap the message to a deleted placeholder
+  // in-place. Body/photoUrls strip server-side on the GET path, so we
+  // mirror that here by zeroing them on the existing row rather than
+  // refetching. No scroll jump — the row stays at the same index.
+  useSocketEvent("help_message:deleted", (payload) => {
+    if (payload.helpRequestId !== requestId) return;
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === payload.messageId
+          ? { ...m, body: "", photoUrls: [], deletedAt: new Date().toISOString() }
+          : m,
+      ),
+    );
   });
 
   // Receive typing events from other participants. Ignore our own echoes
@@ -353,6 +396,47 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
     setAttachments((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const submitReport = useCallback(
+    async (msgId: string, reason: HelpMessageReportReason, details?: string) => {
+      try {
+        await reportHelpMessage(requestId, msgId, { reason, details });
+        setReportedIds((prev) => {
+          const next = new Set(prev);
+          next.add(msgId);
+          return next;
+        });
+        showToast("Жалоба отправлена модераторам", "success");
+      } catch (err) {
+        const msg = err instanceof ApiError ? err.message : "Не удалось отправить жалобу";
+        showToast(msg, "error");
+      } finally {
+        setReportingId(null);
+      }
+    },
+    [requestId, showToast],
+  );
+
+  const handleDelete = useCallback(
+    async (msgId: string) => {
+      setOpenMenuId(null);
+      const ok = await confirmAction({
+        title: "Удалить сообщение?",
+        message: "Участники увидят «Сообщение удалено» вместо содержимого. Действие нельзя отменить.",
+        confirmLabel: "Удалить",
+        kind: "destructive",
+      });
+      if (!ok) return;
+      try {
+        await deleteHelpMessage(requestId, msgId);
+        // Socket event will swap the UI — no local state change here.
+      } catch (err) {
+        const msg = err instanceof ApiError ? err.message : "Не удалось удалить сообщение";
+        showToast(msg, "error");
+      }
+    },
+    [requestId, showToast],
+  );
+
   // Build the chronological display list with day separators.
   const displayItems = useMemo<DisplayItem[]>(() => {
     const all: Array<{ msg?: HelpMessage; pending?: PendingMessage; createdAt: string }> = [
@@ -494,11 +578,21 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
             }
             const m = item.msg;
             const isMine = m.authorId === currentUserId;
+            const isDeleted = !!m.deletedAt;
             const roleBadge = m.author?.role ? ROLE_BADGES[m.author.role] : null;
             const photoUrls = m.photoUrls ?? [];
+            const menuOpen = openMenuId === m.id;
+            const alreadyReported = reportedIds.has(m.id);
+            // Menu is available on non-deleted foreign messages — you
+            // can report, or (if moderator) delete. Own messages get
+            // no menu in this MVP (self-delete is a future feature).
+            const showMenu = !isDeleted && !isMine && (!alreadyReported || isModerator);
             return (
-              <div key={m.id} className={`help-chat-msg ${isMine ? "help-chat-msg--mine" : ""}`}>
-                {!isMine && (
+              <div
+                key={m.id}
+                className={`help-chat-msg ${isMine ? "help-chat-msg--mine" : ""}${isDeleted ? " help-chat-msg--deleted" : ""}`}
+              >
+                {!isMine && !isDeleted && (
                   <div className="help-chat-msg-meta">
                     {m.authorId ? (
                       <button
@@ -518,11 +612,74 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
                     {roleBadge && <span className="help-chat-msg-role"> · {roleBadge}</span>}
                   </div>
                 )}
-                {photoUrls.length > 0 && (
-                  <PhotoGrid urls={photoUrls} onOpen={(i) => setLightbox({ urls: photoUrls, index: i })} />
+                {isDeleted ? (
+                  <div className="help-chat-msg-body help-chat-msg-body--deleted">
+                    Сообщение удалено
+                  </div>
+                ) : (
+                  <>
+                    {photoUrls.length > 0 && (
+                      <PhotoGrid urls={photoUrls} onOpen={(i) => setLightbox({ urls: photoUrls, index: i })} />
+                    )}
+                    {m.body && <div className="help-chat-msg-body">{m.body}</div>}
+                  </>
                 )}
-                {m.body && <div className="help-chat-msg-body">{m.body}</div>}
-                <div className="help-chat-msg-time">{formatTime(m.createdAt)}</div>
+                <div className="help-chat-msg-time">
+                  {formatTime(m.createdAt)}
+                  {showMenu && (
+                    <span className="help-chat-msg-menu-wrap" data-chat-menu>
+                      <button
+                        type="button"
+                        className="help-chat-msg-menu-btn"
+                        aria-label="Действия с сообщением"
+                        aria-haspopup="true"
+                        aria-expanded={menuOpen}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuId(menuOpen ? null : m.id);
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                          <circle cx="5" cy="12" r="2" />
+                          <circle cx="12" cy="12" r="2" />
+                          <circle cx="19" cy="12" r="2" />
+                        </svg>
+                      </button>
+                      {menuOpen && (
+                        <div className="help-chat-msg-menu" role="menu">
+                          {!alreadyReported && (
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="help-chat-msg-menu-item"
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                setReportingId(m.id);
+                              }}
+                            >
+                              Пожаловаться
+                            </button>
+                          )}
+                          {isModerator && (
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="help-chat-msg-menu-item help-chat-msg-menu-item--danger"
+                              onClick={() => handleDelete(m.id)}
+                            >
+                              Удалить
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </span>
+                  )}
+                  {alreadyReported && !isModerator && (
+                    <span className="help-chat-msg-reported" title="Отправлено модераторам">
+                      · Отправлено на модерацию
+                    </span>
+                  )}
+                </div>
               </div>
             );
             void idx;
@@ -626,6 +783,13 @@ export function HelpChat({ requestId, canParticipate, currentUserId, stickyCompo
           urls={lightbox.urls}
           initialIndex={lightbox.index}
           onClose={() => setLightbox(null)}
+        />
+      )}
+
+      {reportingId && (
+        <ReportMessageSheet
+          onClose={() => setReportingId(null)}
+          onSubmit={(reason, details) => submitReport(reportingId, reason, details)}
         />
       )}
     </div>

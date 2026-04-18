@@ -97,6 +97,16 @@ export function emitHelpMessageCreated(
   }
 }
 
+/** Emitted to every socket currently in the help-request room. Payload
+ * only identifies which message to hide — no body, no author. Clients
+ * swap the rendered message to a "[Сообщение удалено]" placeholder. */
+export function emitHelpMessageDeleted(helpRequestId: string, messageId: string): void {
+  getIO().to(helpRoom(helpRequestId)).emit("help_message:deleted", {
+    helpRequestId,
+    messageId,
+  });
+}
+
 export function emitHelpResponseChanged(payload: {
   helpRequestId: string;
   responseId: string;

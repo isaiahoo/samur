@@ -133,8 +133,42 @@ export interface HelpMessage {
   photoUrls: string[];
   createdAt: string;
   deletedAt?: string | null;
+  /** When set, the UI should render this message as a "[Сообщение
+   * удалено]" placeholder — body and photoUrls may still be present in
+   * the payload when an admin is viewing the moderation queue, but
+   * standard participant fetches strip both. */
+  deletedReason?: string | null;
   author?: HelpRequestParty;
 }
+
+export type HelpMessageReportReason = "abuse" | "spam" | "doxxing" | "off_topic" | "other";
+export type HelpMessageReportStatus = "open" | "resolved_delete" | "resolved_dismiss";
+
+export interface HelpMessageReport {
+  id: string;
+  messageId: string;
+  reporterId: string;
+  reason: HelpMessageReportReason;
+  details: string | null;
+  status: HelpMessageReportStatus;
+  resolvedBy: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  /** Admin-queue hydration. Populated by GET /admin/message-reports
+   * only; omitted on the POST response. */
+  message?: HelpMessage;
+  helpRequestId?: string;
+  reporter?: HelpRequestParty;
+  resolver?: HelpRequestParty | null;
+}
+
+export const HELP_MESSAGE_REPORT_REASON_LABELS: Record<HelpMessageReportReason, string> = {
+  abuse: "Оскорбления / угрозы",
+  spam: "Спам",
+  doxxing: "Личные данные",
+  off_topic: "Не по теме",
+  other: "Другое",
+};
 
 export interface HelpRequest {
   id: string;
@@ -350,6 +384,11 @@ export interface ServerToClientEvents {
    * URLs so the Layout's unread-badge bump can safely receive it without
    * joining the per-conversation room. */
   "help_message:notify": (payload: { helpRequestId: string; authorId: string }) => void;
+  /** A message was soft-deleted (moderation or author-removal). Clients
+   * in the help-request room swap the message to a "[Сообщение удалено]"
+   * placeholder. Body/photoUrls are not carried — the event only
+   * identifies what to swap. */
+  "help_message:deleted": (payload: { helpRequestId: string; messageId: string }) => void;
   "help:typing": (payload: { helpRequestId: string; userId: string; userName: string }) => void;
   "alert:broadcast": (alert: Alert) => void;
   "river_level:updated": (level: RiverLevel) => void;

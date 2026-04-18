@@ -106,6 +106,23 @@ export const CreateHelpMessageSchema = z.object({
   { message: "Добавьте текст или хотя бы одно фото" },
 );
 
+export const HelpMessageReportReasonSchema = z.enum([
+  "abuse",
+  "spam",
+  "doxxing",
+  "off_topic",
+  "other",
+]);
+
+export const CreateHelpMessageReportSchema = z.object({
+  reason: HelpMessageReportReasonSchema,
+  details: z.string().trim().max(500).optional(),
+});
+
+export const ResolveHelpMessageReportSchema = z.object({
+  action: z.enum(["delete_message", "dismiss"]),
+});
+
 export const AlertUrgencySchema = z.enum(["info", "warning", "critical"]);
 
 export const ShelterStatusSchema = z.enum(["open", "full", "closed"]);
