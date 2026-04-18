@@ -23,6 +23,7 @@ import { cacheItems, getCachedItems } from "../services/db.js";
 import { useSocketEvent, useSocketSubscription } from "../hooks/useSocket.js";
 import { useGeolocation } from "../hooks/useGeolocation.js";
 import { useUIStore } from "../store/ui.js";
+import { useLocation, useNavigate } from "react-router-dom";
 
 type MapBounds = { north: number; south: number; east: number; west: number };
 
@@ -497,6 +498,46 @@ export function MapPage() {
     },
     [openSheet, closeSheet],
   );
+
+  // Deep-link handler — honours ?station={name} and ?layer={name} in the
+  // URL. Used by the alerts-page "Показать на карте" buttons. The query
+  // is cleared after the action is applied so a later re-render (e.g. a
+  // socket-driven riverLevels refresh) doesn't re-open the sheet. Waits
+  // for riverLevels to load before attempting a station match.
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!location.search) return;
+    const params = new URLSearchParams(location.search);
+    const stationName = params.get("station");
+    const layerParam = params.get("layer");
+    let consumed = false;
+
+    if (stationName && riverLevels.length > 0) {
+      const needle = stationName.toLowerCase();
+      const match = riverLevels.find(
+        (r) => r.stationName.toLowerCase() === needle,
+      );
+      if (match) {
+        // Defer so the tab-switch paint + map resize settle before we
+        // fly — otherwise MapLibre animates from an uninitialised camera.
+        setTimeout(() => {
+          mapViewRef.current?.flyTo(match.lng, match.lat, 12);
+          handleMarkerClick("riverLevel", match);
+        }, 300);
+        consumed = true;
+      }
+    }
+
+    if (layerParam === "shelters") {
+      setLayers((prev) => (prev.shelters ? prev : { ...prev, shelters: true }));
+      consumed = true;
+    }
+
+    if (consumed) {
+      navigate("/", { replace: true });
+    }
+  }, [location.search, riverLevels, handleMarkerClick, navigate]);
 
   const handleEventPanelClick = useCallback(
     (type: MarkerType, item: unknown, key: string) => {
