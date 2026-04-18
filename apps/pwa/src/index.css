@@ -214,14 +214,14 @@ select {
 .profile-menu-stat--joined {
   margin-left: auto;
   font-size: 11px;
-  color: #94a3b8;
+  color: #a1a1aa;
   align-self: center;
 }
 
 /* ─── Full profile page ─────────────────────────────────────────────── */
 .profile-page {
   min-height: 100dvh;
-  background: #f8fafc;
+  background: #fafafa;
   padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
 }
 .profile-header-bar {
@@ -239,14 +239,14 @@ select {
   background: none;
   border: none;
   padding: 6px;
-  color: #334155;
+  color: #3f3f46;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
 }
-.profile-back:hover { background: #f1f5f9; }
+.profile-back:hover { background: #f4f4f5; }
 .profile-title { font-size: 17px; font-weight: 600; margin: 0; }
 .profile-loading, .profile-error {
   padding: 48px 16px;
@@ -286,7 +286,7 @@ select {
   gap: 8px;
   flex-wrap: wrap;
   font-size: 12px;
-  color: #64748b;
+  color: #71717a;
 }
 .profile-role-badge {
   padding: 2px 8px;
@@ -310,7 +310,7 @@ select {
   flex-direction: column;
   align-items: center;
   padding: 14px 6px;
-  background: #f1f5f9;
+  background: #f4f4f5;
   border-radius: 10px;
 }
 .profile-stat-number {
@@ -321,7 +321,7 @@ select {
 }
 .profile-stat-label {
   font-size: 11px;
-  color: #64748b;
+  color: #71717a;
   margin-top: 4px;
   text-transform: uppercase;
   letter-spacing: 0.3px;
@@ -346,13 +346,13 @@ select {
 }
 .profile-section-count {
   font-size: 13px;
-  color: #64748b;
+  color: #71717a;
   font-weight: 500;
 }
 .profile-achievements-empty {
   font-size: 13px;
-  color: #64748b;
-  background: #f1f5f9;
+  color: #71717a;
+  background: #f4f4f5;
   border-radius: 8px;
   padding: 12px;
   margin: 0 0 12px;
@@ -374,16 +374,16 @@ select {
   border: 1px solid transparent;
 }
 .achievement-card--earned {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 .achievement-card--locked {
-  background: #f8fafc;
+  background: #fafafa;
   opacity: 0.55;
   filter: grayscale(0.7);
 }
 .achievement-card--earned.achievement-card--bronze { border-color: #a87d48; }
-.achievement-card--earned.achievement-card--silver { border-color: #94a3b8; }
+.achievement-card--earned.achievement-card--silver { border-color: #a1a1aa; }
 .achievement-card--earned.achievement-card--gold   { border-color: #d4af37; }
 .achievement-icon {
   font-size: 32px;
@@ -399,7 +399,7 @@ select {
 }
 .achievement-desc {
   font-size: 11px;
-  color: #64748b;
+  color: #71717a;
   line-height: 1.35;
   margin-bottom: 8px;
   min-height: 30px;
@@ -411,11 +411,11 @@ select {
   letter-spacing: 0.5px;
 }
 .achievement-card--bronze .achievement-tier { color: #a87d48; }
-.achievement-card--silver .achievement-tier { color: #64748b; }
+.achievement-card--silver .achievement-tier { color: #71717a; }
 .achievement-card--gold   .achievement-tier { color: #b8860b; }
 .achievement-progress-bar {
   height: 4px;
-  background: #e2e8f0;
+  background: #e4e4e7;
   border-radius: 2px;
   overflow: hidden;
 }
@@ -426,7 +426,7 @@ select {
 }
 .achievement-progress-text {
   font-size: 10px;
-  color: #94a3b8;
+  color: #a1a1aa;
   margin-top: 4px;
   font-weight: 500;
 }
@@ -448,7 +448,7 @@ select {
 .help-chat-msg-author--link:hover {
   text-decoration-color: #3b82f6;
 }
-.help-chat-msg-author--link { color: #334155; font-weight: 600; }
+.help-chat-msg-author--link { color: #3f3f46; font-weight: 600; }
 
 .profile-menu-divider {
   height: 1px;
@@ -2471,13 +2471,13 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   padding: 3px 8px;
   font-size: 11px;
   font-weight: 600;
-  background: #f1f5f9;
-  color: #334155;
+  background: #f4f4f5;
+  color: #3f3f46;
   border-radius: 10px;
 }
 .ai-panel-skill-stats-sub {
   font-weight: 400;
-  color: #64748b;
+  color: #71717a;
   font-size: 10px;
 }
 .ai-panel-skill-note {
@@ -3130,7 +3130,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   height: 10px;
   border-radius: 50%;
   background: #fff;
-  border: 2px solid #cbd5e1;
+  border: 2px solid #d4d4d8;
   flex-shrink: 0;
   box-sizing: border-box;
   transition: background 0.18s, border-color 0.18s, box-shadow 0.18s;
@@ -3174,7 +3174,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .rp-line {
   flex: 1 1 auto;
   height: 2px;
-  background: #e2e8f0;
+  background: #e4e4e7;
   min-width: 14px;
 }
 .rp-line--done { background: #10b981; }
@@ -3273,7 +3273,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   justify-content: center;
   padding: 0;
   background: transparent;
-  color: #64748b;
+  color: #71717a;
   border-radius: 50%;
   border: 1px solid rgba(100, 116, 139, 0.2);
   cursor: pointer;
@@ -3281,9 +3281,9 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .help-card-more-btn:hover,
 .help-card-more-btn:focus-visible {
-  background: #f1f5f9;
-  color: #334155;
-  border-color: #cbd5e1;
+  background: #f4f4f5;
+  color: #3f3f46;
+  border-color: #d4d4d8;
   outline: none;
 }
 .help-card-menu {
@@ -3292,7 +3292,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   bottom: calc(100% + 6px);
   min-width: 180px;
   background: #fff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e4e4e7;
   border-radius: 10px;
   box-shadow: var(--shadow-3);
   padding: 4px;
@@ -3314,7 +3314,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .help-card-menu-item:hover,
 .help-card-menu-item:focus-visible {
-  background: #f1f5f9;
+  background: #f4f4f5;
   outline: none;
 }
 .help-card-menu-item--danger { color: #b91c1c; }
@@ -3330,7 +3330,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #64748b;
+  color: #71717a;
   background: transparent;
   border-radius: 50%;
   border: 1px solid rgba(100, 116, 139, 0.2);
@@ -3339,7 +3339,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .help-card-muted-icon:hover,
 .help-card-muted-icon:focus-visible {
-  background: #f1f5f9;
+  background: #f4f4f5;
   color: var(--color-primary);
   border-color: #bfdbfe;
   outline: none;
@@ -3633,7 +3633,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 
 .detail-responders-hint {
   font-weight: 400;
-  color: #94a3b8;
+  color: #a1a1aa;
   font-size: 11px;
   text-transform: none;
   letter-spacing: 0;
@@ -3692,8 +3692,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   gap: 8px;
 }
 .detail-responder {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: #fafafa;
+  border: 1px solid #e4e4e7;
   border-radius: 8px;
   padding: 10px 12px;
 }
@@ -3749,7 +3749,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .response-pill--on-way    { background: #fef3c7; color: #92400e; }
 .response-pill--arrived   { background: #cffafe; color: #155e75; }
 .response-pill--helped    { background: #dcfce7; color: #166534; }
-.response-pill--cancelled { background: #f1f5f9; color: #64748b; }
+.response-pill--cancelled { background: #f4f4f5; color: #71717a; }
 
 .help-chat {
   border-top: 1px solid var(--color-border);
@@ -3764,10 +3764,10 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   letter-spacing: 0.5px;
   margin: 0 0 8px;
 }
-.help-chat-count { font-weight: 500; color: #94a3b8; }
+.help-chat-count { font-weight: 500; color: #a1a1aa; }
 .help-chat-list {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: #fafafa;
+  border: 1px solid #e4e4e7;
   border-radius: 8px;
   padding: 10px;
   max-height: 260px;
@@ -3780,7 +3780,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .help-chat-error { font-size: 13px; color: #dc2626; margin: 8px 0; text-align: center; }
 .help-chat-msg {
   background: #fff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e4e4e7;
   border-radius: 10px;
   padding: 8px 10px;
   max-width: 85%;
@@ -3796,8 +3796,8 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   color: var(--color-muted);
   margin-bottom: 2px;
 }
-.help-chat-msg-author { font-weight: 600; color: #334155; }
-.help-chat-msg-role { color: #64748b; }
+.help-chat-msg-author { font-weight: 600; color: #3f3f46; }
+.help-chat-msg-role { color: #71717a; }
 .help-chat-msg-body {
   font-size: 14px;
   line-height: 1.4;
@@ -3807,7 +3807,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .help-chat-msg-time {
   font-size: 10px;
-  color: #94a3b8;
+  color: #a1a1aa;
   margin-top: 4px;
   text-align: right;
 }
@@ -3828,13 +3828,13 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   background: #fff;
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  color: #475569;
+  color: #52525b;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
 }
 .help-chat-attach-btn:hover:not(:disabled),
 .help-chat-attach-btn:focus-visible:not(:disabled) {
-  background: #f1f5f9;
+  background: #f4f4f5;
   border-color: var(--color-primary);
   color: var(--color-primary);
   outline: none;
@@ -3857,7 +3857,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   height: 64px;
   border-radius: 8px;
   overflow: hidden;
-  background: #e2e8f0;
+  background: #e4e4e7;
   flex-shrink: 0;
 }
 .help-chat-attachment img {
@@ -3905,7 +3905,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .help-chat-photo {
   padding: 0;
   border: 0;
-  background: #e2e8f0;
+  background: #e4e4e7;
   cursor: pointer;
   aspect-ratio: 1 / 1;
   overflow: hidden;
@@ -3932,11 +3932,11 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .help-chat-day-header span {
   font-size: 11px;
   font-weight: 600;
-  color: #94a3b8;
+  color: #a1a1aa;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 2px 10px;
-  background: #f1f5f9;
+  background: #f4f4f5;
   border-radius: 10px;
 }
 
@@ -3952,12 +3952,12 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   border: 1px solid var(--color-border);
   border-radius: 999px;
   font-size: 12px;
-  color: #475569;
+  color: #52525b;
   cursor: pointer;
 }
 .help-chat-load-earlier-btn:hover:not(:disabled),
 .help-chat-load-earlier-btn:focus-visible:not(:disabled) {
-  background: #f1f5f9;
+  background: #f4f4f5;
   border-color: var(--color-primary);
   color: var(--color-primary);
   outline: none;
@@ -3983,7 +3983,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   gap: 8px;
   padding: 6px 10px 2px;
   font-size: 12px;
-  color: #64748b;
+  color: #71717a;
   font-style: italic;
 }
 .help-chat-typing-dots {
@@ -3995,7 +3995,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #94a3b8;
+  background: #a1a1aa;
   animation: help-chat-typing-bounce 1.2s ease-in-out infinite;
 }
 .help-chat-typing-dots span:nth-child(2) { animation-delay: 0.15s; }
@@ -4013,7 +4013,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .help-chat-msg--failed  { border: 1px solid rgba(220, 38, 38, 0.3); }
 .help-chat-msg-status {
   font-style: italic;
-  color: #94a3b8;
+  color: #a1a1aa;
 }
 .help-chat-msg-status--failed { color: #b91c1c; font-style: normal; }
 .help-chat-msg-retry {
@@ -4075,7 +4075,7 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .help-chat-locked-body {
   font-size: 13px;
   line-height: 1.5;
-  color: #475569;
+  color: #52525b;
   margin: 0 auto 10px;
   max-width: 340px;
 }
@@ -4889,9 +4889,9 @@ a.tg-auth-fallback {
    is role-agnostic before they wonder why there's no 'I'm a volunteer' choice. */
 .profile-hint {
   font-size: 12px;
-  color: #64748b;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  color: #71717a;
+  background: #f4f4f5;
+  border: 1px solid #e4e4e7;
   border-radius: 8px;
   padding: 10px 12px;
   margin: 0 0 14px;
@@ -5134,7 +5134,7 @@ a.tg-auth-fallback {
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid rgba(0, 0, 0, 0.08);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  color: #334155;
+  color: #3f3f46;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5188,7 +5188,7 @@ a.tg-auth-fallback {
 }
 .forecast-picker-date {
   font-size: 12px;
-  color: #64748b;
+  color: #71717a;
   font-weight: 500;
 }
 .forecast-picker-pills {
@@ -5200,15 +5200,15 @@ a.tg-auth-fallback {
 .forecast-pill {
   padding: 8px 4px;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
-  color: #334155;
+  border: 1px solid #e4e4e7;
+  background: #fafafa;
+  color: #3f3f46;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
 }
-.forecast-pill:hover { background: #f1f5f9; }
+.forecast-pill:hover { background: #f4f4f5; }
 .forecast-pill--active {
   background: var(--color-primary);
   color: #fff;
@@ -5222,14 +5222,14 @@ a.tg-auth-fallback {
   width: 100%;
   padding: 8px;
   border-radius: 8px;
-  border: 1px dashed #cbd5e1;
+  border: 1px dashed #d4d4d8;
   background: transparent;
-  color: #64748b;
+  color: #71717a;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
 }
-.forecast-picker-animate:hover { background: #f8fafc; color: #334155; }
+.forecast-picker-animate:hover { background: #fafafa; color: #3f3f46; }
 
 .forecast-banner {
   position: absolute;
@@ -7550,9 +7550,9 @@ a.tg-auth-fallback {
   .ai-panel-skill-badge--low    { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
   .ai-panel-skill-stats {
     background: rgba(71, 85, 105, 0.22);
-    color: #cbd5e1;
+    color: #d4d4d8;
   }
-  .ai-panel-skill-stats-sub { color: #94a3b8; }
+  .ai-panel-skill-stats-sub { color: #a1a1aa; }
   .ai-panel-skill-note { color: #fbbf24; }
   .ai-panel-ood {
     background: rgba(239, 68, 68, 0.14);
@@ -7791,7 +7791,7 @@ a.tg-auth-fallback {
   .response-pill--on-way    { background: rgba(146,64,14,0.28);  color: #fde68a; }
   .response-pill--arrived   { background: rgba(21,94,117,0.25);  color: #a5f3fc; }
   .response-pill--helped    { background: rgba(22,101,52,0.25);  color: #bbf7d0; }
-  .response-pill--cancelled { background: rgba(100,116,139,0.25); color: #cbd5e1; }
+  .response-pill--cancelled { background: rgba(100,116,139,0.25); color: #d4d4d8; }
   .help-chat-list { background: #18181b; border-color: var(--color-border); }
   .help-chat-msg { background: #27272a; border-color: #3f3f46; }
   .help-chat-msg-body { color: #e4e4e7; }
@@ -8082,7 +8082,7 @@ a.tg-auth-fallback {
      mode — slate-500 is near-invisible at dark-surface contrast, so
      lift to a proper metallic highlight (slate-300). */
   .achievement-card--bronze .achievement-tier { color: #d4a373; }
-  .achievement-card--silver .achievement-tier { color: #cbd5e1; }
+  .achievement-card--silver .achievement-tier { color: #d4d4d8; }
   .achievement-card--gold   .achievement-tier { color: #facc15; }
   .achievement-progress-fill { background: linear-gradient(90deg, #60a5fa, #34d399); }
 
