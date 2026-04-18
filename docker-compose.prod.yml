@@ -81,6 +81,55 @@ services:
           sleep 86400
         done
 
+  # ── Uploads backup cron ──────────────────────────────────────────────────
+  # Mirrors pg-backup for the user-uploaded photos. Runs daily, tars the
+  # uploads volume into /backups/uploads_STAMP.tar.gz, verifies the archive
+  # is readable before pruning anything, keeps 7 days. Uses alpine instead
+  # of postgis to keep the image small — we only need sh/tar/find here.
+  uploads-backup:
+    image: alpine:3.20
+    container_name: samur-uploads-backup
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      - uploads:/app/uploads:ro
+      - ./backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          STAMP=$$(date +%Y%m%d_%H%M%S)
+          TARGET=/backups/uploads_$$STAMP.tar.gz
+          # Tar the volume into a dated tarball. -C + . so filenames
+          # inside the archive are relative (clean restores).
+          if tar -czf "$$TARGET" -C /app/uploads . 2>/tmp/tar.err; then
+            # Integrity check: tar -tzf fully reads + inflates the
+            # archive, catching corrupted/truncated writes the same
+            # way pg-backup uses pg_restore --list.
+            if tar -tzf "$$TARGET" > /dev/null 2>&1; then
+              SIZE=$$(stat -c%s "$$TARGET" 2>/dev/null || echo 0)
+              echo "[$$STAMP] uploads backup OK ($$SIZE bytes)"
+              # Only prune on success — never drop our last known
+              # good archive because today's run failed.
+              find /backups -name "uploads_*.tar.gz" -mtime +7 -delete
+            else
+              echo "[$$STAMP] ERROR: tarball failed tar -tzf integrity check"
+              rm -f "$$TARGET"
+            fi
+          else
+            echo "[$$STAMP] ERROR: tar failed — $$(cat /tmp/tar.err)"
+            rm -f "$$TARGET"
+            # Retry in 5 minutes, same pattern as pg-backup.
+            sleep 300
+            continue
+          fi
+          sleep 86400
+        done
+
   # ── Redis ─────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
