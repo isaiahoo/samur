@@ -1,0 +1,116 @@
+# Samur AI - CAMELS-US EA-LSTM Pretraining
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Pretrain an Entity-Aware LSTM on 531 CAMELS-US basins.
+# This teaches universal rainfall-runoff relationships that transfer
+# to our 6 Dagestan stations via fine-tuning.
+#
+# Usage: nh-run train --config-file configs/pretrain_camels.yml
+
+experiment_name: pretrain_camels_ealstm
+run_dir: runs
+
+# Override with --device flag: cuda:0, mps, cpu
+device: cuda:0
+
+# -- Dataset --
+dataset: camels_us
+data_dir: data/camels_us
+forcings:
+  - daymet
+
+train_basin_file: data/camels_us/basin_list_531.txt
+validation_basin_file: data/camels_us/basin_list_531.txt
+
+train_start_date: "01/10/1980"
+train_end_date: "30/09/2000"
+validation_start_date: "01/10/2000"
+validation_end_date: "30/09/2010"
+
+# -- Model --
+model: ealstm
+hidden_size: 128
+initial_forget_bias: 3
+output_dropout: 0.4
+
+# 365-day lookback to capture full annual cycle
+seq_length: 365
+predict_last_n: 1
+
+# -- Output head --
+head: regression
+
+# -- Dynamic inputs (Daymet forcings) --
+# Note: swe(mm) excluded — entirely NaN for many basins, invalidates all samples
+dynamic_inputs:
+  - prcp(mm/day)
+  - srad(W/m2)
+  - tmax(C)
+  - tmin(C)
+  - vp(Pa)
+  - dayl(s)
+
+# -- Static inputs (catchment attributes) --
+static_attributes:
+  - elev_mean
+  - slope_mean
+  - area_gages2
+  - frac_forest
+  - lai_max
+  - lai_diff
+  - gvf_max
+  - gvf_diff
+  - soil_depth_pelletier
+  - soil_depth_statsgo
+  - soil_porosity
+  - sand_frac
+  - silt_frac
+  - clay_frac
+  - carbonate_rocks_frac
+  - geol_permeability
+  - p_mean
+  - pet_mean
+  - aridity
+  - frac_snow
+  - high_prec_freq
+  - high_prec_dur
+  - low_prec_freq
+  - low_prec_dur
+
+# -- Target --
+target_variables:
+  - QObs(mm/d)
+
+# -- Training --
+loss: NSE
+optimizer: Adam
+learning_rate:
+  0: 0.001
+  5: 0.0005
+  10: 0.0001
+batch_size: 512
+epochs: 15
+clip_gradient_norm: 1.0
+
+# Skip batches with NaN targets (CAMELS has some gaps)
+allow_subsequent_nan_losses: 1
+
+# Validation
+validate_every: 5
+validate_n_random_basins: 50
+save_weights_every: 5
+
+# Metrics
+metrics:
+  - NSE
+  - KGE
+  - RMSE
+
+# Logging
+log_interval: 50
+log_n_figures: 5
+log_tensorboard: True
+
+# Reproducibility
+seed: 42
+num_workers: 4

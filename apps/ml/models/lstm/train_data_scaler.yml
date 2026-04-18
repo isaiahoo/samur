@@ -1,0 +1,96 @@
+attribute_means:
+  area_km2: 7403.333333333333
+  danger_level_cm: 341.6666666666667
+  elevation_m: 708.3333333333334
+  lat: 42.348333333333336
+  lng: 47.48666666666667
+  mean_discharge_m3s: 98.33333333333333
+attribute_stds:
+  area_km2: 5007.309324044868
+  danger_level_cm: 37.63863263545405
+  elevation_m: 440.9270536797064
+  lat: 0.9856047213090391
+  lng: 0.5336915463698741
+  mean_discharge_m3s: 64.93586579592719
+xarray_feature_scale:
+  coords: {}
+  attrs: {}
+  dims: {}
+  data_vars:
+    et0_fao_evapotranspiration:
+      dims: []
+      attrs: {}
+      data: 1.7787907123565674
+    precipitation_sum:
+      dims: []
+      attrs: {}
+      data: 4.146966457366943
+    rain_sum:
+      dims: []
+      attrs: {}
+      data: 3.8305182456970215
+    snow_depth_mean:
+      dims: []
+      attrs: {}
+      data: 0.15965019166469574
+    snowfall_sum:
+      dims: []
+      attrs: {}
+      data: 1.1593117713928223
+    soil_moisture_0_to_7cm_mean:
+      dims: []
+      attrs: {}
+      data: 0.0798807144165039
+    temperature_2m_max:
+      dims: []
+      attrs: {}
+      data: 9.857917785644531
+    temperature_2m_min:
+      dims: []
+      attrs: {}
+      data: 9.012699127197266
+    water_level_cm:
+      dims: []
+      attrs: {}
+      data: 103.75382995605469
+xarray_feature_center:
+  coords: {}
+  attrs: {}
+  dims: {}
+  data_vars:
+    et0_fao_evapotranspiration:
+      dims: []
+      attrs: {}
+      data: 2.5712618827819824
+    precipitation_sum:
+      dims: []
+      attrs: {}
+      data: 1.9308505058288574
+    rain_sum:
+      dims: []
+      attrs: {}
+      data: 1.5818606615066528
+    snow_depth_mean:
+      dims: []
+      attrs: {}
+      data: 0.06495947390794754
+    snowfall_sum:
+      dims: []
+      attrs: {}
+      data: 0.26595208048820496
+    soil_moisture_0_to_7cm_mean:
+      dims: []
+      attrs: {}
+      data: 0.3194688558578491
+    temperature_2m_max:
+      dims: []
+      attrs: {}
+      data: 15.43973159790039
+    temperature_2m_min:
+      dims: []
+      attrs: {}
+      data: 6.935696601867676
+    water_level_cm:
+      dims: []
+      attrs: {}
+      data: 225.056396484375

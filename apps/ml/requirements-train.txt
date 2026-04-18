@@ -1,0 +1,23 @@
+# Самур AI — Training dependencies
+# Install: pip install -r requirements-train.txt
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# NeuralHydrology framework (EA-LSTM, GenericDataset, fine-tuning)
+neuralhydrology>=1.10
+
+# PyTorch CPU-only (saves ~2GB vs full CUDA build)
+# On macOS/Linux: installed via --index-url below
+torch>=2.0
+torchvision>=0.15
+
+# NetCDF support (NeuralHydrology GenericDataset format)
+xarray>=2024.1
+netCDF4>=1.6
+h5py>=3.10
+
+# Already in requirements.txt but needed for training scripts
+pandas>=2.2
+numpy>=1.26
+scikit-learn>=1.4
+matplotlib>=3.8
+xgboost>=2.0

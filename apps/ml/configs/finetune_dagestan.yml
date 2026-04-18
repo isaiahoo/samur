@@ -1,0 +1,107 @@
+# Самур AI — Dagestan EA-LSTM Fine-Tuning
+# SPDX-License-Identifier: AGPL-3.0-only
+#
+# Fine-tune a pretrained EA-LSTM on 6 Dagestan river stations.
+# Uses NeuralHydrology GenericDataset with our weather + water level CSVs.
+#
+# Usage:
+#   python scripts/train_lstm.py finetune --base-run runs/pretrain_camels_ealstm_XXXXXXXX_XXXXXX
+#   python scripts/train_lstm.py finetune --no-pretrain  (train from scratch)
+
+experiment_name: finetune_dagestan_ealstm
+run_dir: runs
+
+# Override with --device flag: cuda:0, mps, cpu
+device: cuda:0
+
+# ── Fine-tuning from CAMELS pretrained ───────────────────────
+# base_run_dir is set dynamically by train_lstm.py
+finetune_modules:
+  - head
+  - dynamic_gates
+  - input_gate
+
+# ── Dataset ──────────────────────────────────────────────────
+dataset: generic
+data_dir: data/nh_dataset
+
+train_basin_file: data/nh_dataset/basins_train.txt
+validation_basin_file: data/nh_dataset/basins_val.txt
+test_basin_file: data/nh_dataset/basins_test.txt
+
+# Time splits (adjusted for data availability — most stations end 2019)
+train_start_date: "01/01/2009"
+train_end_date: "31/12/2015"
+validation_start_date: "01/01/2016"
+validation_end_date: "31/12/2017"
+test_start_date: "01/01/2018"
+test_end_date: "31/12/2019"
+
+# ── Model (must match pretrained architecture) ───────────────
+model: ealstm
+hidden_size: 128
+initial_forget_bias: 3
+seq_length: 365
+predict_last_n: 1
+output_dropout: 0.4
+
+# ── Dynamic inputs (weather features from our CSVs) ─────────
+dynamic_inputs:
+  - precipitation_sum
+  - temperature_2m_max
+  - temperature_2m_min
+  - snowfall_sum
+  - snow_depth_mean
+  - soil_moisture_0_to_7cm_mean
+  - et0_fao_evapotranspiration
+  - rain_sum
+
+# ── Static inputs (catchment attributes) ────────────────────
+static_attributes:
+  - area_km2
+  - elevation_m
+  - mean_discharge_m3s
+  - danger_level_cm
+  - lat
+  - lng
+
+# ── Target ───────────────────────────────────────────────────
+target_variables:
+  - water_level_cm
+# Note: water levels can be negative (below gauge zero datum), do NOT clip
+
+# ── Output head ──────────────────────────────────────────────
+head: regression
+
+# ── Training (conservative for fine-tuning) ──────────────────
+loss: NSE
+optimizer: Adam
+learning_rate:
+  0: 0.0001
+  10: 0.00005
+  15: 0.00001
+batch_size: 64
+epochs: 20
+clip_gradient_norm: 1.0
+
+# Regularization for small dataset
+target_noise_std: 0.01
+
+# Validation
+validate_every: 2
+save_weights_every: 5
+
+# Metrics
+metrics:
+  - NSE
+  - KGE
+  - RMSE
+
+# Logging
+log_interval: 10
+log_n_figures: 5
+log_tensorboard: True
+
+# Reproducibility
+seed: 42
+num_workers: 2

@@ -1,0 +1,68 @@
+batch_size: 64
+clip_gradient_norm: 1.0
+commit_hash:
+data_dir: /home/coder/project/samur/apps/ml/data/nh_dataset
+dataset: generic
+device: cuda:0
+dynamic_inputs:
+- precipitation_sum
+- temperature_2m_max
+- temperature_2m_min
+- snowfall_sum
+- snow_depth_mean
+- soil_moisture_0_to_7cm_mean
+- et0_fao_evapotranspiration
+- rain_sum
+epochs: 20
+experiment_name: finetune_dagestan_ealstm
+head: regression
+hidden_size: 128
+img_log_dir: runs/finetune_dagestan_ealstm_1404_070853/img_log
+initial_forget_bias: 3
+learning_rate:
+  0: 0.0001
+  10: 5e-05
+  15: 1e-05
+log_interval: 10
+log_n_figures: 5
+log_tensorboard: true
+loss: NSE
+metrics:
+- NSE
+- KGE
+- RMSE
+model: ealstm
+num_workers: 2
+number_of_basins: 6
+optimizer: Adam
+output_dropout: 0.4
+package_version: 1.13.0
+predict_last_n: 1
+run_dir: runs/finetune_dagestan_ealstm_1404_070853
+save_weights_every: 5
+seed: 42
+seq_length: 365
+static_attributes:
+- area_km2
+- elevation_m
+- mean_discharge_m3s
+- danger_level_cm
+- lat
+- lng
+target_noise_std: 0.01
+target_variables:
+- water_level_cm
+test_basin_file: 
+  /home/coder/project/samur/apps/ml/data/nh_dataset/basins_test.txt
+test_end_date: 31/12/2019
+test_start_date: 01/01/2018
+train_basin_file: 
+  /home/coder/project/samur/apps/ml/data/nh_dataset/basins_train.txt
+train_dir: runs/finetune_dagestan_ealstm_1404_070853/train_data
+train_end_date: 31/12/2015
+train_start_date: 01/01/2009
+validate_every: 2
+validation_basin_file: 
+  /home/coder/project/samur/apps/ml/data/nh_dataset/basins_val.txt
+validation_end_date: 31/12/2017
+validation_start_date: 01/01/2016
