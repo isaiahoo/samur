@@ -6840,11 +6840,12 @@ a.tg-auth-fallback {
     backdrop-filter: none;
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
     transition: height 0.28s cubic-bezier(0.32, 0.72, 0, 1);
-    /* Block all browser-default gestures at the sheet level; each
-       interactive region opts in to the ones it needs. Prevents a
-       vertical swipe on the header or tab strip from bubbling out to
-       scroll the body / pan the map. */
-    touch-action: none;
+    /* Allow vertical pan at the sheet root — touch-action is the
+       *intersection* of ancestor + target, so setting this to `none`
+       would block pan-y on .ep-body and kill content scrolling at full
+       mode. Instead, each non-scrollable child (.ep-drag-handle,
+       .ep-header) sets its own `touch-action: none` to stop leaks. */
+    touch-action: pan-y;
     overscroll-behavior: none;
   }
   .ep--dragging { transition: none; }
