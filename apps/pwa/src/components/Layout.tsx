@@ -333,7 +333,7 @@ export function Layout() {
                   className="profile-menu-item"
                   onClick={() => {
                     setProfileOpen(false);
-                    if (user?.id) navigate(`/profile/${user.id}`);
+                    navigate("/info");
                   }}
                 >
                   <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
@@ -423,8 +423,8 @@ export function Layout() {
           <span>Новости</span>
         </NavLink>
         <NavLink to="/info" className={({ isActive }) => `tab ${isActive ? "tab--active" : ""}`}>
-          <TabIcon type="info" />
-          <span>Инфо</span>
+          <TabIcon type="profile" />
+          <span>Профиль</span>
         </NavLink>
       </nav>
 
@@ -443,13 +443,13 @@ export function Layout() {
   );
 }
 
-function TabIcon({ type }: { type: "map" | "help" | "alerts" | "news" | "info" }) {
+function TabIcon({ type }: { type: "map" | "help" | "alerts" | "news" | "profile" }) {
   const paths: Record<string, string> = {
     map: "M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7",
     help: "M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z",
     alerts: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
     news: "M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 12h6",
-    info: "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+    profile: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
   };
   return (
     <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
