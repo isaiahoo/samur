@@ -5592,6 +5592,105 @@ a.tg-auth-fallback {
   .consent-gate-body { color: #d4d4d8; }
 }
 
+/* ── Compact install banner (always-on strip above the header) ────
+   Persistent nudge that sits above .app-header so the install path
+   is discoverable without waiting for the auto-shown sheet. Whole
+   body is tappable; a separate × dismisses with its own 3-day
+   cooldown (shorter than the sheet's 14-day — the banner is meant
+   to come back). */
+.install-bar {
+  display: flex;
+  align-items: stretch;
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.14));
+  border-bottom: 1px solid rgba(37, 99, 235, 0.25);
+  padding: 0 4px 0 0;
+}
+.install-bar-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+.install-bar-body:active { background: rgba(37, 99, 235, 0.1); }
+.install-bar-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.install-bar-icon img { width: 100%; height: 100%; display: block; }
+.install-bar-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.2;
+}
+.install-bar-text strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #18181b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.install-bar-text span {
+  font-size: 11px;
+  color: #3f3f46;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.install-bar-cta {
+  flex-shrink: 0;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--color-primary, #2563eb);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.install-bar-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: auto;
+  border: none;
+  background: transparent;
+  color: #52525b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 2px;
+}
+.install-bar-close:active { background: rgba(0, 0, 0, 0.05); }
+
+@media (prefers-color-scheme: dark) {
+  .install-bar {
+    background: linear-gradient(90deg, rgba(96, 165, 250, 0.1), rgba(96, 165, 250, 0.18));
+    border-bottom-color: rgba(96, 165, 250, 0.3);
+  }
+  .install-bar-text strong { color: #f4f4f5; }
+  .install-bar-text span { color: #a1a1aa; }
+  .install-bar-icon { background: #1f1f23; }
+  .install-bar-close { color: #a1a1aa; }
+  .install-bar-close:active { background: rgba(255, 255, 255, 0.06); }
+}
+
 /* ── "Install on home screen" bottom sheet ─────────────────────────
    Slides up from the bottom with a semi-transparent scrim. Below the
    ConfirmDialog (10100) so a confirm triggered from inside the sheet

@@ -114,6 +114,7 @@ export interface UserActivity extends UserStats {
   requestsCreated: number;
   helpsByCategory: Record<string, number>;
   avgResponseToOnWayMinutes: number | null;
+  installedPwa: boolean;
   achievements: string[]; // earned achievement keys
 }
 
@@ -168,12 +169,19 @@ export async function computeUserActivity(userId: string): Promise<UserActivity 
     where: { userId, deletedAt: null },
   });
 
+  const installedPwaFlag = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { installedPwaAt: true },
+  });
+  const installedPwa = installedPwaFlag?.installedPwaAt != null;
+
   const achievements = computeEarnedAchievements({
     helpsCompleted: base.helpsCompleted,
     requestsCreated,
     joinedAt: base.joinedAt,
     helpsByCategory,
     avgResponseToOnWayMinutes,
+    installedPwa,
   });
 
   return {
@@ -181,6 +189,7 @@ export async function computeUserActivity(userId: string): Promise<UserActivity 
     requestsCreated,
     helpsByCategory,
     avgResponseToOnWayMinutes,
+    installedPwa,
     achievements,
   };
 }

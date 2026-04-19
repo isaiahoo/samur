@@ -21,6 +21,7 @@ interface ProfileData {
   joinedAt: string;
   helpsByCategory: Record<string, number>;
   avgResponseToOnWayMinutes: number | null;
+  installedPwa?: boolean;
   achievements: string[];
 }
 
@@ -89,6 +90,7 @@ export function ProfilePage() {
       joinedAt: data.joinedAt,
       helpsByCategory: data.helpsByCategory,
       avgResponseToOnWayMinutes: data.avgResponseToOnWayMinutes,
+      installedPwa: data.installedPwa ?? false,
     };
   }, [data]);
 

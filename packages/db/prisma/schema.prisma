@@ -146,6 +146,13 @@ model User {
   /// force-logout, role-change invalidation) without having to live
   /// with long-lived uncancellable sessions. See lib/tokenVersion.ts.
   tokenVersion Int   @default(0) @map("token_version")
+  /// Set the first time the client reports that the PWA is running
+  /// standalone on this account — either because they just finished
+  /// the install flow (`appinstalled` event) or because they opened
+  /// the app from the home-screen shortcut. Unlocks the "В сообществе"
+  /// achievement; never unset even if they uninstall later, so the
+  /// recognition survives reinstalls.
+  installedPwaAt DateTime? @map("installed_pwa_at")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

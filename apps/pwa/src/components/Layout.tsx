@@ -15,7 +15,7 @@ import type { Alert as AlertType } from "@samur/shared";
 import { Toast } from "./Toast.js";
 import { SOSButton } from "./SOSButton.js";
 import { ConsentGate } from "./ConsentGate.js";
-import { InstallPromptSheet } from "./InstallPromptSheet.js";
+import { InstallPrompt } from "./InstallPrompt.js";
 import { MapPage } from "../pages/MapPage.js";
 import { HelpPage } from "../pages/HelpPage.js";
 import { AlertsPage } from "../pages/AlertsPage.js";
@@ -218,6 +218,7 @@ export function Layout() {
   return (
     <div className={`app-layout${crisisMode ? " crisis-mode" : ""}`}>
       <a href="#app-main" className="skip-link">Перейти к содержимому</a>
+      <InstallPrompt />
       <header className="app-header">
         <h1 className="app-title">
           <img src="/icons/icon-192.png?v=4" alt="" className="app-logo" width="48" height="48" />
@@ -438,8 +439,6 @@ export function Layout() {
       <Toast />
 
       <ConsentGate />
-
-      <InstallPromptSheet />
     </div>
   );
 }

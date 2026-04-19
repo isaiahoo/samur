@@ -19,7 +19,8 @@ export type AchievementUnlock =
   | { kind: "tenure_days"; threshold: number }
   | { kind: "category_helps"; category: string; threshold: number }
   | { kind: "fast_response"; thresholdMinutes: number; minHelps: number }
-  | { kind: "early_adopter"; cutoffDate: string }; // ISO yyyy-mm-dd
+  | { kind: "early_adopter"; cutoffDate: string } // ISO yyyy-mm-dd
+  | { kind: "installed_pwa" };
 
 export interface Achievement {
   key: string;
@@ -127,6 +128,16 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     unlock: { kind: "category_helps", category: "shelter", threshold: 3 },
   },
 
+  // ── Install / engagement ────────────────────────────────────────────
+  {
+    key: "installed_pwa",
+    name: "В сообществе",
+    description: "Установили Кунак на главный экран — всегда под рукой в кризис.",
+    icon: "📱",
+    tier: "bronze",
+    unlock: { kind: "installed_pwa" },
+  },
+
   // ── Tenure ──────────────────────────────────────────────────────────
   {
     key: "early_adopter",
@@ -154,6 +165,7 @@ export interface UserActivitySnapshot {
   joinedAt: string; // ISO
   helpsByCategory: Record<string, number>;
   avgResponseToOnWayMinutes: number | null;
+  installedPwa: boolean;
 }
 
 /**
@@ -197,6 +209,9 @@ export function computeEarnedAchievements(a: UserActivitySnapshot): string[] {
       case "early_adopter":
         unlocked = new Date(a.joinedAt) < new Date(ach.unlock.cutoffDate);
         break;
+      case "installed_pwa":
+        unlocked = a.installedPwa === true;
+        break;
     }
     if (unlocked) earned.push(ach.key);
   }
@@ -231,6 +246,7 @@ export function computeAchievementProgress(
     // Non-numeric unlocks don't show a progress bar.
     case "fast_response":
     case "early_adopter":
+    case "installed_pwa":
       return null;
   }
 }

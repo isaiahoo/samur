@@ -134,6 +134,15 @@ export function getMyConsent() {
   }>>("/consent/me");
 }
 
+/** Mark the caller's account as PWA-installed. Idempotent server-side
+ * so we can call it freely on every app boot when standalone-mode is
+ * detected. Unlocks the "В сообществе" achievement. */
+export function recordPwaInstalled() {
+  return request<ApiResponse<{ alreadyInstalled: boolean }>>("/users/me/pwa-installed", {
+    method: "POST",
+  });
+}
+
 export function recordConsent(type: "processing" | "distribution", accepted: boolean) {
   return request<ApiResponse<{ recorded: true }>>("/consent", {
     method: "POST",

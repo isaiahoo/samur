@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useCallback, useEffect, useState } from "react";
+import { recordPwaInstalled } from "../services/api.js";
+import { useAuthStore } from "../store/auth.js";
+import { useUIStore } from "../store/ui.js";
 
 /**
  * "Add to Home Screen" nudge — platform detection + throttled display.
@@ -35,11 +38,13 @@ export type InstallPlatform =
   | "unsupported";     // edge cases — suppress
 
 const DISMISSED_KEY = "kunak_install_dismissed_at";
+const BANNER_DISMISSED_KEY = "kunak_install_banner_dismissed_at";
 const DISMISS_COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000;
-/** Delay after mount before the prompt becomes eligible. Lets the user
- * see that the app actually works first — interrupting on first paint
- * with an install ask is hostile. */
-const DISPLAY_DELAY_MS = 20 * 1000;
+const BANNER_DISMISS_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
+/** Delay after mount before the auto-show sheet becomes eligible. The
+ * top banner is eligible immediately (it's small + unobtrusive);
+ * this timer only applies to the full-screen nudge. */
+const SHEET_DELAY_MS = 6 * 1000;
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -89,13 +94,13 @@ function detectPlatform(): InstallPlatform {
   return "android-manual";
 }
 
-function dismissedRecently(): boolean {
+function dismissedRecently(key: string, cooldown: number): boolean {
   try {
-    const raw = localStorage.getItem(DISMISSED_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return false;
     const ts = Number(raw);
     if (!Number.isFinite(ts)) return false;
-    return Date.now() - ts < DISMISS_COOLDOWN_MS;
+    return Date.now() - ts < cooldown;
   } catch {
     return false;
   }
@@ -104,20 +109,42 @@ function dismissedRecently(): boolean {
 export interface UseInstallPromptResult {
   /** Current platform bucket — drives which body the sheet renders. */
   platform: InstallPlatform;
-  /** True when the sheet should be visible (platform + delay +
-   * dismissal window all passed). */
-  visible: boolean;
+  /** True when the full-screen sheet should be visible (either
+   * auto-triggered by the eligibility timer OR manually requested
+   * via `openSheet`). */
+  sheetVisible: boolean;
+  /** True when the compact top banner should render. Eligible as
+   * soon as we know the platform is installable — no delay, since
+   * the banner is designed to live there persistently. */
+  bannerVisible: boolean;
   /** For android-native only — fire the captured beforeinstallprompt. */
   triggerNative: () => Promise<void>;
-  /** Record dismissal and hide (14-day cooldown). */
-  dismiss: () => void;
+  /** Open the sheet right now — skips the auto-show delay. Used by
+   * the top banner's tap handler. */
+  openSheet: () => void;
+  /** Close the sheet without recording dismissal (manual dismiss
+   * flows that shouldn't affect the banner visibility). */
+  closeSheet: () => void;
+  /** Record sheet dismissal (14-day cooldown). */
+  dismissSheet: () => void;
+  /** Record banner dismissal (3-day cooldown). The user can still
+   * open the sheet via any other install CTA. */
+  dismissBanner: () => void;
 }
 
 export function useInstallPrompt(): UseInstallPromptResult {
   const [platform, setPlatform] = useState<InstallPlatform>(() => detectPlatform());
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [eligibleByDelay, setEligibleByDelay] = useState(false);
-  const [hiddenForSession, setHiddenForSession] = useState<boolean>(() => dismissedRecently());
+  const [sheetEligibleByDelay, setSheetEligibleByDelay] = useState(false);
+  const [sheetManualOpen, setSheetManualOpen] = useState(false);
+  const [sheetHidden, setSheetHidden] = useState<boolean>(() =>
+    dismissedRecently(DISMISSED_KEY, DISMISS_COOLDOWN_MS),
+  );
+  const [bannerHidden, setBannerHidden] = useState<boolean>(() =>
+    dismissedRecently(BANNER_DISMISSED_KEY, BANNER_DISMISS_COOLDOWN_MS),
+  );
+  const isLoggedIn = useAuthStore((s) => s.isLoggedIn());
+  const showToast = useUIStore((s) => s.showToast);
 
   // Capture the Android native install prompt. Cache it — the event
   // can only be prompt()-ed once, so we hold the reference until the
@@ -134,17 +161,59 @@ export function useInstallPrompt(): UseInstallPromptResult {
     return () => window.removeEventListener("beforeinstallprompt", onBeforeInstall);
   }, []);
 
+  // Fire-and-forget server notification that the current user has a
+  // PWA install. Idempotent on the backend, but we also guard
+  // client-side so a flurry of visibility events doesn't issue a
+  // pile of requests. A celebratory toast surfaces the achievement
+  // the first time it's earned (server returns alreadyInstalled=false).
+  const reportInstallToServer = useCallback(() => {
+    if (!isLoggedIn) return;
+    try {
+      const KEY = "kunak_install_reported";
+      if (sessionStorage.getItem(KEY) === "1") return;
+      sessionStorage.setItem(KEY, "1");
+      recordPwaInstalled()
+        .then((res) => {
+          const data = res.data as { alreadyInstalled: boolean } | undefined;
+          if (data && !data.alreadyInstalled) {
+            showToast("🎉 Получено достижение «В сообществе»", "success");
+          }
+        })
+        .catch(() => { /* best-effort */ });
+    } catch { /* sessionStorage can throw in private mode */ }
+  }, [isLoggedIn, showToast]);
+
   // If the user installs (either via our button or the browser's own
-  // address-bar shortcut), kill the prompt for the rest of the session.
+  // address-bar shortcut), kill every install surface. appinstalled is
+  // a terminal event — nothing to nudge toward anymore.
   useEffect(() => {
     const onInstalled = () => {
-      setHiddenForSession(true);
-      try { localStorage.setItem(DISMISSED_KEY, String(Date.now())); } catch { /* ignore */ }
+      setSheetHidden(true);
+      setBannerHidden(true);
+      setSheetManualOpen(false);
+      try {
+        localStorage.setItem(DISMISSED_KEY, String(Date.now()));
+        localStorage.setItem(BANNER_DISMISSED_KEY, String(Date.now()));
+      } catch { /* ignore */ }
       setPlatform("standalone");
+      reportInstallToServer();
     };
     window.addEventListener("appinstalled", onInstalled);
     return () => window.removeEventListener("appinstalled", onInstalled);
-  }, []);
+  }, [reportInstallToServer]);
+
+  // On every mount-or-login, if we're already running standalone,
+  // report it. This covers (a) users who installed on another device
+  // and just logged in, (b) iOS Safari users who complete the manual
+  // Add-to-Home-Screen flow (which does not fire appinstalled), and
+  // (c) Android users who installed from the browser's address-bar
+  // icon instead of our button.
+  useEffect(() => {
+    if (isStandalone()) {
+      setPlatform("standalone");
+      reportInstallToServer();
+    }
+  }, [reportInstallToServer]);
 
   // Re-evaluate standalone on visibility change — some iOS flows swap
   // the navigator.standalone bit after returning from the Home screen
@@ -153,18 +222,43 @@ export function useInstallPrompt(): UseInstallPromptResult {
     const recheck = () => {
       if (isStandalone()) {
         setPlatform("standalone");
-        setHiddenForSession(true);
+        setSheetHidden(true);
+        setBannerHidden(true);
+        reportInstallToServer();
       }
     };
     document.addEventListener("visibilitychange", recheck);
     return () => document.removeEventListener("visibilitychange", recheck);
+  }, [reportInstallToServer]);
+
+  // Delay the auto-show sheet — lets the user experience the app
+  // before a full-screen interrupt. Manual opens (via top-banner tap)
+  // bypass this entirely through sheetManualOpen.
+  useEffect(() => {
+    const timer = setTimeout(() => setSheetEligibleByDelay(true), SHEET_DELAY_MS);
+    return () => clearTimeout(timer);
   }, []);
 
-  // Delay the first display — let the user experience the app before
-  // interrupting with an install ask.
-  useEffect(() => {
-    const timer = setTimeout(() => setEligibleByDelay(true), DISPLAY_DELAY_MS);
-    return () => clearTimeout(timer);
+  const dismissSheet = useCallback(() => {
+    setSheetHidden(true);
+    setSheetManualOpen(false);
+    try { localStorage.setItem(DISMISSED_KEY, String(Date.now())); } catch { /* ignore */ }
+  }, []);
+
+  const dismissBanner = useCallback(() => {
+    setBannerHidden(true);
+    try { localStorage.setItem(BANNER_DISMISSED_KEY, String(Date.now())); } catch { /* ignore */ }
+  }, []);
+
+  const openSheet = useCallback(() => {
+    setSheetManualOpen(true);
+    // If the sheet was previously auto-dismissed, a user-initiated
+    // open via the banner should re-surface it regardless.
+    setSheetHidden(false);
+  }, []);
+
+  const closeSheet = useCallback(() => {
+    setSheetManualOpen(false);
   }, []);
 
   const triggerNative = useCallback(async () => {
@@ -175,34 +269,40 @@ export function useInstallPrompt(): UseInstallPromptResult {
       if (choice.outcome === "accepted") {
         // appinstalled listener above will mark standalone; belt-and-
         // suspenders: also hide locally.
-        setHiddenForSession(true);
+        setSheetHidden(true);
+        setBannerHidden(true);
       } else {
-        dismiss();
+        dismissSheet();
       }
     } catch {
-      // Some browsers throw if prompt() is called twice or the event
-      // has gone stale. Dismiss locally so we don't loop.
-      dismiss();
+      dismissSheet();
     }
     setDeferredPrompt(null);
-    // Event is single-use — leave the platform flipped to "manual"
-    // so dismiss/retry still has a sensible body to render if the
-    // user got a browser error sheet instead of finishing install.
     setPlatform((prev) => (prev === "android-native" ? "android-manual" : prev));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deferredPrompt]);
 
-  const dismiss = useCallback(() => {
-    setHiddenForSession(true);
-    try { localStorage.setItem(DISMISSED_KEY, String(Date.now())); } catch { /* ignore */ }
-  }, []);
+  const eligibleAtAll =
+    platform !== "standalone" && platform !== "desktop" && platform !== "unsupported";
 
-  const shouldShow =
-    eligibleByDelay &&
-    !hiddenForSession &&
-    platform !== "standalone" &&
-    platform !== "desktop" &&
-    platform !== "unsupported";
+  // Sheet appears when either (a) the auto-show delay elapsed and it
+  // isn't on cooldown, or (b) the user tapped the banner.
+  const sheetVisible =
+    eligibleAtAll && (sheetManualOpen || (sheetEligibleByDelay && !sheetHidden));
 
-  return { platform, visible: shouldShow, triggerNative, dismiss };
+  // Banner appears as soon as the platform is known to be installable;
+  // no delay, but respects its own 3-day cooldown and is also hidden
+  // while the sheet is open so they don't stack visually.
+  const bannerVisible = eligibleAtAll && !bannerHidden && !sheetVisible;
+
+  return {
+    platform,
+    sheetVisible,
+    bannerVisible,
+    triggerNative,
+    openSheet,
+    closeSheet,
+    dismissSheet,
+    dismissBanner,
+  };
 }
