@@ -9,6 +9,7 @@ import {
   ProfileIdentity,
   ProfileStats,
   ProfileAchievements,
+  ProfileThanks,
   type ProfileData,
 } from "../components/ProfileBlocks.js";
 
@@ -58,6 +59,9 @@ export function ProfilePage() {
       helpsByCategory: data.helpsByCategory,
       avgResponseToOnWayMinutes: data.avgResponseToOnWayMinutes,
       installedPwa: data.installedPwa ?? false,
+      confirmedHelps: data.confirmedHelps ?? 0,
+      confirmedHelpsByCategory: data.confirmedHelpsByCategory ?? {},
+      distinctConfirmers: data.distinctConfirmers ?? 0,
     };
   }, [data]);
 
@@ -84,6 +88,7 @@ export function ProfilePage() {
         <>
           <ProfileIdentity data={data} />
           <ProfileStats data={data} />
+          <ProfileThanks quotes={data.thankYouQuotes} />
           <ProfileAchievements earned={new Set(data.achievements)} snapshot={snapshot!} />
         </>
       ) : null}

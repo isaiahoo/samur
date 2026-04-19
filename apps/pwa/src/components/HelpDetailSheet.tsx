@@ -13,6 +13,7 @@ import { formatRelativeTime } from "@samur/shared";
 import { UrgencyBadge } from "./UrgencyBadge.js";
 import { ImageLightbox } from "./ImageLightbox.js";
 import { HelpChat } from "./HelpChat.js";
+import { HelpConfirmationCard } from "./HelpConfirmationCard.js";
 import { HelpProgressRail } from "./HelpProgressRail.js";
 import { RoutePickerSheet } from "./RoutePickerSheet.js";
 import { confirmAction, useUIStore } from "../store/ui.js";
@@ -99,6 +100,30 @@ function statsLine(stats?: { helpsCompleted: number; requestsResolved: number; j
   }
   bits.push(formatJoined(stats.joinedAt));
   return bits.filter(Boolean).join(" · ");
+}
+
+/** Shown on the responder's own rail once they've marked помог — lets
+ * them know the author's "спасибо" is pending. No pressure, no timer. */
+function ResponderWaitingForThanks({ response }: { response: HelpResponse }) {
+  if (response.confirmedAt) {
+    return (
+      <div className="kunak-waiting kunak-waiting--thanked">
+        🤝 Вам сказали спасибо
+      </div>
+    );
+  }
+  if (response.rejectedAt) {
+    return (
+      <div className="kunak-waiting kunak-waiting--rejected">
+        Автор отметил, что что-то не получилось. Если это ошибка — напишите координатору.
+      </div>
+    );
+  }
+  return (
+    <div className="kunak-waiting">
+      Ждём спасибо от автора · помощь засчитана вам как заявленная
+    </div>
+  );
 }
 
 // Colored circle with 1-2 letter initials — used next to responder names.
@@ -361,6 +386,9 @@ export function HelpDetailSheet({
           {myActive && myResponse && (
             <HelpProgressRail status={myResponse.status} perspective="self" />
           )}
+          {myActive && myResponse && myResponse.status === "helped" && (
+            <ResponderWaitingForThanks response={myResponse} />
+          )}
           {/* Author view with a primary responder → show their progress. */}
           {isAuthorMe && othersActive[0] && (
             <HelpProgressRail status={othersActive[0].status} perspective="author" />
@@ -492,6 +520,13 @@ export function HelpDetailSheet({
                       >
                         Удалить из обсуждения
                       </button>
+                    )}
+                    {isAuthorMe && r.status === "helped" && (
+                      <HelpConfirmationCard
+                        requestId={item.id}
+                        response={r}
+                        onChange={async () => { /* socket refresh flows into item prop */ }}
+                      />
                     )}
                   </li>
                 ))}

@@ -9,6 +9,7 @@ import {
   ProfileIdentity,
   ProfileStats,
   ProfileAchievements,
+  ProfileThanks,
   type ProfileData,
 } from "../components/ProfileBlocks.js";
 
@@ -60,6 +61,9 @@ function ProfileSection() {
       helpsByCategory: data.helpsByCategory,
       avgResponseToOnWayMinutes: data.avgResponseToOnWayMinutes,
       installedPwa: data.installedPwa ?? false,
+      confirmedHelps: data.confirmedHelps ?? 0,
+      confirmedHelpsByCategory: data.confirmedHelpsByCategory ?? {},
+      distinctConfirmers: data.distinctConfirmers ?? 0,
     };
   }, [data]);
 
@@ -92,6 +96,7 @@ function ProfileSection() {
     <section className="info-profile">
       <ProfileIdentity data={data} />
       <ProfileStats data={data} />
+      <ProfileThanks quotes={data.thankYouQuotes} />
       {snapshot && (
         <ProfileAchievements
           earned={new Set(data.achievements)}

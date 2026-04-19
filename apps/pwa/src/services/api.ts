@@ -388,6 +388,36 @@ export function cancelMyHelpResponse(id: string) {
   });
 }
 
+// Кунак-рукопожатие — requester's confirmation endpoints.
+export function confirmHelpResponse(
+  requestId: string,
+  responseId: string,
+  opts?: { thankYouNote?: string; anonymous?: boolean },
+) {
+  return request<ApiResponse>(
+    `/help-requests/${requestId}/responses/${responseId}/confirm`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...(opts?.thankYouNote ? { thankYouNote: opts.thankYouNote } : {}),
+        ...(opts?.anonymous ? { anonymous: true } : {}),
+      }),
+    },
+  );
+}
+export function rejectHelpResponse(requestId: string, responseId: string) {
+  return request<ApiResponse>(
+    `/help-requests/${requestId}/responses/${responseId}/reject`,
+    { method: "POST", body: "{}" },
+  );
+}
+export function undoRejectHelpResponse(requestId: string, responseId: string) {
+  return request<ApiResponse>(
+    `/help-requests/${requestId}/responses/${responseId}/undo-reject`,
+    { method: "POST" },
+  );
+}
+
 // ── Help-request chat (Phase 2) ──────────────────────────────────────────
 export function getHelpMessages(id: string, opts?: { before?: string; limit?: number }) {
   const qs = new URLSearchParams();

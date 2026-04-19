@@ -327,6 +327,54 @@ select {
   letter-spacing: 0.3px;
   text-align: center;
 }
+.profile-stat-sublabel {
+  font-size: 10px;
+  color: #a1a1aa;
+  margin-top: 2px;
+  text-align: center;
+}
+
+.profile-thanks {
+  padding: 16px;
+  background: var(--color-surface);
+  margin-bottom: 8px;
+}
+.profile-thanks-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.profile-thanks-item {
+  padding: 12px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 1px solid #a7f3d0;
+}
+.profile-thanks-quote {
+  font-size: 14px;
+  color: #064e3b;
+  line-height: 1.5;
+  font-style: italic;
+  margin-bottom: 6px;
+}
+.profile-thanks-meta {
+  font-size: 11px;
+  color: #047857;
+  font-weight: 600;
+}
+@media (prefers-color-scheme: dark) {
+  .profile-stat-sublabel { color: #71717a; }
+  .profile-thanks { background: var(--color-surface); }
+  .profile-thanks-item {
+    background: linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(5,150,105,0.14) 100%);
+    border-color: rgba(16,185,129,0.3);
+  }
+  .profile-thanks-quote { color: #a7f3d0; }
+  .profile-thanks-meta { color: #6ee7b7; }
+}
 
 .profile-achievements {
   padding: 16px;
@@ -4197,6 +4245,182 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 @media (prefers-color-scheme: dark) {
   .detail-responder-remove { color: #fca5a5; }
   .detail-responder-remove:hover { color: #fecaca; }
+}
+
+/* Кунак-рукопожатие — confirmation card in the author's responder list,
+   and the waiting-for-thanks bubble on the responder's own rail. */
+.kunak-confirm {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+  border: 1px solid #6ee7b7;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kunak-confirm--done {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+}
+.kunak-confirm--rejected {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #71717a;
+  font-size: 13px;
+  padding: 8px 12px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.kunak-confirm-undo {
+  background: none;
+  border: none;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.kunak-confirm-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #065f46;
+}
+.kunak-confirm-subtitle {
+  font-size: 12px;
+  color: #047857;
+  line-height: 1.4;
+}
+.kunak-confirm-note {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+  min-height: 60px;
+}
+.kunak-confirm-note:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.15);
+}
+.kunak-confirm-anon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #065f46;
+  cursor: pointer;
+}
+.kunak-confirm-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.kunak-confirm-secondary {
+  background: none;
+  border: none;
+  color: #71717a;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 6px 0;
+  text-decoration: underline;
+}
+.kunak-confirm-later {
+  background: none;
+  border: none;
+  color: #a1a1aa;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 6px 0;
+  margin-left: auto;
+}
+.kunak-confirm-cancel {
+  background: none;
+  border: none;
+  color: #71717a;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.kunak-waiting {
+  margin: 8px 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.kunak-waiting--thanked {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+  font-weight: 600;
+}
+.kunak-waiting--rejected {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .kunak-confirm {
+    background: linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(5,150,105,0.18) 100%);
+    border-color: rgba(16,185,129,0.4);
+  }
+  .kunak-confirm--done {
+    background: rgba(16,185,129,0.14);
+    border-color: rgba(16,185,129,0.35);
+    color: #6ee7b7;
+  }
+  .kunak-confirm--rejected {
+    background: #27272a;
+    border-color: #3f3f46;
+    color: #a1a1aa;
+  }
+  .kunak-confirm-title { color: #6ee7b7; }
+  .kunak-confirm-subtitle { color: #a7f3d0; }
+  .kunak-confirm-note {
+    background: #18181b;
+    border-color: #3f3f46;
+    color: #e4e4e7;
+  }
+  .kunak-confirm-note:focus { border-color: #10b981; }
+  .kunak-confirm-anon { color: #a7f3d0; }
+  .kunak-confirm-secondary { color: #a1a1aa; }
+  .kunak-confirm-later { color: #71717a; }
+  .kunak-confirm-undo { color: #60a5fa; }
+
+  .kunak-waiting {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.35);
+    color: #fcd34d;
+  }
+  .kunak-waiting--thanked {
+    background: rgba(16,185,129,0.14);
+    border-color: rgba(16,185,129,0.35);
+    color: #6ee7b7;
+  }
+  .kunak-waiting--rejected {
+    background: #27272a;
+    border-color: #3f3f46;
+    color: #a1a1aa;
+  }
 }
 
 /* Report-message bottom sheet */

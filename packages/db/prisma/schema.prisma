@@ -276,12 +276,27 @@ model HelpResponse {
   createdAt     DateTime           @default(now()) @map("created_at")
   updatedAt     DateTime           @updatedAt @map("updated_at")
 
+  /// Кунак-рукопожатие — mutual confirmation. When the helper marks
+  /// status=helped, the requester gets to either say спасибо (sets
+  /// confirmedAt + optional thankYouNote) or mark it as didn't happen
+  /// (sets rejectedAt). Achievements silver+ gate on confirmedAt; bronze
+  /// stays on self-reported helped. After 7 days of neither, the help
+  /// auto-softens to "не подтверждено" (computed at read-time, no row
+  /// mutation). Public thank-you quotes surface on the helper's profile.
+  confirmedAt       DateTime? @map("confirmed_at")
+  confirmedBy       String?   @map("confirmed_by")
+  thankYouNote      String?   @map("thank_you_note") @db.VarChar(280)
+  thankYouAnonymous Boolean   @default(false) @map("thank_you_anonymous")
+  rejectedAt        DateTime? @map("rejected_at")
+  rejectedBy        String?   @map("rejected_by")
+
   helpRequest HelpRequest @relation(fields: [helpRequestId], references: [id], onDelete: Cascade)
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([helpRequestId, userId])
   @@index([helpRequestId, status])
   @@index([userId])
+  @@index([userId, confirmedAt])
   @@map("help_responses")
 }
 

@@ -96,6 +96,13 @@ export const CreateHelpResponseSchema = z.object({
   note: z.string().max(500).optional(),
 });
 
+export const ConfirmHelpResponseSchema = z.object({
+  thankYouNote: z.string().trim().max(280).optional(),
+  anonymous: z.boolean().optional(),
+});
+
+export const RejectHelpResponseSchema = z.object({}).strict();
+
 export const CreateHelpMessageSchema = z.object({
   body: z.string().trim().max(2000).default(""),
   photoUrls: z.array(photoUrl)

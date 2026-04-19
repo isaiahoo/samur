@@ -14,11 +14,11 @@
 export type AchievementTier = "bronze" | "silver" | "gold";
 
 export type AchievementUnlock =
-  | { kind: "helps"; threshold: number }
+  | { kind: "helps"; threshold: number; minConfirmed?: number; minDistinctConfirmers?: number }
   | { kind: "requests"; threshold: number }
   | { kind: "tenure_days"; threshold: number }
-  | { kind: "category_helps"; category: string; threshold: number }
-  | { kind: "fast_response"; thresholdMinutes: number; minHelps: number }
+  | { kind: "category_helps"; category: string; threshold: number; confirmedOnly?: boolean }
+  | { kind: "fast_response"; thresholdMinutes: number; minHelps: number; minConfirmed?: number }
   | { kind: "early_adopter"; cutoffDate: string } // ISO yyyy-mm-dd
   | { kind: "installed_pwa" };
 
@@ -52,18 +52,18 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     key: "ten_helps",
     name: "Опытный кунак",
-    description: "Десять завершённых помощей.",
+    description: "Десять помощей, минимум две подтверждены спасибо от соседей.",
     icon: "⭐",
     tier: "silver",
-    unlock: { kind: "helps", threshold: 10 },
+    unlock: { kind: "helps", threshold: 10, minConfirmed: 2 },
   },
   {
     key: "fifty_helps",
     name: "Столп сообщества",
-    description: "Пятьдесят завершённых помощей. Ваше имя стало символом.",
+    description: "Пятьдесят помощей, десять подтверждены разными людьми.",
     icon: "🌟",
     tier: "gold",
-    unlock: { kind: "helps", threshold: 50 },
+    unlock: { kind: "helps", threshold: 50, minConfirmed: 10, minDistinctConfirmers: 10 },
   },
 
   // ── Request-side ────────────────────────────────────────────────────
@@ -80,52 +80,52 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     key: "fast_responder",
     name: "Быстрый отклик",
-    description: "В среднем выезжаете в течение 30 минут после отклика.",
+    description: "В среднем выезжаете за 30 минут — хотя бы одно спасибо подтверждено.",
     icon: "⚡",
     tier: "silver",
-    unlock: { kind: "fast_response", thresholdMinutes: 30, minHelps: 5 },
+    unlock: { kind: "fast_response", thresholdMinutes: 30, minHelps: 5, minConfirmed: 1 },
   },
 
-  // ── Category specialisations ────────────────────────────────────────
+  // ── Category specialisations (require confirmed помощь) ─────────────
   {
     key: "rescue_specialist",
     name: "Спасатель",
-    description: "Три и более откликов по спасательным заявкам.",
+    description: "Три подтверждённые спасательные помощи.",
     icon: "🛟",
     tier: "silver",
-    unlock: { kind: "category_helps", category: "rescue", threshold: 3 },
+    unlock: { kind: "category_helps", category: "rescue", threshold: 3, confirmedOnly: true },
   },
   {
     key: "medical_helper",
     name: "Медицинская помощь",
-    description: "Три и более откликов по медицинским заявкам.",
+    description: "Три подтверждённые медицинские помощи.",
     icon: "💊",
     tier: "silver",
-    unlock: { kind: "category_helps", category: "medicine", threshold: 3 },
+    unlock: { kind: "category_helps", category: "medicine", threshold: 3, confirmedOnly: true },
   },
   {
     key: "food_water",
     name: "Накормил и напоил",
-    description: "Три и более откликов с едой или водой.",
+    description: "Три подтверждённые помощи с едой или водой.",
     icon: "🍞",
     tier: "silver",
-    unlock: { kind: "category_helps", category: "food_water", threshold: 3 },
+    unlock: { kind: "category_helps", category: "food_water", threshold: 3, confirmedOnly: true },
   },
   {
     key: "transporter",
     name: "Свой транспорт",
-    description: "Три и более транспортных откликов.",
+    description: "Три подтверждённые транспортные помощи.",
     icon: "🚗",
     tier: "silver",
-    unlock: { kind: "category_helps", category: "transport", threshold: 3 },
+    unlock: { kind: "category_helps", category: "transport", threshold: 3, confirmedOnly: true },
   },
   {
     key: "shelter_provider",
     name: "Приютил",
-    description: "Три и более откликов по предоставлению убежища.",
+    description: "Три подтверждённые помощи с убежищем.",
     icon: "🏠",
     tier: "silver",
-    unlock: { kind: "category_helps", category: "shelter", threshold: 3 },
+    unlock: { kind: "category_helps", category: "shelter", threshold: 3, confirmedOnly: true },
   },
 
   // ── Install / engagement ────────────────────────────────────────────
@@ -166,6 +166,10 @@ export interface UserActivitySnapshot {
   helpsByCategory: Record<string, number>;
   avgResponseToOnWayMinutes: number | null;
   installedPwa: boolean;
+  /** Кунак-рукопожатие counts — mutually confirmed help only. */
+  confirmedHelps: number;
+  confirmedHelpsByCategory: Record<string, number>;
+  distinctConfirmers: number;
 }
 
 /**
@@ -182,9 +186,14 @@ export function computeEarnedAchievements(a: UserActivitySnapshot): string[] {
   for (const ach of ACHIEVEMENTS) {
     let unlocked = false;
     switch (ach.unlock.kind) {
-      case "helps":
-        unlocked = a.helpsCompleted >= ach.unlock.threshold;
+      case "helps": {
+        const u = ach.unlock;
+        unlocked =
+          a.helpsCompleted >= u.threshold &&
+          (u.minConfirmed == null || a.confirmedHelps >= u.minConfirmed) &&
+          (u.minDistinctConfirmers == null || a.distinctConfirmers >= u.minDistinctConfirmers);
         break;
+      }
       case "requests":
         unlocked = a.requestsCreated >= ach.unlock.threshold;
         break;
@@ -192,20 +201,24 @@ export function computeEarnedAchievements(a: UserActivitySnapshot): string[] {
         unlocked = tenureDays >= ach.unlock.threshold;
         break;
       case "category_helps": {
+        const bucket = ach.unlock.confirmedOnly ? a.confirmedHelpsByCategory : a.helpsByCategory;
         // food_water is a synthetic category combining food + water counts.
         const count =
           ach.unlock.category === "food_water"
-            ? (a.helpsByCategory.food ?? 0) + (a.helpsByCategory.water ?? 0)
-            : a.helpsByCategory[ach.unlock.category] ?? 0;
+            ? (bucket.food ?? 0) + (bucket.water ?? 0)
+            : bucket[ach.unlock.category] ?? 0;
         unlocked = count >= ach.unlock.threshold;
         break;
       }
-      case "fast_response":
+      case "fast_response": {
+        const u = ach.unlock;
         unlocked =
-          a.helpsCompleted >= ach.unlock.minHelps &&
+          a.helpsCompleted >= u.minHelps &&
           a.avgResponseToOnWayMinutes !== null &&
-          a.avgResponseToOnWayMinutes <= ach.unlock.thresholdMinutes;
+          a.avgResponseToOnWayMinutes <= u.thresholdMinutes &&
+          (u.minConfirmed == null || a.confirmedHelps >= u.minConfirmed);
         break;
+      }
       case "early_adopter":
         unlocked = new Date(a.joinedAt) < new Date(ach.unlock.cutoffDate);
         break;
@@ -228,8 +241,22 @@ export function computeAchievementProgress(
   a: UserActivitySnapshot,
 ): { current: number; target: number } | null {
   switch (ach.unlock.kind) {
-    case "helps":
-      return { current: Math.min(a.helpsCompleted, ach.unlock.threshold), target: ach.unlock.threshold };
+    case "helps": {
+      // When the achievement also requires confirmed helps, show whichever
+      // gate the user is further from — otherwise the progress bar fills
+      // to 100% on self-reported helps while the silver/gold stays locked.
+      const u = ach.unlock;
+      const helpsFrac = a.helpsCompleted / u.threshold;
+      const confirmedFrac = u.minConfirmed != null ? a.confirmedHelps / u.minConfirmed : Infinity;
+      const distinctFrac = u.minDistinctConfirmers != null ? a.distinctConfirmers / u.minDistinctConfirmers : Infinity;
+      if (confirmedFrac < helpsFrac && u.minConfirmed != null) {
+        return { current: Math.min(a.confirmedHelps, u.minConfirmed), target: u.minConfirmed };
+      }
+      if (distinctFrac < helpsFrac && u.minDistinctConfirmers != null) {
+        return { current: Math.min(a.distinctConfirmers, u.minDistinctConfirmers), target: u.minDistinctConfirmers };
+      }
+      return { current: Math.min(a.helpsCompleted, u.threshold), target: u.threshold };
+    }
     case "requests":
       return { current: Math.min(a.requestsCreated, ach.unlock.threshold), target: ach.unlock.threshold };
     case "tenure_days": {
@@ -237,10 +264,11 @@ export function computeAchievementProgress(
       return { current: Math.min(days, ach.unlock.threshold), target: ach.unlock.threshold };
     }
     case "category_helps": {
+      const bucket = ach.unlock.confirmedOnly ? a.confirmedHelpsByCategory : a.helpsByCategory;
       const count =
         ach.unlock.category === "food_water"
-          ? (a.helpsByCategory.food ?? 0) + (a.helpsByCategory.water ?? 0)
-          : a.helpsByCategory[ach.unlock.category] ?? 0;
+          ? (bucket.food ?? 0) + (bucket.water ?? 0)
+          : bucket[ach.unlock.category] ?? 0;
       return { current: Math.min(count, ach.unlock.threshold), target: ach.unlock.threshold };
     }
     // Non-numeric unlocks don't show a progress bar.

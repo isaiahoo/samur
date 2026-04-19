@@ -13,6 +13,8 @@ import {
   CreateSOSSchema,
   CreateHelpResponseSchema,
   UpdateMyHelpResponseSchema,
+  ConfirmHelpResponseSchema,
+  RejectHelpResponseSchema,
   CreateHelpMessageSchema,
   CreateHelpMessageReportSchema,
   SOSFollowUpSchema,
@@ -922,6 +924,149 @@ router.delete("/:id/my-response", requireAuth, async (req, res, next) => {
     next(err);
   }
 });
+
+// ── Кунак-рукопожатие: mutual confirmation ──────────────────────────────
+// Helper marks status=helped (PATCH /:id/my-response). Requester then
+// either says спасибо or marks it as didn't happen. Silver/gold
+// achievements gate on confirmedAt.
+
+async function loadHelpedResponse(
+  requestId: string,
+  responseId: string,
+  callerId: string,
+): Promise<Prisma.HelpResponseGetPayload<{ include: { user: { select: { id: true; name: true; role: true } } } }>> {
+  const hr = await prisma.helpRequest.findFirst({
+    where: { id: requestId, deletedAt: null },
+    select: { id: true, userId: true },
+  });
+  if (!hr) throw new AppError(404, "NOT_FOUND", "Запрос помощи не найден");
+  if (hr.userId !== callerId) {
+    throw new AppError(403, "NOT_AUTHOR", "Только автор заявки может подтвердить помощь");
+  }
+  const resp = await prisma.helpResponse.findFirst({
+    where: { id: responseId, helpRequestId: requestId },
+    include: { user: { select: { id: true, name: true, role: true } } },
+  });
+  if (!resp) throw new AppError(404, "NOT_FOUND", "Отклик не найден");
+  if (resp.status !== "helped") {
+    throw new AppError(422, "NOT_HELPED", "Помощник ещё не отметил, что помог");
+  }
+  return resp;
+}
+
+// POST /:id/responses/:responseId/confirm — requester says спасибо.
+router.post(
+  "/:id/responses/:responseId/confirm",
+  requireAuth,
+  validateBody(ConfirmHelpResponseSchema),
+  async (req, res, next) => {
+    try {
+      const id = paramId(req);
+      const responseId = String(req.params.responseId);
+      const callerId = req.user!.sub;
+
+      const resp = await loadHelpedResponse(id, responseId, callerId);
+      if (resp.confirmedAt) {
+        throw new AppError(409, "ALREADY_CONFIRMED", "Вы уже поблагодарили этого помощника");
+      }
+      if (resp.rejectedAt) {
+        throw new AppError(409, "ALREADY_REJECTED", "Помощь была отмечена как не оказанная");
+      }
+
+      const { thankYouNote, anonymous } = req.body as {
+        thankYouNote?: string;
+        anonymous?: boolean;
+      };
+      const noteTrimmed = thankYouNote?.trim();
+
+      const updated = await prisma.helpResponse.update({
+        where: { id: resp.id },
+        data: {
+          confirmedAt: new Date(),
+          confirmedBy: callerId,
+          thankYouNote: noteTrimmed && noteTrimmed.length > 0 ? noteTrimmed : null,
+          thankYouAnonymous: anonymous === true,
+        },
+        include: { user: { select: { id: true, name: true, role: true, phone: true } } },
+      });
+
+      await emitResponseChanged(id, updated);
+      res.json({ success: true, data: { id: updated.id, confirmedAt: updated.confirmedAt } });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// POST /:id/responses/:responseId/reject — requester marks "что-то не получилось".
+// Single reports are silent on the profile; pattern detection is
+// server-side (coordinator review). The requester can undo within 24h via
+// the same endpoint body's `undo` flag.
+router.post(
+  "/:id/responses/:responseId/reject",
+  requireAuth,
+  validateBody(RejectHelpResponseSchema),
+  async (req, res, next) => {
+    try {
+      const id = paramId(req);
+      const responseId = String(req.params.responseId);
+      const callerId = req.user!.sub;
+
+      const resp = await loadHelpedResponse(id, responseId, callerId);
+      if (resp.confirmedAt) {
+        throw new AppError(409, "ALREADY_CONFIRMED", "Помощь уже подтверждена");
+      }
+      if (resp.rejectedAt) {
+        throw new AppError(409, "ALREADY_REJECTED", "Отметка уже проставлена");
+      }
+
+      const updated = await prisma.helpResponse.update({
+        where: { id: resp.id },
+        data: { rejectedAt: new Date(), rejectedBy: callerId },
+        include: { user: { select: { id: true, name: true, role: true, phone: true } } },
+      });
+
+      await emitResponseChanged(id, updated);
+      res.json({ success: true, data: { id: updated.id, rejectedAt: updated.rejectedAt } });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// POST /:id/responses/:responseId/undo-reject — 24h undo window for a
+// mistaken "что-то не получилось" tap.
+router.post(
+  "/:id/responses/:responseId/undo-reject",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const id = paramId(req);
+      const responseId = String(req.params.responseId);
+      const callerId = req.user!.sub;
+
+      const resp = await loadHelpedResponse(id, responseId, callerId);
+      if (!resp.rejectedAt) {
+        throw new AppError(422, "NOT_REJECTED", "Эта помощь не отмечена как не оказанная");
+      }
+      const ageMs = Date.now() - resp.rejectedAt.getTime();
+      if (ageMs > 24 * 60 * 60 * 1000) {
+        throw new AppError(422, "UNDO_EXPIRED", "Отмену можно отменить только в течение 24 часов");
+      }
+
+      const updated = await prisma.helpResponse.update({
+        where: { id: resp.id },
+        data: { rejectedAt: null, rejectedBy: null },
+        include: { user: { select: { id: true, name: true, role: true, phone: true } } },
+      });
+
+      await emitResponseChanged(id, updated);
+      res.json({ success: true, data: { id: updated.id, rejectedAt: null } });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // ── In-app messaging ─────────────────────────────────────────────────────
 // Participants: request author, any non-cancelled responder, and

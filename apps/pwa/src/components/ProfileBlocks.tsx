@@ -17,6 +17,16 @@ export interface ProfileData {
   helpsByCategory: Record<string, number>;
   avgResponseToOnWayMinutes: number | null;
   installedPwa?: boolean;
+  confirmedHelps?: number;
+  confirmedHelpsByCategory?: Record<string, number>;
+  distinctConfirmers?: number;
+  thankYouQuotes?: Array<{
+    id: string;
+    note: string;
+    createdAt: string;
+    category: string;
+    authorName: string | null;
+  }>;
   achievements: string[];
 }
 
@@ -67,11 +77,17 @@ export function ProfileIdentity({ data }: { data: ProfileData }) {
 }
 
 export function ProfileStats({ data }: { data: ProfileData }) {
+  const confirmed = data.confirmedHelps ?? 0;
+  const selfReported = data.helpsCompleted;
+  const pending = Math.max(0, selfReported - confirmed);
   return (
     <div className="profile-stats-grid">
       <div className="profile-stat-tile">
-        <div className="profile-stat-number">{data.helpsCompleted}</div>
-        <div className="profile-stat-label">помощей</div>
+        <div className="profile-stat-number">{confirmed}</div>
+        <div className="profile-stat-label">подтверждённых</div>
+        {pending > 0 && (
+          <div className="profile-stat-sublabel">ещё {pending} заявлено</div>
+        )}
       </div>
       <div className="profile-stat-tile">
         <div className="profile-stat-number">{data.requestsResolved}</div>
@@ -81,6 +97,36 @@ export function ProfileStats({ data }: { data: ProfileData }) {
         <div className="profile-stat-number">{data.helpsActive + data.requestsActive}</div>
         <div className="profile-stat-label">сейчас активно</div>
       </div>
+    </div>
+  );
+}
+
+const THANKS_MONTH_RU = [
+  "янв","фев","мар","апр","мая","июн","июл","авг","сен","окт","ноя","дек",
+];
+function formatThanksDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getDate()} ${THANKS_MONTH_RU[d.getMonth()]}`;
+}
+
+export function ProfileThanks({ quotes }: { quotes: ProfileData["thankYouQuotes"] }) {
+  if (!quotes || quotes.length === 0) return null;
+  return (
+    <div className="profile-thanks">
+      <div className="profile-section-header">
+        <h2>Что говорят кунаки</h2>
+        <span className="profile-section-count">{quotes.length}</span>
+      </div>
+      <ul className="profile-thanks-list">
+        {quotes.map((q) => (
+          <li key={q.id} className="profile-thanks-item">
+            <div className="profile-thanks-quote">«{q.note}»</div>
+            <div className="profile-thanks-meta">
+              {q.authorName ?? "Аноним"} · {formatThanksDate(q.createdAt)}
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

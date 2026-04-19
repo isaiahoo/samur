@@ -115,6 +115,17 @@ export interface UserActivity extends UserStats {
   helpsByCategory: Record<string, number>;
   avgResponseToOnWayMinutes: number | null;
   installedPwa: boolean;
+  confirmedHelps: number;
+  confirmedHelpsByCategory: Record<string, number>;
+  distinctConfirmers: number;
+  /** Public thank-you quotes shown on the profile wall. Capped server-side. */
+  thankYouQuotes: Array<{
+    id: string;
+    note: string;
+    createdAt: string;
+    category: string;
+    authorName: string | null;
+  }>;
   achievements: string[]; // earned achievement keys
 }
 
@@ -133,9 +144,13 @@ export async function computeUserActivity(userId: string): Promise<UserActivity 
   const { computeEarnedAchievements } = await import("@samur/shared");
 
   // Category breakdown: count helps ("helped" status responses) grouped by
-  // the help request's category.
-  const categoryRows = await prisma.$queryRaw<Array<{ category: string; count: bigint }>>`
-    SELECT hr.category::text as category, COUNT(*)::bigint as count
+  // the help request's category. Returns two buckets per category — total
+  // self-reported helps and confirmed-only — in a single query.
+  const categoryRows = await prisma.$queryRaw<Array<{ category: string; count: bigint; confirmed: bigint }>>`
+    SELECT
+      hr.category::text as category,
+      COUNT(*)::bigint as count,
+      COUNT(*) FILTER (WHERE resp.confirmed_at IS NOT NULL)::bigint as confirmed
     FROM help_responses resp
     JOIN help_requests hr ON hr.id = resp.help_request_id
     WHERE resp.user_id = ${userId}
@@ -144,7 +159,11 @@ export async function computeUserActivity(userId: string): Promise<UserActivity 
     GROUP BY hr.category
   `;
   const helpsByCategory: Record<string, number> = {};
-  for (const r of categoryRows) helpsByCategory[r.category] = Number(r.count);
+  const confirmedHelpsByCategory: Record<string, number> = {};
+  for (const r of categoryRows) {
+    helpsByCategory[r.category] = Number(r.count);
+    confirmedHelpsByCategory[r.category] = Number(r.confirmed);
+  }
 
   // Response-to-on-way time: average minutes between the response's createdAt
   // and the updatedAt when it transitioned past "responded". For helps that
@@ -175,6 +194,61 @@ export async function computeUserActivity(userId: string): Promise<UserActivity 
   });
   const installedPwa = installedPwaFlag?.installedPwaAt != null;
 
+  // Confirmed-help aggregates for the Кунак-рукопожатие achievement gates.
+  const confirmedAgg = await prisma.$queryRaw<Array<{
+    confirmed: bigint;
+    distinct_confirmers: bigint;
+  }>>`
+    SELECT
+      COUNT(*)::bigint AS confirmed,
+      COUNT(DISTINCT confirmed_by)::bigint AS distinct_confirmers
+    FROM help_responses
+    WHERE user_id = ${userId} AND confirmed_at IS NOT NULL
+  `;
+  const confirmedHelps = Number(confirmedAgg[0]?.confirmed ?? 0n);
+  const distinctConfirmers = Number(confirmedAgg[0]?.distinct_confirmers ?? 0n);
+
+  // Public thank-you wall — only queried for users with at least one
+  // confirmation (skips a full-table scan for unconfirmed users).
+  // Anonymous quotes strip the requester's name.
+  const thankYouQuotes: UserActivity["thankYouQuotes"] = [];
+  if (confirmedHelps > 0) {
+    const noteRows = await prisma.$queryRaw<Array<{
+      id: string;
+      note: string;
+      created_at: Date;
+      category: string;
+      anonymous: boolean;
+      author_name: string | null;
+    }>>`
+      SELECT
+        resp.id,
+        resp.thank_you_note AS note,
+        resp.confirmed_at AS created_at,
+        hr.category::text AS category,
+        resp.thank_you_anonymous AS anonymous,
+        u.name AS author_name
+      FROM help_responses resp
+      JOIN help_requests hr ON hr.id = resp.help_request_id
+      LEFT JOIN users u ON u.id = resp.confirmed_by
+      WHERE resp.user_id = ${userId}
+        AND resp.confirmed_at IS NOT NULL
+        AND resp.thank_you_note IS NOT NULL
+        AND length(trim(resp.thank_you_note)) > 0
+      ORDER BY resp.confirmed_at DESC
+      LIMIT 20
+    `;
+    for (const r of noteRows) {
+      thankYouQuotes.push({
+        id: r.id,
+        note: r.note,
+        createdAt: r.created_at.toISOString(),
+        category: r.category,
+        authorName: r.anonymous ? null : r.author_name,
+      });
+    }
+  }
+
   const achievements = computeEarnedAchievements({
     helpsCompleted: base.helpsCompleted,
     requestsCreated,
@@ -182,6 +256,9 @@ export async function computeUserActivity(userId: string): Promise<UserActivity 
     helpsByCategory,
     avgResponseToOnWayMinutes,
     installedPwa,
+    confirmedHelps,
+    confirmedHelpsByCategory,
+    distinctConfirmers,
   });
 
   return {
@@ -190,6 +267,10 @@ export async function computeUserActivity(userId: string): Promise<UserActivity 
     helpsByCategory,
     avgResponseToOnWayMinutes,
     installedPwa,
+    confirmedHelps,
+    confirmedHelpsByCategory,
+    distinctConfirmers,
+    thankYouQuotes,
     achievements,
   };
 }

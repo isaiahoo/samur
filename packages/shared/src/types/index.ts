@@ -121,7 +121,27 @@ export interface HelpResponse {
   note: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Кунак-рукопожатие — set when the requester says спасибо. Silver+
+   * achievements gate on this; bronze stays on self-reported `helped`. */
+  confirmedAt?: string | null;
+  confirmedBy?: string | null;
+  thankYouNote?: string | null;
+  thankYouAnonymous?: boolean;
+  /** Set when the requester marks "что-то не получилось". Single report
+   * is silent (no public strike); pattern detection happens server-side. */
+  rejectedAt?: string | null;
+  rejectedBy?: string | null;
   user?: HelpRequestParty;
+}
+
+/** Public-facing thank-you quote for the profile wall. Author name is
+ * omitted when the requester opted into anonymous confirmation. */
+export interface ThankYouQuote {
+  id: string;
+  note: string;
+  createdAt: string;
+  category: HelpCategory;
+  authorName: string | null;
 }
 
 export interface HelpMessage {
