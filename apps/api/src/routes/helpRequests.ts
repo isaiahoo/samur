@@ -467,10 +467,11 @@ router.patch(
   async (req, res, next) => {
     try {
       const id = paramId(req);
-      const { updateToken, description, audioUrl } = req.body as {
+      const { updateToken, description, audioUrl, cancel } = req.body as {
         updateToken?: string;
         description?: string;
         audioUrl?: string | null;
+        cancel?: boolean;
       };
 
       const hr = await prisma.helpRequest.findFirst({
@@ -507,6 +508,19 @@ router.patch(
       }
       if (audioUrl !== undefined) {
         data.audioUrl = audioUrl;
+      }
+      if (cancel === true) {
+        // Author-initiated retraction (e.g. accidental press, test).
+        // Flip status to cancelled so volunteers stop seeing it; also
+        // cascade-cancel any responders who already claimed, matching
+        // PATCH /:id's behavior for coherent derived-status.
+        if (hr.status !== "cancelled" && hr.status !== "completed") {
+          data.status = "cancelled";
+          await prisma.helpResponse.updateMany({
+            where: { helpRequestId: id, status: { not: "cancelled" } },
+            data: { status: "cancelled" },
+          });
+        }
       }
 
       if (Object.keys(data).length === 0) {

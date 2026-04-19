@@ -311,7 +311,12 @@ export function createSOS(data: Record<string, unknown>) {
  * the server will accept their JWT. */
 export function sosFollowUp(
   id: string,
-  data: { updateToken?: string; description?: string; audioUrl?: string | null },
+  data: {
+    updateToken?: string;
+    description?: string;
+    audioUrl?: string | null;
+    cancel?: boolean;
+  },
 ) {
   return request<ApiResponse>(`/help-requests/sos/${id}/follow-up`, {
     method: "PATCH",

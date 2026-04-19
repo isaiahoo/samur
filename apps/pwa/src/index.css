@@ -8291,6 +8291,25 @@ a.tg-auth-fallback {
 }
 .sos-cancel-btn--light:active { background: #f4f4f5; }
 
+/* "This was a false alarm" retract link. Kept visually subordinate
+   to Save/Готово — it's a destructive action for a test press, not
+   something we want the panicked author to trip into. */
+.sos-false-alarm-btn {
+  align-self: center;
+  margin-top: 4px;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.sos-false-alarm-btn:active { color: #b91c1c; }
+.sos-false-alarm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 @media (prefers-color-scheme: dark) {
   .sos-panel--light {
     background: var(--color-surface, #1f1f23);
@@ -8352,6 +8371,8 @@ a.tg-auth-fallback {
     color: #a1a1aa;
   }
   .sos-cancel-btn--light:active { background: rgba(255, 255, 255, 0.04); }
+  .sos-false-alarm-btn { color: #f87171; }
+  .sos-false-alarm-btn:active { color: #fca5a5; }
 }
 
 /* ── Dark mode ─────────────────────────────────────────────────────────── */

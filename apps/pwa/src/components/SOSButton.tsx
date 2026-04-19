@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { createSOS, sosFollowUp, ApiError } from "../services/api.js";
 import { addToOutbox } from "../services/db.js";
 import { useOnline } from "../hooks/useOnline.js";
-import { useUIStore } from "../store/ui.js";
+import { useUIStore, confirmAction } from "../store/ui.js";
 import { MAKHACHKALA_CENTER } from "@samur/shared";
 
 /**
@@ -155,10 +155,21 @@ function parseDescription(raw: string | null | undefined): { keys: Set<string>; 
   let body = raw.replace(/^SOS\s*(?:—|-)\s*/, "").trim();
   if (!body) return empty;
 
-  // Legacy single-enum form from the old picker — still lives in DB.
+  // Legacy single-enum form from the old picker. Known values map
+  // straight to a new card; unknown snake_case tokens are still
+  // discarded (never shown as user text — they're always artifacts,
+  // even if the enum has been renamed/truncated in storage).
   const legacy = LEGACY_SITUATION_MAP[body];
   if (legacy) {
     return { keys: new Set([legacy]), text: "" };
+  }
+
+  // Same shape, possibly followed by a \n\n and the user's free text.
+  // Matches "water_inside\n\n..." etc.
+  const legacyPrefix = body.match(/^([a-z][a-z_0-9]*)(?:\s*\n+\s*|$)/);
+  if (legacyPrefix && LEGACY_SITUATION_MAP[legacyPrefix[1]]) {
+    const rest = body.slice(legacyPrefix[0].length).trim();
+    return { keys: new Set([LEGACY_SITUATION_MAP[legacyPrefix[1]]]), text: rest };
   }
 
   const match = body.match(/^Ситуация:\s*([^\n]+?)\s*(?:\n\s*\n|$)/);
@@ -170,6 +181,14 @@ function parseDescription(raw: string | null | undefined): { keys: Set<string>; 
     }
     body = body.slice(match[0].length).trim();
   }
+
+  // Final defensive wipe: if whatever remains looks like a bare
+  // snake_case token (no spaces, no Cyrillic), it's corrupted legacy
+  // data, not anything the user typed. Never show it as editable text.
+  if (body && /^[a-z][a-z_0-9]*$/.test(body)) {
+    return { keys, text: "" };
+  }
+
   return { keys, text: body };
 }
 
@@ -200,6 +219,7 @@ export function SOSButton() {
   const [freeText, setFreeText] = useState("");
   const [savedFreeText, setSavedFreeText] = useState("");
   const [savingText, setSavingText] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const holdStartRef = useRef<number>(0);
   const holdRafRef = useRef<number>(0);
@@ -337,6 +357,46 @@ export function SOSButton() {
       setSavingText(false);
     }
   }, [sentId, updateToken, selectedKeys, freeText, hasChanges, savingText, showToast]);
+
+  /** Author retracts the SOS — "false alarm" / accidental press.
+   * Confirmed via the global ConfirmDialog so one stray tap can't
+   * take down an active signal. On success, the server flips the
+   * row to status=cancelled, emits a socket update, and we wipe the
+   * overlay. The dedup query ignores cancelled rows, so the next
+   * SOS press creates a fresh one. */
+  const cancelSOS = useCallback(async () => {
+    if (!sentId || cancelling) return;
+    const ok = await confirmAction({
+      title: "Отменить SOS?",
+      message: "Волонтёры перестанут получать этот сигнал. Это действие нельзя отменить — придётся отправить SOS заново.",
+      confirmLabel: "Отменить SOS",
+      kind: "destructive",
+    });
+    if (!ok) return;
+    setCancelling(true);
+    try {
+      await sosFollowUp(sentId, {
+        updateToken: updateToken ?? undefined,
+        cancel: true,
+      });
+      showToast("SOS отменён", "success");
+      setStage("idle");
+      setHoldProgress(0);
+      setSentId(null);
+      setUpdateToken(null);
+      setWasExisting(false);
+      setLocation(null);
+      setSelectedKeys(new Set());
+      setSavedKeys(new Set());
+      setFreeText("");
+      setSavedFreeText("");
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Не удалось отменить SOS";
+      showToast(msg, "error");
+    } finally {
+      setCancelling(false);
+    }
+  }, [sentId, updateToken, cancelling, showToast]);
 
   const close = useCallback(() => {
     // Auto-save any pending changes so the author can't accidentally
@@ -557,6 +617,15 @@ export function SOSButton() {
                 Готово
               </button>
             </div>
+
+            <button
+              type="button"
+              className="sos-false-alarm-btn"
+              onClick={cancelSOS}
+              disabled={!sentId || cancelling}
+            >
+              {cancelling ? "Отмена..." : "Это была ошибка — отменить SOS"}
+            </button>
           </div>
         </div>
       )}

@@ -230,6 +230,10 @@ export const SOSFollowUpSchema = z.object({
     )
     .nullable()
     .optional(),
+  /** Author retracts the SOS — e.g. they pressed it by accident or
+   * were testing the feature. Sets status to "cancelled" so the
+   * row stops appearing to volunteers, without deleting evidence. */
+  cancel: z.boolean().optional(),
 });
 export type SOSFollowUpInput = z.infer<typeof SOSFollowUpSchema>;
 
