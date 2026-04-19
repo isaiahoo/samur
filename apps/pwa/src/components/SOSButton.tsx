@@ -33,6 +33,11 @@ export function SOSButton() {
   const [location, setLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [sentId, setSentId] = useState<string | null>(null);
   const [updateToken, setUpdateToken] = useState<string | null>(null);
+  // True when the server returned an existing active SOS instead of
+  // creating a new one. Drives the post-send copy so repeat-presses
+  // read as "your signal is active" rather than "signal sent" (which
+  // would be misleading — nothing new went out).
+  const [wasExisting, setWasExisting] = useState(false);
   const [hintVisible, setHintVisible] = useState(false);
 
   // Follow-up form state (only meaningful in `sent` stage).
@@ -78,9 +83,27 @@ export function SOSButton() {
     try {
       if (onlineRef.current) {
         const res = await createSOS(payload);
-        const data = res.data as { id: string; updateToken?: string } | undefined;
+        const data = res.data as {
+          id: string;
+          updateToken?: string;
+          existing?: boolean;
+          description?: string | null;
+          audioUrl?: string | null;
+        } | undefined;
         setSentId(data?.id ?? null);
         setUpdateToken(data?.updateToken ?? null);
+        setWasExisting(data?.existing === true);
+        // Prefill description if re-opening an existing SOS so the
+        // author can edit rather than retype. Strip the "SOS — " prefix
+        // that the server adds on follow-up saves.
+        if (data?.existing && typeof data.description === "string") {
+          const existingDesc = data.description.replace(/^SOS\s*(?:—|-)\s*/, "").trim();
+          setDescription(existingDesc);
+          setSavedDescription(existingDesc);
+        }
+        if (data?.existing && typeof data.audioUrl === "string") {
+          setAudioUrl(data.audioUrl);
+        }
       } else {
         await addToOutbox({ endpoint: "/help-requests/sos", method: "POST", body: payload });
       }
@@ -196,6 +219,7 @@ export function SOSButton() {
     setHoldProgress(0);
     setSentId(null);
     setUpdateToken(null);
+    setWasExisting(false);
     setLocation(null);
     setDescription("");
     setSavedDescription("");
@@ -207,6 +231,7 @@ export function SOSButton() {
     setHoldProgress(0);
     setSentId(null);
     setUpdateToken(null);
+    setWasExisting(false);
     setLocation(null);
     setDescription("");
     setSavedDescription("");
@@ -317,15 +342,26 @@ export function SOSButton() {
         <div className="sos-panel sos-panel--wide">
           <div className="sos-sent-header">
             <div className="sos-check-icon">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
+              {wasExisting ? (
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 7v5l3 2" />
+                </svg>
+              ) : (
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              )}
             </div>
-            <p className="sos-sent-title">SOS отправлен</p>
+            <p className={`sos-sent-title${wasExisting ? " sos-sent-title--existing" : ""}`}>
+              {wasExisting ? "Ваш SOS активен" : "SOS отправлен"}
+            </p>
             <p className="sos-sent-sub">
-              {online
-                ? "Волонтёры уведомлены. Расскажите, что происходит — это поможет быстрее прийти к вам."
-                : "Нет связи. Сигнал сохранён и уйдёт при подключении."}
+              {!online
+                ? "Нет связи. Сигнал сохранён и уйдёт при подключении."
+                : wasExisting
+                  ? "Сигнал уже в работе. Можете дополнить описание или записать голосовое — это поможет быстрее прийти к вам."
+                  : "Волонтёры уведомлены. Расскажите, что происходит — это поможет быстрее прийти к вам."}
             </p>
             {location && (
               <p className="sos-meta">

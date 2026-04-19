@@ -217,7 +217,19 @@ export type CreateSOSInput = z.infer<typeof CreateSOSSchema>;
 export const SOSFollowUpSchema = z.object({
   updateToken: z.string().min(16).max(128).optional(),
   description: z.string().max(2000).optional(),
-  audioUrl: z.string().url().max(2000).nullable().optional(),
+  // Relative path emitted by /uploads/audio, OR a full https URL if
+  // we ever switch to returning the signed bucket URL directly. Null
+  // means "remove the attachment". Plain .url() is too strict — it
+  // rejects the relative path we actually emit.
+  audioUrl: z
+    .string()
+    .max(500)
+    .regex(
+      /^(?:\/api\/v1\/uploads\/[a-f0-9]{32}\.(?:webm|mp4|m4a|ogg|mp3)|https?:\/\/.+)$/,
+      "Неверный URL аудио",
+    )
+    .nullable()
+    .optional(),
 });
 export type SOSFollowUpInput = z.infer<typeof SOSFollowUpSchema>;
 

@@ -7849,6 +7849,10 @@ a.tg-auth-fallback {
   color: #4ade80;
   letter-spacing: 1px;
 }
+.sos-sent-title--existing {
+  color: #60a5fa;
+  letter-spacing: 0.3px;
+}
 .sos-offline-note {
   font-size: 13px;
   color: #fbbf24;

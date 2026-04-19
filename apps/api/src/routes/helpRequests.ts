@@ -47,6 +47,21 @@ import {
 
 const router = Router();
 
+/** Generate a random 48-hex update token, bind it to an SOS id in
+ * Redis for 60 min, and return it. Used by POST /sos on both the new
+ * and existing-row paths — the client always receives a token it can
+ * later send back via the follow-up endpoint without having to
+ * authenticate (anonymous SOS has no JWT). If Redis is unreachable
+ * we return the token anyway; follow-up will fail gracefully. */
+async function issueSosUpdateToken(hrId: string): Promise<string> {
+  const token = crypto.randomBytes(24).toString("hex");
+  const redis = getRedis();
+  if (redis) {
+    await redis.set(`sos_update:${token}`, hrId, "EX", 3600);
+  }
+  return token;
+}
+
 // ── Phone-number privacy filter ───────────────────────────────────────────
 // `contactPhone` is public (the requester explicitly shared it). But the
 // user's *account* phone (`author.phone`, `claimer.phone`, responses[].user.phone)
@@ -322,7 +337,11 @@ router.post(
         return;
       }
 
-      // Duplicate prevention: authenticated user — check by userId
+      // Duplicate prevention: authenticated user — check by userId.
+      // We RETURN the existing SOS rather than reject, AND issue a
+      // fresh updateToken so the client can open the follow-up form
+      // against the active record. Flagged `existing: true` so the UI
+      // can say "Ваш SOS активен" instead of "SOS отправлен".
       if (req.user?.sub) {
         const existing = await prisma.helpRequest.findFirst({
           where: {
@@ -338,12 +357,16 @@ router.post(
           orderBy: { createdAt: "desc" },
         });
         if (existing) {
-          res.status(200).json({ success: true, data: existing });
+          const token = await issueSosUpdateToken(existing.id);
+          res.status(200).json({ success: true, data: { ...existing, updateToken: token, existing: true } });
           return;
         }
       }
 
-      // Tier 1.2 — Anonymous dedup by IP + coordinates (30 min, 1km radius)
+      // Tier 1.2 — Anonymous dedup by IP + coordinates (30 min, 1km radius).
+      // Same treatment: return the row + a fresh updateToken so the
+      // same-browser caller can open the follow-up form on their own
+      // recent SOS.
       if (!req.user?.sub) {
         const existingAnon = await findExistingAnonymousSOS(clientIp, lat, lng);
         if (existingAnon) {
@@ -354,8 +377,11 @@ router.post(
               claimer: { select: { id: true, name: true, role: true } },
             },
           });
-          res.status(200).json({ success: true, data: full });
-          return;
+          if (full) {
+            const token = await issueSosUpdateToken(full.id);
+            res.status(200).json({ success: true, data: { ...full, updateToken: token, existing: true } });
+            return;
+          }
         }
       }
 
@@ -411,11 +437,7 @@ router.post(
       // anonymous SOS authors have (they have no JWT); logged-in
       // authors can use JWT instead but we return the token for them
       // too so the client can use a single code path.
-      const updateToken = crypto.randomBytes(24).toString("hex");
-      const redis = getRedis();
-      if (redis) {
-        await redis.set(`sos_update:${updateToken}`, hr.id, "EX", 3600);
-      }
+      const updateToken = await issueSosUpdateToken(hr.id);
 
       res.status(201).json({ success: true, data: { ...hr, updateToken } });
     } catch (err) {
