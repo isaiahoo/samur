@@ -206,7 +206,7 @@ export async function getMapClusters(
       ),
       clustered AS (
         SELECT *,
-          ST_ClusterDBSCAN(location, ${eps}, ${minPoints}) OVER () as cid
+          ST_ClusterDBSCAN(location, ${eps}::float8, ${minPoints}::int) OVER () as cid
         FROM all_points
         WHERE location IS NOT NULL
       )
@@ -246,7 +246,7 @@ export async function getMapClusters(
       ),
       clustered AS (
         SELECT *,
-          ST_ClusterDBSCAN(location, ${eps}, ${minPoints}) OVER () as cid
+          ST_ClusterDBSCAN(location, ${eps}::float8, ${minPoints}::int) OVER () as cid
         FROM all_points
         WHERE location IS NOT NULL
       )
@@ -286,7 +286,7 @@ export async function getMapClusters(
       ),
       clustered AS (
         SELECT *,
-          ST_ClusterDBSCAN(location, ${eps}, ${minPoints}) OVER () as cid
+          ST_ClusterDBSCAN(location, ${eps}::float8, ${minPoints}::int) OVER () as cid
         FROM all_points
         WHERE location IS NOT NULL
       )
@@ -314,7 +314,7 @@ export async function getMapClusters(
       ),
       clustered AS (
         SELECT *,
-          ST_ClusterDBSCAN(location, ${eps}, ${minPoints}) OVER () as cid
+          ST_ClusterDBSCAN(location, ${eps}::float8, ${minPoints}::int) OVER () as cid
         FROM all_points
         WHERE location IS NOT NULL
       )
