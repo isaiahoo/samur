@@ -55,7 +55,7 @@ function InstallTopBar({ onOpenSheet, onDismiss }: {
     <div className="install-bar" role="region" aria-label="Установка приложения">
       <button type="button" className="install-bar-body" onClick={onOpenSheet}>
         <span className="install-bar-icon" aria-hidden="true">
-          <img src="/icons/icon-192.png?v=4" alt="" width="26" height="26" />
+          <img src="/icons/icon-192.png?v=5" alt="" width="26" height="26" />
         </span>
         <span className="install-bar-text">
           <strong>Установите Кунак</strong>
@@ -124,7 +124,7 @@ function InstallSheet({ platform, onTriggerNative, onDismiss, onCloseOnly }: She
 
         <div className="install-header">
           <div className="install-icon">
-            <img src="/icons/icon-192.png?v=4" alt="Кунак" width="64" height="64" />
+            <img src="/icons/icon-192.png?v=5" alt="Кунак" width="64" height="64" />
           </div>
           <h2 id="install-title" className="install-title">
             Установите Кунак на экран «Домой»

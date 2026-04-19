@@ -313,7 +313,7 @@ export function LoginPage() {
       </button>
       <div className="login-card">
         <div className="login-header">
-          <img src="/icons/icon-192.png?v=4" alt="" className="login-logo" width="150" height="150" />
+          <img src="/icons/icon-192.png?v=5" alt="" className="login-logo" width="150" height="150" />
           <h2>Кунак</h2>
           <p className="login-subtitle">
             {step === "profile" ? "Завершение регистрации" : "Вход и регистрация"}

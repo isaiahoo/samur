@@ -221,7 +221,7 @@ export function Layout() {
       <InstallPrompt />
       <header className="app-header">
         <h1 className="app-title">
-          <img src="/icons/icon-192.png?v=4" alt="" className="app-logo" width="48" height="48" />
+          <img src="/icons/icon-192.png?v=5" alt="" className="app-logo" width="48" height="48" />
           Кунак
         </h1>
         <div className="header-right">
