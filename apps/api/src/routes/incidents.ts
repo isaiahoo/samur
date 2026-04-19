@@ -19,6 +19,9 @@ import { getIdsWithinRadius } from "../lib/spatial.js";
 import { getIncidentTransitionError } from "../lib/statusTransitions.js";
 import { emitIncidentCreated, emitIncidentUpdated } from "../lib/emitter.js";
 import { paramId } from "../lib/params.js";
+import { getDistributionConsentedUserIds } from "../lib/consent.js";
+
+const PRIVILEGED_ROLES = new Set(["volunteer", "coordinator", "admin"]);
 
 const router = Router();
 
@@ -48,6 +51,21 @@ router.get(
       } else if (q.north != null && q.south != null && q.east != null && q.west != null) {
         where.lat = { gte: q.south, lte: q.north };
         where.lng = { gte: q.west, lte: q.east };
+      }
+
+      // 152-ФЗ ст. 10.1 distribution gate. Same shape as help-requests.
+      const isPrivileged = req.user && PRIVILEGED_ROLES.has(req.user.role);
+      if (!isPrivileged) {
+        const consented = await getDistributionConsentedUserIds();
+        const consentedIds = Array.from(consented);
+        const visibilityClauses: Prisma.IncidentWhereInput[] = [
+          { userId: null },
+          { userId: { in: consentedIds } },
+        ];
+        if (req.user?.sub) {
+          visibilityClauses.push({ userId: req.user.sub });
+        }
+        where.OR = visibilityClauses;
       }
 
       const orderBy: Prisma.IncidentOrderByWithRelationInput =
@@ -96,6 +114,19 @@ router.get("/:id", async (req, res, next) => {
 
     if (!incident) {
       throw new AppError(404, "NOT_FOUND", "Инцидент не найден");
+    }
+
+    // 152-ФЗ ст. 10.1 — same gate per-row. 404, not 403, to avoid
+    // leaking existence to the public.
+    if (incident.userId) {
+      const isPrivileged = req.user && PRIVILEGED_ROLES.has(req.user.role);
+      const isAuthor = req.user?.sub === incident.userId;
+      if (!isPrivileged && !isAuthor) {
+        const consented = await getDistributionConsentedUserIds();
+        if (!consented.has(incident.userId)) {
+          throw new AppError(404, "NOT_FOUND", "Инцидент не найден");
+        }
+      }
     }
 
     res.json({ success: true, data: incident });

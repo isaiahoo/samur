@@ -296,6 +296,7 @@ export async function authenticateForPWA(
   tgId: number,
   firstName: string,
   lastName?: string,
+  consent?: { processing: boolean; distribution: boolean },
 ): Promise<{ token: string; user: Record<string, unknown> }> {
   const authDate = Math.floor(Date.now() / 1000);
   const data: Record<string, string | number> = {
@@ -305,7 +306,10 @@ export async function authenticateForPWA(
   };
   if (lastName) data.last_name = lastName;
 
-  // Generate HMAC-SHA256 hash — same algorithm as Telegram Login Widget verification
+  // Generate HMAC-SHA256 hash. Note: `consent` is NOT included in the
+  // HMAC — Telegram's Login Widget spec hashes only the user-identity
+  // fields, and we mirror that on the server. Consent is a separate
+  // sibling field on the request body.
   const secretKey = crypto.createHash("sha256").update(config.TG_BOT_TOKEN).digest();
   const checkString = Object.keys(data)
     .sort()
@@ -318,7 +322,7 @@ export async function authenticateForPWA(
   return request<{ token: string; user: Record<string, unknown> }>(
     "POST",
     "/auth/telegram",
-    data,
+    consent ? { ...data, consent } : data,
   );
 }
 

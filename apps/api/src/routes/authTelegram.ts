@@ -10,6 +10,8 @@ import { logger } from "../lib/logger.js";
 import { getRedis } from "../lib/redis.js";
 import { signToken } from "../lib/jwt.js";
 import { authAttemptsTotal } from "../lib/metrics.js";
+import { recordConsentOnRegister } from "../lib/recordConsentOnRegister.js";
+import type { ConsentInput } from "@samur/shared";
 
 const router = Router();
 
@@ -116,14 +118,23 @@ router.post(
           });
         }
       } else {
-        // Auto-register Telegram user
-        user = await prisma.user.create({
-          data: {
-            tgId,
-            name: fullName,
-            role: "resident",
-          },
+        // Auto-register Telegram user. The bot stitched consent into
+        // the request body before HMAC-signing it (see apps/telegram
+        // /src/api.ts authenticateForPWA), or the PWA passed it in
+        // directly for the Login Widget flow.
+        const consent = (req.body as { consent?: ConsentInput }).consent;
+        const created = await prisma.$transaction(async (tx) => {
+          const newUser = await tx.user.create({
+            data: {
+              tgId,
+              name: fullName,
+              role: "resident",
+            },
+          });
+          await recordConsentOnRegister(req, newUser.id, consent, tx as typeof prisma);
+          return newUser;
         });
+        user = created;
         logger.info({ tgId, name: fullName }, "New user registered via Telegram");
       }
 
@@ -147,15 +158,22 @@ router.post(
  * The PWA opens tg://resolve?domain=BOT&start=login_TOKEN
  * and then polls /telegram/check until the bot confirms auth.
  */
-router.post("/telegram/init", async (_req, res, next) => {
+router.post("/telegram/init", async (req, res, next) => {
   try {
     const redis = getRedis();
     if (!redis) {
       throw new AppError(503, "REDIS_UNAVAILABLE", "Сервис временно недоступен");
     }
 
+    const consent = (req.body as { consent?: ConsentInput })?.consent;
     const token = crypto.randomBytes(24).toString("hex"); // 48 chars
-    await redis.set(`tg_auth:${token}`, "pending", "EX", 300); // 5 min TTL
+    // Pending value carries the consent payload so the bot can read it
+    // when handling the deep link and forward it to /auth/telegram.
+    // Older bots that pre-date this field will get undefined and the
+    // user-create path will reject with 400 — acceptable since both bot
+    // and api deploy together.
+    const pending = JSON.stringify({ status: "pending", consent: consent ?? null });
+    await redis.set(`tg_auth:${token}`, pending, "EX", 300);
 
     res.json({ success: true, data: { token } });
   } catch (err) {
@@ -207,20 +225,34 @@ router.get("/telegram/check", async (req, res, next) => {
       throw new AppError(404, "TOKEN_EXPIRED", "Токен истёк или не найден");
     }
 
+    // /init now stores JSON { status: "pending", consent }; the bot
+    // overwrites with { status: "ok" | "jwt", jwt, user } once auth
+    // completes. Keep the legacy literal "pending" check for any
+    // tokens written before this rollout that may still be in flight.
     if (value === "pending") {
       res.json({ success: true, data: { status: "pending" } });
       return;
     }
 
-    // Bot stored JSON: { jwt, user }
+    let parsed: { status?: string; jwt?: string; user?: unknown };
     try {
-      const result = JSON.parse(value) as { jwt: string; user: unknown };
-      // Clean up after successful read
-      await redis.del(`tg_auth:${token}`);
-      res.json({ success: true, data: { status: "ok", token: result.jwt, user: result.user } });
+      parsed = JSON.parse(value);
     } catch {
       throw new AppError(500, "INVALID_AUTH_DATA", "Ошибка данных авторизации");
     }
+
+    if (parsed.status === "pending") {
+      res.json({ success: true, data: { status: "pending" } });
+      return;
+    }
+
+    if (parsed.jwt && parsed.user) {
+      await redis.del(`tg_auth:${token}`);
+      res.json({ success: true, data: { status: "ok", token: parsed.jwt, user: parsed.user } });
+      return;
+    }
+
+    throw new AppError(500, "INVALID_AUTH_DATA", "Ошибка данных авторизации");
   } catch (err) {
     next(err);
   }

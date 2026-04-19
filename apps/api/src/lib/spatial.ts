@@ -112,32 +112,73 @@ export interface PointRow {
 /**
  * Cluster incidents + help_requests using PostGIS ST_ClusterDBSCAN.
  * At low zoom (< 12): cluster nearby points. At high zoom: return individuals.
+ *
+ * `visibility` controls 152-ФЗ ст. 10.1 distribution gating:
+ *   - "all"        — no filter (volunteer+ callers)
+ *   - { consentedIds, callerId? } — keep rows where author is null,
+ *     in consentedIds, or equals callerId. Public/resident callers.
  */
+export interface ClusterVisibility {
+  consentedIds: string[];
+  callerId: string | null;
+}
+
 export async function getMapClusters(
   zoom: number,
   south: number,
   west: number,
   north: number,
-  east: number
+  east: number,
+  visibility: ClusterVisibility | "all" = "all"
 ): Promise<{ clusters: ClusterRow[]; points: PointRow[] }> {
   // Clamp zoom to valid range to prevent Infinity/0 in epsilon calc
   zoom = Math.min(Math.max(zoom, 0), 22);
+
+  const consentedIds = visibility === "all" ? null : visibility.consentedIds;
+  const callerId = visibility === "all" ? null : visibility.callerId;
+
+  // Build a per-row visibility predicate. Null user_id (anonymous SOS /
+  // anonymous incident report) is always public — there's no author
+  // whose distribution consent could apply. Otherwise the author must
+  // be in the consented set, OR be the caller themselves.
+  // Empty array case: pass [''] sentinel so `= ANY` works without a
+  // SQL parse error; '' won't match any cuid.
+  const idsForSql = consentedIds && consentedIds.length > 0 ? consentedIds : [""];
+
   if (zoom >= 12) {
-    const points = await prisma.$queryRaw<PointRow[]>`
-      SELECT id, lat, lng, 'incident' as source_type, type::text as sub_type,
-             severity::text as severity, status::text as status
-      FROM incidents
-      WHERE deleted_at IS NULL
-        AND lat BETWEEN ${south} AND ${north}
-        AND lng BETWEEN ${west} AND ${east}
-      UNION ALL
-      SELECT id, lat, lng, 'help_request' as source_type, category::text as sub_type,
-             urgency::text as severity, status::text as status
-      FROM help_requests
-      WHERE deleted_at IS NULL
-        AND lat BETWEEN ${south} AND ${north}
-        AND lng BETWEEN ${west} AND ${east}
-    `;
+    const points = consentedIds === null
+      ? await prisma.$queryRaw<PointRow[]>`
+        SELECT id, lat, lng, 'incident' as source_type, type::text as sub_type,
+               severity::text as severity, status::text as status
+        FROM incidents
+        WHERE deleted_at IS NULL
+          AND lat BETWEEN ${south} AND ${north}
+          AND lng BETWEEN ${west} AND ${east}
+        UNION ALL
+        SELECT id, lat, lng, 'help_request' as source_type, category::text as sub_type,
+               urgency::text as severity, status::text as status
+        FROM help_requests
+        WHERE deleted_at IS NULL
+          AND lat BETWEEN ${south} AND ${north}
+          AND lng BETWEEN ${west} AND ${east}
+      `
+      : await prisma.$queryRaw<PointRow[]>`
+        SELECT id, lat, lng, 'incident' as source_type, type::text as sub_type,
+               severity::text as severity, status::text as status
+        FROM incidents
+        WHERE deleted_at IS NULL
+          AND lat BETWEEN ${south} AND ${north}
+          AND lng BETWEEN ${west} AND ${east}
+          AND (user_id IS NULL OR user_id = ANY(${idsForSql}::text[]) OR user_id = ${callerId})
+        UNION ALL
+        SELECT id, lat, lng, 'help_request' as source_type, category::text as sub_type,
+               urgency::text as severity, status::text as status
+        FROM help_requests
+        WHERE deleted_at IS NULL
+          AND lat BETWEEN ${south} AND ${north}
+          AND lng BETWEEN ${west} AND ${east}
+          AND (user_id IS NULL OR user_id = ANY(${idsForSql}::text[]) OR user_id = ${callerId})
+      `;
     return { clusters: [], points };
   }
 
@@ -146,71 +187,141 @@ export async function getMapClusters(
   const eps = 0.5 / Math.pow(2, zoom - 6);
   const minPoints = 2;
 
-  const clusters = await prisma.$queryRaw<ClusterRow[]>`
-    WITH all_points AS (
-      SELECT id, lat, lng, location, 'incident' as source_type,
-             severity::text as urgency_rank, type::text as sub_type
-      FROM incidents
-      WHERE deleted_at IS NULL
-        AND lat BETWEEN ${south} AND ${north}
-        AND lng BETWEEN ${west} AND ${east}
-      UNION ALL
-      SELECT id, lat, lng, location, 'help_request' as source_type,
-             urgency::text as urgency_rank, category::text as sub_type
-      FROM help_requests
-      WHERE deleted_at IS NULL
-        AND lat BETWEEN ${south} AND ${north}
-        AND lng BETWEEN ${west} AND ${east}
-    ),
-    clustered AS (
-      SELECT *,
-        ST_ClusterDBSCAN(location, ${eps}, ${minPoints}) OVER () as cid
-      FROM all_points
-      WHERE location IS NOT NULL
-    )
-    SELECT
-      cid as cluster_id,
-      AVG(lat) as lat,
-      AVG(lng) as lng,
-      COUNT(*)::int as count,
-      MODE() WITHIN GROUP (ORDER BY source_type) as source_type,
-      CASE
-        WHEN bool_or(urgency_rank = 'critical') THEN 'critical'
-        WHEN bool_or(urgency_rank = 'high' OR urgency_rank = 'urgent') THEN 'high'
-        WHEN bool_or(urgency_rank = 'medium') THEN 'medium'
-        ELSE 'low'
-      END as most_urgent
-    FROM clustered
-    WHERE cid IS NOT NULL
-    GROUP BY cid
-  `;
+  const clusters = consentedIds === null
+    ? await prisma.$queryRaw<ClusterRow[]>`
+      WITH all_points AS (
+        SELECT id, lat, lng, location, 'incident' as source_type,
+               severity::text as urgency_rank, type::text as sub_type
+        FROM incidents
+        WHERE deleted_at IS NULL
+          AND lat BETWEEN ${south} AND ${north}
+          AND lng BETWEEN ${west} AND ${east}
+        UNION ALL
+        SELECT id, lat, lng, location, 'help_request' as source_type,
+               urgency::text as urgency_rank, category::text as sub_type
+        FROM help_requests
+        WHERE deleted_at IS NULL
+          AND lat BETWEEN ${south} AND ${north}
+          AND lng BETWEEN ${west} AND ${east}
+      ),
+      clustered AS (
+        SELECT *,
+          ST_ClusterDBSCAN(location, ${eps}, ${minPoints}) OVER () as cid
+        FROM all_points
+        WHERE location IS NOT NULL
+      )
+      SELECT
+        cid as cluster_id,
+        AVG(lat) as lat,
+        AVG(lng) as lng,
+        COUNT(*)::int as count,
+        MODE() WITHIN GROUP (ORDER BY source_type) as source_type,
+        CASE
+          WHEN bool_or(urgency_rank = 'critical') THEN 'critical'
+          WHEN bool_or(urgency_rank = 'high' OR urgency_rank = 'urgent') THEN 'high'
+          WHEN bool_or(urgency_rank = 'medium') THEN 'medium'
+          ELSE 'low'
+        END as most_urgent
+      FROM clustered
+      WHERE cid IS NOT NULL
+      GROUP BY cid
+    `
+    : await prisma.$queryRaw<ClusterRow[]>`
+      WITH all_points AS (
+        SELECT id, lat, lng, location, 'incident' as source_type,
+               severity::text as urgency_rank, type::text as sub_type
+        FROM incidents
+        WHERE deleted_at IS NULL
+          AND lat BETWEEN ${south} AND ${north}
+          AND lng BETWEEN ${west} AND ${east}
+          AND (user_id IS NULL OR user_id = ANY(${idsForSql}::text[]) OR user_id = ${callerId})
+        UNION ALL
+        SELECT id, lat, lng, location, 'help_request' as source_type,
+               urgency::text as urgency_rank, category::text as sub_type
+        FROM help_requests
+        WHERE deleted_at IS NULL
+          AND lat BETWEEN ${south} AND ${north}
+          AND lng BETWEEN ${west} AND ${east}
+          AND (user_id IS NULL OR user_id = ANY(${idsForSql}::text[]) OR user_id = ${callerId})
+      ),
+      clustered AS (
+        SELECT *,
+          ST_ClusterDBSCAN(location, ${eps}, ${minPoints}) OVER () as cid
+        FROM all_points
+        WHERE location IS NOT NULL
+      )
+      SELECT
+        cid as cluster_id,
+        AVG(lat) as lat,
+        AVG(lng) as lng,
+        COUNT(*)::int as count,
+        MODE() WITHIN GROUP (ORDER BY source_type) as source_type,
+        CASE
+          WHEN bool_or(urgency_rank = 'critical') THEN 'critical'
+          WHEN bool_or(urgency_rank = 'high' OR urgency_rank = 'urgent') THEN 'high'
+          WHEN bool_or(urgency_rank = 'medium') THEN 'medium'
+          ELSE 'low'
+        END as most_urgent
+      FROM clustered
+      WHERE cid IS NOT NULL
+      GROUP BY cid
+    `;
 
-  const points = await prisma.$queryRaw<PointRow[]>`
-    WITH all_points AS (
-      SELECT id, lat, lng, location, 'incident' as source_type,
-             type::text as sub_type, severity::text as severity, status::text as status
-      FROM incidents
-      WHERE deleted_at IS NULL
-        AND lat BETWEEN ${south} AND ${north}
-        AND lng BETWEEN ${west} AND ${east}
-      UNION ALL
-      SELECT id, lat, lng, location, 'help_request' as source_type,
-             category::text as sub_type, urgency::text as severity, status::text as status
-      FROM help_requests
-      WHERE deleted_at IS NULL
-        AND lat BETWEEN ${south} AND ${north}
-        AND lng BETWEEN ${west} AND ${east}
-    ),
-    clustered AS (
-      SELECT *,
-        ST_ClusterDBSCAN(location, ${eps}, ${minPoints}) OVER () as cid
-      FROM all_points
-      WHERE location IS NOT NULL
-    )
-    SELECT id, lat, lng, source_type, sub_type, severity, status
-    FROM clustered
-    WHERE cid IS NULL
-  `;
+  const points = consentedIds === null
+    ? await prisma.$queryRaw<PointRow[]>`
+      WITH all_points AS (
+        SELECT id, lat, lng, location, 'incident' as source_type,
+               type::text as sub_type, severity::text as severity, status::text as status
+        FROM incidents
+        WHERE deleted_at IS NULL
+          AND lat BETWEEN ${south} AND ${north}
+          AND lng BETWEEN ${west} AND ${east}
+        UNION ALL
+        SELECT id, lat, lng, location, 'help_request' as source_type,
+               category::text as sub_type, urgency::text as severity, status::text as status
+        FROM help_requests
+        WHERE deleted_at IS NULL
+          AND lat BETWEEN ${south} AND ${north}
+          AND lng BETWEEN ${west} AND ${east}
+      ),
+      clustered AS (
+        SELECT *,
+          ST_ClusterDBSCAN(location, ${eps}, ${minPoints}) OVER () as cid
+        FROM all_points
+        WHERE location IS NOT NULL
+      )
+      SELECT id, lat, lng, source_type, sub_type, severity, status
+      FROM clustered
+      WHERE cid IS NULL
+    `
+    : await prisma.$queryRaw<PointRow[]>`
+      WITH all_points AS (
+        SELECT id, lat, lng, location, 'incident' as source_type,
+               type::text as sub_type, severity::text as severity, status::text as status
+        FROM incidents
+        WHERE deleted_at IS NULL
+          AND lat BETWEEN ${south} AND ${north}
+          AND lng BETWEEN ${west} AND ${east}
+          AND (user_id IS NULL OR user_id = ANY(${idsForSql}::text[]) OR user_id = ${callerId})
+        UNION ALL
+        SELECT id, lat, lng, location, 'help_request' as source_type,
+               category::text as sub_type, urgency::text as severity, status::text as status
+        FROM help_requests
+        WHERE deleted_at IS NULL
+          AND lat BETWEEN ${south} AND ${north}
+          AND lng BETWEEN ${west} AND ${east}
+          AND (user_id IS NULL OR user_id = ANY(${idsForSql}::text[]) OR user_id = ${callerId})
+      ),
+      clustered AS (
+        SELECT *,
+          ST_ClusterDBSCAN(location, ${eps}, ${minPoints}) OVER () as cid
+        FROM all_points
+        WHERE location IS NOT NULL
+      )
+      SELECT id, lat, lng, source_type, sub_type, severity, status
+      FROM clustered
+      WHERE cid IS NULL
+    `;
 
   return { clusters, points };
 }

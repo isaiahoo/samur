@@ -5374,6 +5374,80 @@ a.tg-auth-fallback {
 }
 
 /* Inline error in login forms */
+.consent-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 12px;
+  background: #f4f4f5;
+  border-radius: 8px;
+}
+.consent-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #3f3f46;
+}
+.consent-checkbox input[type="checkbox"] {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+.consent-checkbox input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.consent-checkbox-text a { color: var(--color-primary); }
+
+.consent-gate-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.consent-gate-card {
+  width: 100%;
+  max-width: 420px;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+}
+.consent-gate-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #18181b;
+}
+.consent-gate-body {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #3f3f46;
+}
+
+@media (prefers-color-scheme: dark) {
+  .consent-checkboxes { background: #1f1f23; }
+  .consent-checkbox { color: #d4d4d8; }
+  .consent-gate-card { background: var(--color-surface); }
+  .consent-gate-title { color: #f4f4f5; }
+  .consent-gate-body { color: #d4d4d8; }
+}
+
 .login-error {
   margin: 0 0 12px;
   padding: 10px 12px;

@@ -13,6 +13,9 @@ COPY tsconfig.base.json ./
 COPY packages/db/ packages/db/
 COPY packages/shared/ packages/shared/
 COPY apps/api/ apps/api/
+# Privacy policy markdown — read at runtime by lib/consentVersion.ts to
+# derive the SHA-prefixed version baked into every ConsentLog row.
+COPY legal/ legal/
 
 # Generate Prisma client
 RUN npx prisma generate --schema=packages/db/prisma/schema.prisma
@@ -39,6 +42,9 @@ COPY --from=base /app/package.json ./
 # Rating curves for discharge → water level conversion in the scraper
 # (produced offline by apps/ml/scripts/build_rating_curves.py)
 COPY apps/ml/models/rating_curves.json ./ml/models/rating_curves.json
+
+# Privacy policy markdown — needed at runtime for consent versioning.
+COPY --from=base /app/legal ./legal
 
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 RUN mkdir -p /app/uploads && chown nodejs:nodejs /app/uploads

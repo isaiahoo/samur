@@ -83,6 +83,7 @@ export function vkExchange(data: {
   codeVerifier: string;
   redirectUri: string;
   deviceId?: string;
+  consent?: { processing: boolean; distribution: boolean };
 }) {
   return request<ApiResponse<{ token: string; user: unknown }>>("/auth/vk/exchange", {
     method: "POST",
@@ -90,9 +91,10 @@ export function vkExchange(data: {
   });
 }
 
-export function telegramInit() {
+export function telegramInit(consent?: { processing: boolean; distribution: boolean }) {
   return request<ApiResponse<{ token: string }>>("/auth/telegram/init", {
     method: "POST",
+    body: JSON.stringify({ consent }),
   });
 }
 
@@ -109,10 +111,33 @@ export function phoneRequest(phone: string) {
   });
 }
 
-export function phoneVerify(phone: string, code: string, name?: string, role?: string) {
+export function phoneVerify(
+  phone: string,
+  code: string,
+  name?: string,
+  role?: string,
+  consent?: { processing: boolean; distribution: boolean },
+) {
   return request<ApiResponse<{ token: string; user: unknown; isNew: boolean }>>("/auth/phone/verify", {
     method: "POST",
-    body: JSON.stringify({ phone, code, name, role }),
+    body: JSON.stringify({ phone, code, name, role, consent }),
+  });
+}
+
+// 152-ФЗ consent endpoints. /me drives the ConsentGate (existing-user
+// gate on first login post-deploy). /record writes a single grant.
+export function getMyConsent() {
+  return request<ApiResponse<{
+    processing: { accepted: boolean; at: string; version: string } | null;
+    distribution: { accepted: boolean; at: string; version: string } | null;
+    currentVersion: string;
+  }>>("/consent/me");
+}
+
+export function recordConsent(type: "processing" | "distribution", accepted: boolean) {
+  return request<ApiResponse<{ recorded: true }>>("/consent", {
+    method: "POST",
+    body: JSON.stringify({ type, accepted }),
   });
 }
 

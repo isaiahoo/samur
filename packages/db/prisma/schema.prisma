@@ -160,6 +160,7 @@ model User {
   helpMessageReportsResolved HelpMessageReport[] @relation("Resolver")
   uploads           Upload[]
   alerts            Alert[]
+  consents          ConsentLog[]
 
   @@index([role])
   @@map("users")
@@ -299,6 +300,35 @@ model HelpMessage {
   @@index([authorId])
   @@index([deletedAt])
   @@map("help_messages")
+}
+
+enum ConsentType {
+  processing
+  distribution
+}
+
+/// Append-only legal-evidence trail for 152-ФЗ consents. Every grant
+/// (and every future withdrawal, if ever surfaced) becomes a row; the
+/// "current state" for a user is the latest row per (userId, consentType)
+/// — query via DISTINCT ON or the helper in apps/api/src/lib/consent.ts.
+/// No UPDATE/DELETE in app code: the migration grants only INSERT/SELECT.
+model ConsentLog {
+  id             String      @id @default(cuid())
+  userId         String      @map("user_id")
+  consentType    ConsentType @map("consent_type")
+  /// Content hash of legal/privacy-policy.md at the moment of the grant,
+  /// prefixed with the short git SHA. Lets us prove what text the user
+  /// actually accepted even after the policy is edited.
+  consentVersion String      @map("consent_version")
+  accepted       Boolean
+  acceptedAt     DateTime    @default(now()) @map("accepted_at")
+  ipAddress      String?     @map("ip_address") @db.VarChar(45)
+  userAgent      String?     @map("user_agent") @db.VarChar(500)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, consentType, acceptedAt(sort: Desc)])
+  @@map("consent_log")
 }
 
 enum HelpMessageReportReason {

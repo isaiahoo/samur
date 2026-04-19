@@ -5,6 +5,7 @@ import { phoneRequest, phoneVerify, telegramInit, telegramCheck, updateProfile, 
 import { useAuthStore } from "../store/auth.js";
 import { useUIStore } from "../store/ui.js";
 import type { User } from "@samur/shared";
+import { ConsentCheckboxes } from "../components/ConsentCheckboxes.js";
 
 const TG_BOT_NAME = "samurchs_bot";
 const VK_APP_ID = "54531890";
@@ -49,6 +50,10 @@ export function LoginPage() {
   const [tgAuthToken, setTgAuthToken] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [error, setError] = useState("");
+  // 152-ФЗ consents — required at registration. Submit/social-login
+  // buttons stay disabled until processing is checked.
+  const [processingConsent, setProcessingConsent] = useState(false);
+  const [distributionConsent, setDistributionConsent] = useState(false);
 
   const setAuth = useAuthStore((s) => s.setAuth);
   const showToast = useUIStore((s) => s.showToast);
@@ -92,9 +97,13 @@ export function LoginPage() {
   }, []);
 
   const handleTelegramLogin = async () => {
+    if (!processingConsent) return;
     setTgLoading(true);
     try {
-      const res = await telegramInit();
+      const res = await telegramInit({
+        processing: processingConsent,
+        distribution: distributionConsent,
+      });
       const { token } = res.data as { token: string };
       setTgAuthToken(token);
       setTgLoading(false);
@@ -138,6 +147,7 @@ export function LoginPage() {
   };
 
   const handleVkLogin = async () => {
+    if (!processingConsent) return;
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = await generateCodeChallenge(codeVerifier);
     const state = crypto.randomUUID();
@@ -145,6 +155,12 @@ export function LoginPage() {
     sessionStorage.setItem("vk_code_verifier", codeVerifier);
     sessionStorage.setItem("vk_state", state);
     sessionStorage.setItem("vk_redirect_uri", VK_REDIRECT_URI);
+    // VK redirects away — stash consent so VkCallbackPage can attach it
+    // to the exchange. Server only writes ConsentLog on user-create.
+    sessionStorage.setItem(
+      "vk_consent",
+      JSON.stringify({ processing: processingConsent, distribution: distributionConsent }),
+    );
 
     const params = new URLSearchParams({
       response_type: "code",
@@ -161,7 +177,7 @@ export function LoginPage() {
 
   const handlePhoneRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone.trim()) return;
+    if (!phone.trim() || !processingConsent) return;
     setError("");
     // If cooldown is still active (e.g. user tapped "change" and came back),
     // go straight to code step without re-requesting
@@ -194,7 +210,10 @@ export function LoginPage() {
     setError("");
     setSubmitting(true);
     try {
-      const res = await phoneVerify(phone, code);
+      const res = await phoneVerify(phone, code, undefined, undefined, {
+        processing: processingConsent,
+        distribution: distributionConsent,
+      });
       const data = res.data as { token: string; user: User; isNew: boolean };
 
       if (data.isNew) {
@@ -391,11 +410,18 @@ export function LoginPage() {
 
         {step !== "profile" && !tgAuthToken && (
           <>
+            <ConsentCheckboxes
+              processing={processingConsent}
+              distribution={distributionConsent}
+              onProcessingChange={setProcessingConsent}
+              onDistributionChange={setDistributionConsent}
+              disabled={submitting || tgLoading}
+            />
             <div className="social-login-section">
               <button
                 className="btn-vk-login"
                 onClick={handleVkLogin}
-                disabled={submitting || tgLoading}
+                disabled={submitting || tgLoading || !processingConsent}
                 type="button"
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -407,7 +433,7 @@ export function LoginPage() {
               <button
                 className="btn-tg-login"
                 onClick={handleTelegramLogin}
-                disabled={submitting || tgLoading}
+                disabled={submitting || tgLoading || !processingConsent}
                 type="button"
               >
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
@@ -445,7 +471,7 @@ export function LoginPage() {
             <button
               className="btn btn-primary btn-lg"
               type="submit"
-              disabled={submitting || tgLoading || !phone.trim()}
+              disabled={submitting || tgLoading || !phone.trim() || !processingConsent}
             >
               {submitting ? "Отправка..." : "Получить код звонком"}
             </button>

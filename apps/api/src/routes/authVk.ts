@@ -7,6 +7,8 @@ import { AppError } from "../middleware/error.js";
 import { logger } from "../lib/logger.js";
 import { signToken } from "../lib/jwt.js";
 import { authAttemptsTotal } from "../lib/metrics.js";
+import { recordConsentOnRegister } from "../lib/recordConsentOnRegister.js";
+import type { ConsentInput } from "@samur/shared";
 
 const router = Router();
 
@@ -54,9 +56,10 @@ function verifyVkLaunchParams(
  */
 router.post("/vk", async (req, res, next) => {
   try {
-    const { launchParams, name } = req.body as {
+    const { launchParams, name, consent } = req.body as {
       launchParams: string;
       name?: string;
+      consent?: ConsentInput;
     };
 
     if (!launchParams || typeof launchParams !== "string") {
@@ -90,14 +93,20 @@ router.post("/vk", async (req, res, next) => {
     });
 
     if (!user) {
-      // Auto-register VK user
-      user = await prisma.user.create({
-        data: {
-          vkId: vkUserId,
-          name: name ?? `VK User ${vkUserId}`,
-          role: "resident",
-        },
+      // Auto-register VK user (Mini-App launch). 152-ФЗ requires
+      // explicit processing-consent before persisting any PD.
+      const created = await prisma.$transaction(async (tx) => {
+        const newUser = await tx.user.create({
+          data: {
+            vkId: vkUserId,
+            name: name ?? `VK User ${vkUserId}`,
+            role: "resident",
+          },
+        });
+        await recordConsentOnRegister(req, newUser.id, consent, tx as typeof prisma);
+        return newUser;
       });
+      user = created;
     }
 
     const token = signToken(user.id, user.role, user.tokenVersion);
@@ -134,11 +143,12 @@ router.post("/vk", async (req, res, next) => {
  */
 router.post("/vk/exchange", async (req, res, next) => {
   try {
-    const { code, codeVerifier, redirectUri, deviceId } = req.body as {
+    const { code, codeVerifier, redirectUri, deviceId, consent } = req.body as {
       code: string;
       codeVerifier: string;
       redirectUri: string;
       deviceId?: string;
+      consent?: ConsentInput;
     };
 
     if (!code || !codeVerifier || !redirectUri) {
@@ -239,14 +249,19 @@ router.post("/vk/exchange", async (req, res, next) => {
       }
 
       if (!user) {
-        user = await prisma.user.create({
-          data: {
-            vkId,
-            name: fullName,
-            phone: vkPhone,
-            role: "resident",
-          },
+        const created = await prisma.$transaction(async (tx) => {
+          const newUser = await tx.user.create({
+            data: {
+              vkId,
+              name: fullName,
+              phone: vkPhone,
+              role: "resident",
+            },
+          });
+          await recordConsentOnRegister(req, newUser.id, consent, tx as typeof prisma);
+          return newUser;
         });
+        user = created;
         logger.info({ vkId, name: fullName }, "New user registered via VK ID");
       }
     }

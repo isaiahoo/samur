@@ -47,6 +47,7 @@ import uploadsRouter from "./routes/uploads.js";
 import moderationRouter from "./routes/moderation.js";
 import adminRouter from "./routes/admin.js";
 import metricsRouter from "./routes/metrics.js";
+import consentRouter from "./routes/consent.js";
 
 const app = express();
 
@@ -133,6 +134,7 @@ app.use("/api/v1/seismic", seismicRouter);
 app.use("/api/v1/uploads", uploadsRouter);
 app.use("/api/v1/moderation", moderationRouter);
 app.use("/api/v1/admin", adminRouter);
+app.use("/api/v1/consent", consentRouter);
 app.use(metricsRouter);
 
 app.use(notFoundHandler);

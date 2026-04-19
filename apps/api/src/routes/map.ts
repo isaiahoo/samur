@@ -4,6 +4,9 @@ import { optionalAuth } from "../middleware/auth.js";
 import { validateQuery } from "../middleware/validate.js";
 import { MapClusterQuerySchema } from "@samur/shared";
 import { getMapClusters } from "../lib/spatial.js";
+import { getDistributionConsentedUserIds } from "../lib/consent.js";
+
+const PRIVILEGED_ROLES = new Set(["volunteer", "coordinator", "admin"]);
 
 const router = Router();
 
@@ -17,12 +20,21 @@ router.get(
         zoom: number; south: number; west: number; north: number; east: number;
       };
 
+      const isPrivileged = req.user && PRIVILEGED_ROLES.has(req.user.role);
+      const visibility = isPrivileged
+        ? ("all" as const)
+        : {
+            consentedIds: Array.from(await getDistributionConsentedUserIds()),
+            callerId: req.user?.sub ?? null,
+          };
+
       const { clusters, points } = await getMapClusters(
         q.zoom,
         q.south,
         q.west,
         q.north,
-        q.east
+        q.east,
+        visibility,
       );
 
       const formattedClusters = clusters.map((c) => ({

@@ -270,6 +270,19 @@ export const CreateRiverLevelSchema = z.object({
   measuredAt: z.string().datetime(),
 });
 
+/** 152-ФЗ consents collected at registration. `processing` is required
+ * for any user-create path; `distribution` is the optional second consent
+ * that gates whether the user's items show up on the public/anonymous
+ * map vs only to logged-in volunteers in geofilter. */
+export const ConsentInputSchema = z.object({
+  processing: z.boolean(),
+  distribution: z.boolean(),
+});
+export type ConsentInput = z.infer<typeof ConsentInputSchema>;
+
+export const ConsentTypeSchema = z.enum(["processing", "distribution"]);
+export type ConsentTypeValue = z.infer<typeof ConsentTypeSchema>;
+
 export const TelegramAuthSchema = z.object({
   id: z.coerce.number().int().positive(),
   first_name: z.string().min(1).max(200),
@@ -278,6 +291,7 @@ export const TelegramAuthSchema = z.object({
   photo_url: z.string().url().optional(),
   auth_date: z.coerce.number().int().positive(),
   hash: z.string().length(64),
+  consent: ConsentInputSchema.optional(),
 });
 
 export const LoginSchema = z.object({
@@ -289,6 +303,7 @@ export const RegisterSchema = z.object({
   name: z.string().min(1).max(200),
   phone: phone,
   password: z.string().min(6).max(128),
+  consent: ConsentInputSchema.optional(),
 });
 
 export const PhoneRequestSchema = z.object({
@@ -300,6 +315,15 @@ export const PhoneVerifySchema = z.object({
   code: z.string().regex(/^\d{4,6}$/, "Код должен состоять из 4-6 цифр"),
   name: z.string().min(1).max(200).optional(),
   role: z.enum(["resident", "volunteer"]).optional(),
+  consent: ConsentInputSchema.optional(),
+});
+
+/** Body of POST /consent — used by the in-session ConsentGate (existing
+ * users on first login post-deploy) to record a grant for one consent
+ * type at a time. */
+export const ConsentRecordSchema = z.object({
+  type: ConsentTypeSchema,
+  accepted: z.boolean(),
 });
 
 export const SortOrderSchema = z.enum(["asc", "desc"]).default("desc");

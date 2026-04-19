@@ -9,6 +9,7 @@ import { logger } from "../lib/logger.js";
 import { getRedis } from "../lib/redis.js";
 import { signToken } from "../lib/jwt.js";
 import { authAttemptsTotal } from "../lib/metrics.js";
+import { recordConsentOnRegister } from "../lib/recordConsentOnRegister.js";
 
 const router = Router();
 
@@ -146,7 +147,7 @@ router.post(
   validateBody(PhoneVerifySchema),
   async (req, res, next) => {
     try {
-      const { phone, code, name, role: requestedRole } = req.body;
+      const { phone, code, name, role: requestedRole, consent } = req.body;
       const digits = normalizePhone(phone);
 
       const redis = getRedis();
@@ -199,16 +200,23 @@ router.post(
       let isNew = false;
 
       if (!user) {
-        // New user — create account
+        // New user — create account. 152-ФЗ requires explicit
+        // processing-consent before we can persist any PD; reject
+        // with 400 here if the PWA didn't attach it.
         const validRoles = ["resident", "volunteer"];
         const role = validRoles.includes(requestedRole) ? requestedRole : "resident";
-        user = await prisma.user.create({
-          data: {
-            name: name || "Пользователь",
-            phone: normalizedPhone,
-            role,
-          },
+        const created = await prisma.$transaction(async (tx) => {
+          const newUser = await tx.user.create({
+            data: {
+              name: name || "Пользователь",
+              phone: normalizedPhone,
+              role,
+            },
+          });
+          await recordConsentOnRegister(req, newUser.id, consent, tx as typeof prisma);
+          return newUser;
         });
+        user = created;
         isNew = true;
         logger.info({ userId: user.id, phone: normalizedPhone }, "New user created via phone verification");
       } else {

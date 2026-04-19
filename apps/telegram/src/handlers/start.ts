@@ -17,16 +17,37 @@ async function handleDeepLinkLogin(
   lastName: string | undefined,
   authToken: string,
 ): Promise<void> {
-  // Check if this auth token exists and is pending
+  // /init now stores JSON { status: "pending", consent }. The literal
+  // string "pending" is the pre-rollout shape — accept it for backwards
+  // compat during the deploy window, but new logins will always carry
+  // the consent payload that 152-ФЗ requires for user-create.
   const value = await redis.get(`tg_auth:${authToken}`);
-  if (!value || value !== "pending") {
+  if (!value) {
     await bot.sendMessage(chatId, "Ссылка для входа устарела. Попробуйте снова на сайте.");
     return;
   }
 
+  let consent: { processing: boolean; distribution: boolean } | undefined;
+  if (value !== "pending") {
+    try {
+      const parsed = JSON.parse(value) as {
+        status?: string;
+        consent?: { processing: boolean; distribution: boolean } | null;
+      };
+      if (parsed.status !== "pending") {
+        await bot.sendMessage(chatId, "Ссылка для входа устарела. Попробуйте снова на сайте.");
+        return;
+      }
+      consent = parsed.consent ?? undefined;
+    } catch {
+      await bot.sendMessage(chatId, "Ссылка для входа повреждена. Попробуйте снова на сайте.");
+      return;
+    }
+  }
+
   try {
     // Use the PWA's own Telegram auth endpoint — creates/finds user by tgId
-    const result = await authenticateForPWA(tgId, firstName, lastName);
+    const result = await authenticateForPWA(tgId, firstName, lastName, consent);
 
     // Store result in Redis for the PWA to pick up
     await redis.set(

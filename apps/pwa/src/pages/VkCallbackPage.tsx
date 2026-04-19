@@ -22,11 +22,25 @@ export function VkCallbackPage() {
     const storedState = sessionStorage.getItem("vk_state");
     const codeVerifier = sessionStorage.getItem("vk_code_verifier");
     const redirectUri = sessionStorage.getItem("vk_redirect_uri");
+    // Consent stashed before the user was redirected to id.vk.com
+    // (LoginPage.handleVkLogin). Server uses it on the user-create
+    // branch only; ignored on existing-user login.
+    const rawConsent = sessionStorage.getItem("vk_consent");
+    let consent: { processing: boolean; distribution: boolean } | undefined;
+    if (rawConsent) {
+      try {
+        const parsed = JSON.parse(rawConsent) as { processing?: unknown; distribution?: unknown };
+        if (typeof parsed.processing === "boolean" && typeof parsed.distribution === "boolean") {
+          consent = { processing: parsed.processing, distribution: parsed.distribution };
+        }
+      } catch { /* fall through */ }
+    }
 
     // Clean up stored values
     sessionStorage.removeItem("vk_state");
     sessionStorage.removeItem("vk_code_verifier");
     sessionStorage.removeItem("vk_redirect_uri");
+    sessionStorage.removeItem("vk_consent");
 
     if (!code) {
       const errDesc = searchParams.get("error_description") || searchParams.get("error");
@@ -47,7 +61,7 @@ export function VkCallbackPage() {
     // Exchange code for JWT
     (async () => {
       try {
-        const res = await vkExchange({ code, codeVerifier, redirectUri, deviceId });
+        const res = await vkExchange({ code, codeVerifier, redirectUri, deviceId, consent });
         const data = res.data as { token: string; user: User };
         setAuth(data.token, data.user);
         showToast("Вход выполнен через VK", "success");
