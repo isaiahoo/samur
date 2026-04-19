@@ -20,3 +20,10 @@ apps/ml/runs/
 apps/ml/.venv/
 __pycache__/
 *.pyc
+
+# Signed legal archives — contain operator passport/СНИЛС/personal address.
+# Never commit to the public repo. Only privacy-policy.md belongs here
+# (it's public by design — served at /privacy from the PWA bundle).
+legal/processing-agreement-*.md
+legal/responsible-person-appointment.md
+legal/*.docx
