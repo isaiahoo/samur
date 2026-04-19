@@ -15,6 +15,7 @@ import {
 } from "@samur/shared";
 import { formatRelativeTime } from "@samur/shared";
 import { INCIDENT_COLORS, HELP_COLORS, SHELTER_COLORS } from "./MarkerIcons.js";
+import { loadMarkerSprites } from "./markerSprites.js";
 import {
   toIncidentsGeoJSON,
   toHelpRequestsGeoJSON,
@@ -281,7 +282,46 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
         map.addSource("incidents", { type: "geojson", data: EMPTY_FC, cluster: true, clusterMaxZoom: 14, clusterRadius: 50, promoteId: "id" });
       }
       if (!map.getSource("helpRequests")) {
-        map.addSource("helpRequests", { type: "geojson", data: EMPTY_FC, cluster: true, clusterMaxZoom: 14, clusterRadius: 50, promoteId: "id" });
+        // Cluster accumulators let the cluster layer paint know what's
+        // inside each cluster without needing to crack it open:
+        //   has_sos       1 if any active (non-cancelled/completed) SOS is in this cluster
+        //   max_urgency   highest urgency rank (4=critical, 3=urgent, 1=normal)
+        // These are read by the cluster paint expression to recolor
+        // clusters by contents rather than always purple.
+        map.addSource("helpRequests", {
+          type: "geojson",
+          data: EMPTY_FC,
+          cluster: true,
+          clusterMaxZoom: 14,
+          clusterRadius: 50,
+          promoteId: "id",
+          clusterProperties: {
+            has_sos: [
+              "max",
+              [
+                "case",
+                [
+                  "all",
+                  ["==", ["get", "isSOS"], true],
+                  ["!=", ["get", "status"], "cancelled"],
+                  ["!=", ["get", "status"], "completed"],
+                ],
+                1,
+                0,
+              ],
+            ],
+            max_urgency: [
+              "max",
+              [
+                "case",
+                ["==", ["get", "urgency"], "critical"], 4,
+                ["==", ["get", "urgency"], "urgent"], 3,
+                ["==", ["get", "urgency"], "normal"], 1,
+                0,
+              ],
+            ],
+          },
+        });
       }
       if (!map.getSource("shelters")) map.addSource("shelters", { type: "geojson", data: EMPTY_FC, promoteId: "id" });
 
@@ -343,6 +383,9 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
 
       // ── Help request layers ──────────────────────────────────────────────
 
+      // ── Clusters ──────────────────────────────────────────────────────
+      // Colour follows the worst thing inside: red+pulse-ready if any
+      // active SOS, orange if critical/urgent, else neutral purple.
       if (!map.getLayer("help-clusters")) {
         map.addLayer({
           id: "help-clusters",
@@ -350,10 +393,15 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
           source: "helpRequests",
           filter: ["has", "point_count"],
           paint: {
-            "circle-color": "#8B5CF6",
+            "circle-color": [
+              "case",
+              ["==", ["get", "has_sos"], 1], "#DC2626",
+              [">=", ["get", "max_urgency"], 3], "#F97316",
+              "#8B5CF6",
+            ],
             "circle-radius": ["step", ["get", "point_count"], 18, 10, 24, 50, 32],
-            "circle-opacity": 0.85,
-            "circle-stroke-width": 2,
+            "circle-opacity": 0.9,
+            "circle-stroke-width": 3,
             "circle-stroke-color": "#fff",
           },
         });
@@ -368,32 +416,203 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
           layout: {
             "text-field": "{point_count_abbreviated}",
             "text-font": ["Open Sans Regular"],
-            "text-size": 13,
+            "text-size": 14,
+            "text-allow-overlap": true,
           },
           paint: { "text-color": "#fff" },
         });
       }
 
-      if (!map.getLayer("help-unclustered")) {
+      // ── Unclustered help-request markers ──────────────────────────────
+      // Layer stack, bottom-to-top:
+      //   1. help-sos-pulse   expanding halo on active SOSes (rAF-driven)
+      //   2. help-base        colored disk (urgency/type)
+      //   3. help-status-ring status-aware ring overlay
+      //   4. help-icons       SDF category glyph (white, tinted none)
+      //   5. help-highlight   cyan ring on the currently-tapped marker
+      //
+      // All filter on ["!", ["has", "point_count"]] so the point_count
+      // lookup never fires on cluster features.
+      const NOT_CLUSTERED: maplibregl.FilterSpecification = ["!", ["has", "point_count"]] as unknown as maplibregl.FilterSpecification;
+      const ACTIVE_SOS: maplibregl.FilterSpecification = [
+        "all",
+        ["!", ["has", "point_count"]],
+        ["==", ["get", "isSOS"], true],
+        ["!=", ["get", "status"], "cancelled"],
+        ["!=", ["get", "status"], "completed"],
+      ] as unknown as maplibregl.FilterSpecification;
+
+      // Color fill — urgency-driven for needs, green for offers.
+      // Cancelled/completed dim to gray.
+      const FILL_COLOR: maplibregl.ExpressionSpecification = [
+        "case",
+        ["==", ["get", "status"], "cancelled"], "#A1A1AA",
+        ["==", ["get", "status"], "completed"], "#6B7280",
+        ["==", ["get", "type"], "offer"], "#22C55E",
+        ["==", ["get", "isSOS"], true], "#DC2626",
+        ["==", ["get", "urgency"], "critical"], "#EF4444",
+        ["==", ["get", "urgency"], "urgent"], "#F97316",
+        "#FB923C",
+      ] as unknown as maplibregl.ExpressionSpecification;
+
+      // Status ring — open=white, claimed=amber, in_progress=blue,
+      // completed=green, cancelled=dark gray. Always ≥2px so the
+      // marker remains visible against the map tile.
+      const RING_COLOR: maplibregl.ExpressionSpecification = [
+        "case",
+        ["==", ["get", "status"], "claimed"], "#F59E0B",
+        ["==", ["get", "status"], "in_progress"], "#3B82F6",
+        ["==", ["get", "status"], "completed"], "#16A34A",
+        ["==", ["get", "status"], "cancelled"], "#52525B",
+        "#FFFFFF",
+      ] as unknown as maplibregl.ExpressionSpecification;
+
+      // SOS pulsing halo — the circle-radius + circle-opacity are
+      // overwritten by an rAF loop (see pulseHelpSosRef). The paint
+      // values here are the steady-state starting point; the loop
+      // drives the animation.
+      if (!map.getLayer("help-sos-pulse")) {
         map.addLayer({
-          id: "help-unclustered",
+          id: "help-sos-pulse",
           type: "circle",
           source: "helpRequests",
-          filter: ["!", ["has", "point_count"]],
+          filter: ACTIVE_SOS,
           paint: {
-            "circle-color": [
-              "match",
-              ["get", "type"],
-              "need", HELP_COLORS.need,
-              "offer", HELP_COLORS.offer,
-              HELP_COLORS.need,
-            ],
-            "circle-radius": ["case", ["boolean", ["feature-state", "highlighted"], false], 11, 8],
-            "circle-stroke-width": ["case", ["boolean", ["feature-state", "highlighted"], false], 4, 2],
-            "circle-stroke-color": ["case", ["boolean", ["feature-state", "highlighted"], false], "#06B6D4", "#fff"],
+            "circle-color": "#DC2626",
+            "circle-radius": 18,
+            "circle-opacity": 0.5,
+            "circle-stroke-width": 0,
           },
         });
       }
+
+      if (!map.getLayer("help-base")) {
+        map.addLayer({
+          id: "help-base",
+          type: "circle",
+          source: "helpRequests",
+          filter: NOT_CLUSTERED,
+          paint: {
+            "circle-color": FILL_COLOR,
+            "circle-radius": [
+              "case",
+              ["==", ["get", "isSOS"], true], 14,
+              ["==", ["get", "urgency"], "critical"], 11,
+              9,
+            ],
+            "circle-opacity": [
+              "case",
+              ["==", ["get", "status"], "completed"], 0.55,
+              ["==", ["get", "status"], "cancelled"], 0.35,
+              1,
+            ],
+            "circle-stroke-width": 0,
+          },
+        });
+      }
+
+      if (!map.getLayer("help-status-ring")) {
+        map.addLayer({
+          id: "help-status-ring",
+          type: "circle",
+          source: "helpRequests",
+          filter: NOT_CLUSTERED,
+          paint: {
+            "circle-color": "rgba(0,0,0,0)",
+            "circle-radius": [
+              "case",
+              ["==", ["get", "isSOS"], true], 14,
+              ["==", ["get", "urgency"], "critical"], 11,
+              9,
+            ],
+            "circle-stroke-color": RING_COLOR,
+            "circle-stroke-width": [
+              "case",
+              ["any",
+                ["==", ["get", "status"], "claimed"],
+                ["==", ["get", "status"], "in_progress"],
+                ["==", ["get", "status"], "completed"],
+              ], 3,
+              2,
+            ],
+            "circle-stroke-opacity": [
+              "case",
+              ["==", ["get", "status"], "cancelled"], 0.5,
+              1,
+            ],
+          },
+        });
+      }
+
+      // Icon overlay. Picks "sos" glyph for SOS markers, else the
+      // matching category; falls back to "other" for any category
+      // that ships without a sprite. `icon-color` tints the SDF mask
+      // white so it reads against the red/orange/green fill.
+      if (!map.getLayer("help-icons")) {
+        map.addLayer({
+          id: "help-icons",
+          type: "symbol",
+          source: "helpRequests",
+          filter: NOT_CLUSTERED,
+          layout: {
+            "icon-image": [
+              "case",
+              ["==", ["get", "isSOS"], true], "kunak-icon-sos",
+              ["==", ["get", "category"], "rescue"], "kunak-icon-rescue",
+              ["==", ["get", "category"], "shelter"], "kunak-icon-shelter",
+              ["==", ["get", "category"], "food"], "kunak-icon-food",
+              ["==", ["get", "category"], "water"], "kunak-icon-water",
+              ["==", ["get", "category"], "medicine"], "kunak-icon-medicine",
+              ["==", ["get", "category"], "equipment"], "kunak-icon-equipment",
+              ["==", ["get", "category"], "transport"], "kunak-icon-transport",
+              ["==", ["get", "category"], "labor"], "kunak-icon-labor",
+              ["==", ["get", "category"], "generator"], "kunak-icon-generator",
+              ["==", ["get", "category"], "pump"], "kunak-icon-pump",
+              "kunak-icon-other",
+            ],
+            "icon-size": [
+              "case",
+              ["==", ["get", "isSOS"], true], 0.45,
+              ["==", ["get", "urgency"], "critical"], 0.35,
+              0.3,
+            ],
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": true,
+          },
+          paint: {
+            "icon-color": "#FFFFFF",
+            "icon-opacity": [
+              "case",
+              ["==", ["get", "status"], "cancelled"], 0.5,
+              1,
+            ],
+          },
+        });
+      }
+
+      if (!map.getLayer("help-highlight")) {
+        map.addLayer({
+          id: "help-highlight",
+          type: "circle",
+          source: "helpRequests",
+          filter: NOT_CLUSTERED,
+          paint: {
+            "circle-color": "rgba(0,0,0,0)",
+            "circle-radius": [
+              "case",
+              ["boolean", ["feature-state", "highlighted"], false],
+              ["case", ["==", ["get", "isSOS"], true], 18, 13],
+              0,
+            ],
+            "circle-stroke-color": "#06B6D4",
+            "circle-stroke-width": [
+              "case",
+              ["boolean", ["feature-state", "highlighted"], false], 4, 0,
+            ],
+          },
+        });
+      }
+
 
       // Heatmap overlays (flood zone, precipitation) are added dynamically
       // as canvas-based image sources — see useEffect blocks below.
@@ -428,6 +647,13 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
       setupSourcesAndLayers();
 
       // River level layer removed — gauge stations now use HTML markers (see gauge marker effect below)
+
+      // Load category SDF sprites in the background. The icon layer
+      // is set up with conditional icon-image expressions that look
+      // for "kunak-icon-*" names; until the loader finishes, those
+      // images are missing and MapLibre renders no icon — which is
+      // acceptable (the fill + status ring still convey enough).
+      loadMarkerSprites(map).catch(() => { /* non-critical */ });
 
       setMapReady(true);
     });
@@ -467,14 +693,14 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
     }
 
     showPopup("incidents-unclustered", incidentPopupHTML, "incident");
-    showPopup("help-unclustered", helpPopupHTML, "helpRequest");
+    showPopup("help-base", helpPopupHTML, "helpRequest");
     showPopup("shelters", shelterPopupHTML, "shelter");
     // rivers popup removed — gauge markers handle clicks directly
 
     // Pointer cursor on interactive layers
     const interactiveLayers = [
       "incidents-clusters", "incidents-unclustered",
-      "help-clusters", "help-unclustered",
+      "help-clusters", "help-base",
       "shelters",
     ];
     for (const layer of interactiveLayers) {
@@ -565,6 +791,39 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
   useEffect(() => updateSource("incidents", toIncidentsGeoJSON(incidents)), [incidents, updateSource]);
   useEffect(() => updateSource("helpRequests", toHelpRequestsGeoJSON(helpRequests)), [helpRequests, updateSource]);
   useEffect(() => updateSource("shelters", toSheltersGeoJSON(shelters)), [shelters, updateSource]);
+
+  // ── SOS pulsing halo animation ──────────────────────────────────────
+  // The help-sos-pulse layer is a fat red circle behind the main
+  // marker; we breathe circle-radius + circle-opacity once per second
+  // so active SOSes visibly grab attention across the map. The loop
+  // is a no-op when no active SOSes are visible (MapLibre just
+  // doesn't render anything because the layer's filter matches 0
+  // features), so the cost is bounded at one setPaintProperty per
+  // frame regardless of marker count.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    let rafId = 0;
+    const start = performance.now();
+    const period = 1400;
+    const minR = 16;
+    const maxR = 32;
+
+    const animate = (now: number) => {
+      const phase = ((now - start) % period) / period;
+      const radius = minR + (maxR - minR) * phase;
+      const opacity = 0.55 * (1 - phase);
+      try {
+        if (map.getLayer("help-sos-pulse")) {
+          map.setPaintProperty("help-sos-pulse", "circle-radius", radius);
+          map.setPaintProperty("help-sos-pulse", "circle-opacity", opacity);
+        }
+      } catch { /* style may be mid-swap — next frame will recover */ }
+      rafId = requestAnimationFrame(animate);
+    };
+    rafId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafId);
+  }, [mapReady, styleVersion]);
   // River heatmap and precipitation are now canvas-based overlays (below)
 
   // ── Soil moisture: IDW-interpolated canvas overlay ──────────────────────
@@ -1110,7 +1369,11 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
 
     const layerGroups: Record<string, string[]> = {
       incidents: ["incidents-clusters", "incidents-cluster-count", "incidents-unclustered"],
-      helpRequests: ["help-clusters", "help-cluster-count", "help-unclustered"],
+      helpRequests: [
+        "help-clusters", "help-cluster-count",
+        "help-sos-pulse", "help-base", "help-status-ring",
+        "help-icons", "help-highlight",
+      ],
       shelters: ["shelters"],
       floodHeatmap: ["flood-zone-overlay"],
       precipitation: ["precip-overlay"],

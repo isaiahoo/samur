@@ -41,6 +41,12 @@ export function toHelpRequestsGeoJSON(items: HelpRequest[]): FeatureCollection {
         type: hr.type,
         category: hr.category,
         urgency: hr.urgency,
+        // Data-driven marker styling needs these two on every feature:
+        //   isSOS drives the pulsing-halo SOS layer + cluster accumulator.
+        //   status drives the ring colour (open/claimed/in_progress/
+        //   completed/cancelled) on the unclustered layer.
+        isSOS: hr.isSOS === true,
+        status: hr.status,
         description: hr.description ?? "",
         address: hr.address ?? "",
         contactPhone: hr.contactPhone ?? "",
