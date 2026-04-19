@@ -323,25 +323,18 @@ router.post(
       const { lat, lng, situation, peopleCount, contactPhone, contactName, batteryLevel, source } = req.body;
       const clientIp = getRealIp(req);
 
-      // Tier 1.1 — Per-IP SOS rate limit (1 per 5 min)
-      const rateCheck = await checkSosRateLimit(clientIp);
-      if (!rateCheck.allowed) {
-        res.status(429).json({
-          success: false,
-          error: {
-            code: "SOS_RATE_LIMITED",
-            message: "Вы уже отправили сигнал SOS. Подождите 5 минут.",
-            retryAfterSeconds: rateCheck.retryAfterSeconds,
-          },
-        });
-        return;
-      }
-
-      // Duplicate prevention: authenticated user — check by userId.
-      // We RETURN the existing SOS rather than reject, AND issue a
-      // fresh updateToken so the client can open the follow-up form
-      // against the active record. Flagged `existing: true` so the UI
-      // can say "Ваш SOS активен" instead of "SOS отправлен".
+      // Duplicate detection comes FIRST, before any rate-limit charge.
+      // Why: the rate limiter is meant to prevent fresh-SOS spam, not
+      // to block a legitimate author from re-opening the post-send
+      // screen on their own active signal. If we consumed a rate-limit
+      // token here and then returned the existing row, the second tap
+      // after "Готово" would 429 and the author would see a bogus
+      // "Ошибка отправки" when nothing is actually wrong.
+      //
+      // Auth path: any active SOS by this user.
+      // Anon path: IP + coords match within 30 min (findExistingAnonymousSOS).
+      // Either returns the existing row + a fresh updateToken so the
+      // follow-up form is reachable.
       if (req.user?.sub) {
         const existing = await prisma.helpRequest.findFirst({
           where: {
@@ -361,13 +354,7 @@ router.post(
           res.status(200).json({ success: true, data: { ...existing, updateToken: token, existing: true } });
           return;
         }
-      }
-
-      // Tier 1.2 — Anonymous dedup by IP + coordinates (30 min, 1km radius).
-      // Same treatment: return the row + a fresh updateToken so the
-      // same-browser caller can open the follow-up form on their own
-      // recent SOS.
-      if (!req.user?.sub) {
+      } else {
         const existingAnon = await findExistingAnonymousSOS(clientIp, lat, lng);
         if (existingAnon) {
           const full = await prisma.helpRequest.findFirst({
@@ -383,6 +370,21 @@ router.post(
             return;
           }
         }
+      }
+
+      // Only reach the rate-limiter if we're actually going to create
+      // a NEW SOS. Protects against spam of fresh rows from the same IP.
+      const rateCheck = await checkSosRateLimit(clientIp);
+      if (!rateCheck.allowed) {
+        res.status(429).json({
+          success: false,
+          error: {
+            code: "SOS_RATE_LIMITED",
+            message: "Вы уже отправили сигнал SOS. Подождите 5 минут.",
+            retryAfterSeconds: rateCheck.retryAfterSeconds,
+          },
+        });
+        return;
       }
 
       // Tier 1.3 — Contextual confidence score + Tier 1.4 — Adaptive crisis mode

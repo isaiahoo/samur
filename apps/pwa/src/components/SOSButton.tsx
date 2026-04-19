@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { createSOS, sosFollowUp, uploadAudio, ApiError } from "../services/api.js";
+import { createSOS, sosFollowUp, ApiError } from "../services/api.js";
 import { addToOutbox } from "../services/db.js";
 import { useOnline } from "../hooks/useOnline.js";
 import { useUIStore } from "../store/ui.js";
 import { MAKHACHKALA_CENTER } from "@samur/shared";
-import { VoiceRecorder } from "./VoiceRecorder.js";
 
 /**
  * Stages:
@@ -43,9 +42,7 @@ export function SOSButton() {
   // Follow-up form state (only meaningful in `sent` stage).
   const [description, setDescription] = useState("");
   const [savedDescription, setSavedDescription] = useState("");
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [savingText, setSavingText] = useState(false);
-  const [audioUploading, setAudioUploading] = useState(false);
 
   const holdStartRef = useRef<number>(0);
   const holdRafRef = useRef<number>(0);
@@ -100,9 +97,6 @@ export function SOSButton() {
           const existingDesc = data.description.replace(/^SOS\s*(?:—|-)\s*/, "").trim();
           setDescription(existingDesc);
           setSavedDescription(existingDesc);
-        }
-        if (data?.existing && typeof data.audioUrl === "string") {
-          setAudioUrl(data.audioUrl);
         }
       } else {
         await addToOutbox({ endpoint: "/help-requests/sos", method: "POST", body: payload });
@@ -178,34 +172,6 @@ export function SOSButton() {
     }
   }, [sentId, updateToken, description, savedDescription, savingText, showToast]);
 
-  // Voice recording complete → upload → attach URL to SOS.
-  const handleVoiceSaved = useCallback(async (blob: Blob) => {
-    if (!sentId) return;
-    setAudioUploading(true);
-    try {
-      const url = await uploadAudio(blob);
-      await sosFollowUp(sentId, {
-        updateToken: updateToken ?? undefined,
-        audioUrl: url,
-      });
-      setAudioUrl(url);
-      showToast("Голосовое сохранено", "success");
-    } catch (err) {
-      const msg = err instanceof ApiError ? err.message : "Не удалось загрузить аудио";
-      showToast(msg, "error");
-    } finally {
-      setAudioUploading(false);
-    }
-  }, [sentId, updateToken, showToast]);
-
-  const removeAudio = useCallback(async () => {
-    if (!sentId || !audioUrl) return;
-    try {
-      await sosFollowUp(sentId, { updateToken: updateToken ?? undefined, audioUrl: null });
-      setAudioUrl(null);
-    } catch { /* keep local state — user can retry */ }
-  }, [sentId, updateToken, audioUrl]);
-
   const close = useCallback(() => {
     // Auto-save any unsaved description before closing so the author
     // doesn't lose what they typed by tapping "Закрыть" too early.
@@ -223,7 +189,6 @@ export function SOSButton() {
     setLocation(null);
     setDescription("");
     setSavedDescription("");
-    setAudioUrl(null);
   }, [sentId, updateToken, description, savedDescription]);
 
   const cancel = useCallback(() => {
@@ -235,7 +200,6 @@ export function SOSButton() {
     setLocation(null);
     setDescription("");
     setSavedDescription("");
-    setAudioUrl(null);
   }, []);
 
   // Escape key handling
@@ -395,22 +359,8 @@ export function SOSButton() {
                 description.trim() === savedDescription.trim()
               }
             >
-              {savingText ? "Сохранение..." : "Сохранить текст"}
+              {savingText ? "Сохранение..." : "Сохранить"}
             </button>
-
-            <div className="sos-followup-divider">
-              <span>или</span>
-            </div>
-
-            <p className="sos-followup-label">Голосовое сообщение</p>
-            {sentId && (
-              <VoiceRecorder
-                onSaved={handleVoiceSaved}
-                existingUrl={audioUrl}
-                onRemove={removeAudio}
-                disabled={audioUploading}
-              />
-            )}
           </div>
 
           <button className="sos-done-btn" onClick={close}>Готово</button>
