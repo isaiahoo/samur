@@ -14,10 +14,19 @@ export default defineConfig({
         alias: {
             "@": path.resolve(__dirname, "./src"),
             "@samur/shared": path.resolve(__dirname, "../../packages/shared/src/index.ts"),
+            // Shared legal documents live at monorepo root — single source of
+            // truth so the privacy policy isn't duplicated between the audit
+            // trail and the PWA. Imported via `@legal/privacy-policy.md?raw`.
+            "@legal": path.resolve(__dirname, "../../legal"),
         },
     },
     server: {
         port: 5173,
+        // Allow dev-mode imports from the monorepo-root legal/ directory.
+        // Build mode ignores this — vite bundles whatever the graph touches.
+        fs: {
+            allow: [path.resolve(__dirname, "../..")],
+        },
         proxy: {
             "/api": {
                 target: "http://localhost:3000",

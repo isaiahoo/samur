@@ -9,6 +9,7 @@ const LoginPage = lazy(() => import("./pages/LoginPage.js").then((m) => ({ defau
 const VkCallbackPage = lazy(() => import("./pages/VkCallbackPage.js").then((m) => ({ default: m.VkCallbackPage })));
 const AdminPage = lazy(() => import("./pages/admin/AdminPage.js").then((m) => ({ default: m.AdminPage })));
 const ProfilePage = lazy(() => import("./pages/ProfilePage.js").then((m) => ({ default: m.ProfilePage })));
+const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage.js").then((m) => ({ default: m.PrivacyPolicyPage })));
 
 export function App() {
   return (
@@ -20,6 +21,7 @@ export function App() {
           <Route path="/auth/vk/callback" element={<VkCallbackPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/profile/:id" element={<ProfilePage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="*" element={<Layout />} />
         </Routes>
       </Suspense>

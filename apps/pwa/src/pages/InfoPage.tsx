@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { Link } from "react-router-dom";
 import type { Shelter } from "@samur/shared";
 import { SHELTER_STATUS_LABELS, AMENITY_LABELS } from "@samur/shared";
 import { getShelters } from "../services/api.js";
@@ -154,6 +155,13 @@ function EmergencyInfo() {
           <li>Выбросьте все продукты, которые контактировали с водой</li>
           <li>Проветрите и просушите помещения</li>
           <li>Обратитесь за помощью через это приложение</li>
+        </ul>
+      </section>
+
+      <section className="info-section info-section--legal">
+        <h3>Правовая информация</h3>
+        <ul className="info-list">
+          <li><Link to="/privacy">Политика конфиденциальности</Link></li>
         </ul>
       </section>
     </div>
