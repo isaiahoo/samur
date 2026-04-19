@@ -18,14 +18,37 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 startOutboxPolling();
 getSocket();
 
-// Kill any existing Service Workers
+// Service worker registration — Android gets a no-op SW so Chrome's
+// installability heuristic fires (beforeinstallprompt + address-bar
+// install button); iOS stays SW-free because legacy Workbox SWs hung
+// iOS Safari fetches on repeat visits. UA detection is reliable
+// enough for this gate — even if a user spoofs their UA, the worst
+// case on iOS is the no-op SW installs and does nothing (no fetch
+// interception = no hang).
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.getRegistrations().then((regs) => {
-    regs.forEach((r) => r.unregister());
-  });
-  caches.keys().then((keys) => {
-    keys.forEach((k) => caches.delete(k));
-  });
+  const ua = navigator.userAgent;
+  const isIOS =
+    /iPad|iPhone|iPod/.test(ua) ||
+    (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+
+  if (isIOS) {
+    // Defence in depth — if a legacy SW is still registered from the
+    // pre-cleanup era, unregister it and clear any caches it left.
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      regs.forEach((r) => r.unregister());
+    });
+    caches.keys().then((keys) => {
+      keys.forEach((k) => caches.delete(k));
+    });
+  } else {
+    // Android + desktop: register the no-op SW so Chrome considers
+    // the site installable. Silent on failure — if registration
+    // errors, we lose the native install prompt but the manual
+    // instructions in InstallPromptSheet still work.
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      /* silent */
+    });
+  }
 }
 
 createRoot(document.getElementById("root")!).render(<App />);

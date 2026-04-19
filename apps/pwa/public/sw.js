@@ -1,22 +1,31 @@
-// Self-destructing service worker — replaces any old Workbox SW,
-// clears all caches, and unregisters itself.
-self.addEventListener("install", function() { self.skipWaiting(); });
-self.addEventListener("activate", function(event) {
-  event.waitUntil(
-    caches.keys()
-      .then(function(keys) { return Promise.all(keys.map(function(k) { return caches.delete(k); })); })
-      .then(function() { return self.clients.matchAll(); })
-      .then(function(clients) {
-        // Tell all open tabs to reload cleanly (no SW interception)
-        clients.forEach(function(c) { c.postMessage({ type: "SW_DESTROYED" }); });
-        return self.registration.unregister();
-      })
-  );
+// Minimal persistent service worker.
+//
+// Purpose: satisfy Chrome's PWA install criteria so
+// `beforeinstallprompt` fires on Android and the user gets the native
+// "Установить" button in the browser address bar + our
+// InstallPromptSheet's "Установить" button actually works. Chrome
+// 68+ requires a registered SW with a fetch listener for the
+// installability heuristic, even if the listener does nothing.
+//
+// Crucially, this SW does NOT call `event.respondWith()` in the
+// fetch handler — the browser handles every request exactly as if
+// no SW existed. No caching, no interception, no chance of
+// hanging iOS Safari fetches the way the old VitePWA SW did.
+//
+// Registration is gated in main.tsx to non-iOS user agents. iOS
+// users never get this SW installed, so there is no iOS risk here.
+// Belt-and-suspenders: if iOS somehow ended up with a legacy SW
+// registered, main.tsx unregisters it on every boot.
+
+self.addEventListener("install", () => {
+  self.skipWaiting();
 });
-self.addEventListener("message", function(event) {
-  if (event.data && event.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
-  }
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
 });
-// Pass all fetch requests straight to network — do NOT intercept anything
-self.addEventListener("fetch", function() { /* no-op: let browser handle it */ });
+
+self.addEventListener("fetch", () => {
+  // No-op. The listener's mere existence satisfies Chrome's install
+  // eligibility check; the browser fetches the request itself.
+});
