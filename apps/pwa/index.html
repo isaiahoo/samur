@@ -27,8 +27,14 @@
     <meta property="vk:image" content="https://mykunak.ru/og-image.png" />
 
     <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png?v=5" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png?v=5" />
+    <!-- apple-touch-icon lives at the canonical root path so iOS Safari's
+         auto-probe picks it up without depending on the <link> tag being
+         parsed. The SPA's nginx try_files fallback would otherwise serve
+         index.html for this URL and iOS would fall back to its generated
+         letter-placeholder instead of the real logo. -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=5" />
     <link rel="canonical" href="https://mykunak.ru" />
     <title>Кунак</title>
 
