@@ -43,8 +43,12 @@ const DISMISS_COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000;
 const BANNER_DISMISS_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
 /** Delay after mount before the auto-show sheet becomes eligible. The
  * top banner is eligible immediately (it's small + unobtrusive);
- * this timer only applies to the full-screen nudge. */
-const SHEET_DELAY_MS = 6 * 1000;
+ * this timer only applies to the full-screen nudge. 2 s is long
+ * enough to let the user see the map paint and register "oh this is
+ * the app" before an interrupt, short enough not to feel like a
+ * wait. Chrome's beforeinstallprompt engagement heuristic (~30 s
+ * cold-start) is separate — our sheet + banner don't wait for it. */
+const SHEET_DELAY_MS = 2 * 1000;
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
