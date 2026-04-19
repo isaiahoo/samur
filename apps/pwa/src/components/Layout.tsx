@@ -15,6 +15,7 @@ import type { Alert as AlertType } from "@samur/shared";
 import { Toast } from "./Toast.js";
 import { SOSButton } from "./SOSButton.js";
 import { ConsentGate } from "./ConsentGate.js";
+import { InstallPromptSheet } from "./InstallPromptSheet.js";
 import { MapPage } from "../pages/MapPage.js";
 import { HelpPage } from "../pages/HelpPage.js";
 import { AlertsPage } from "../pages/AlertsPage.js";
@@ -437,6 +438,8 @@ export function Layout() {
       <Toast />
 
       <ConsentGate />
+
+      <InstallPromptSheet />
     </div>
   );
 }

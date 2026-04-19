@@ -5592,6 +5592,261 @@ a.tg-auth-fallback {
   .consent-gate-body { color: #d4d4d8; }
 }
 
+/* ── "Install on home screen" bottom sheet ─────────────────────────
+   Slides up from the bottom with a semi-transparent scrim. Below the
+   ConfirmDialog (10100) so a confirm triggered from inside the sheet
+   — e.g. "Позже" that might later gain a confirm step — stacks above.
+   Above the tab bar (1000) so it covers the full mobile surface. */
+.install-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+}
+.install-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: installScrimIn 0.18s ease-out both;
+  pointer-events: auto;
+}
+@keyframes installScrimIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.install-sheet {
+  position: relative;
+  pointer-events: auto;
+  width: 100%;
+  max-width: 480px;
+  background: #ffffff;
+  border-radius: 20px 20px 0 0;
+  padding: 22px 22px calc(20px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.25);
+  animation: installSheetUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+}
+@keyframes installSheetUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.install-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #f4f4f5;
+  color: #52525b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.install-close:active { background: #e4e4e7; }
+
+.install-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 0 20px;
+}
+.install-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  background: #fff;
+}
+.install-icon img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.install-title {
+  margin: 8px 0 0;
+  font-size: 19px;
+  font-weight: 700;
+  color: #18181b;
+  line-height: 1.25;
+  letter-spacing: -0.2px;
+}
+.install-subtitle {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #52525b;
+}
+
+.install-benefits {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.install-benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  color: #3f3f46;
+  line-height: 1.4;
+}
+.install-benefit-icon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.install-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.install-steps {
+  list-style: none;
+  counter-reset: install-step;
+  padding: 0;
+  margin: 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.install-steps li {
+  counter-increment: install-step;
+  position: relative;
+  padding: 12px 14px 12px 48px;
+  background: #f4f4f5;
+  border-radius: 12px;
+  font-size: 14px;
+  color: #27272a;
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.install-steps li::before {
+  content: counter(install-step);
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-primary, #2563eb);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.install-steps strong { font-weight: 600; color: #18181b; }
+.install-inline-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 4px;
+  padding: 2px 8px;
+  background: #fff;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  color: var(--color-primary, #2563eb);
+}
+.install-share-icon { display: block; }
+
+.install-prose {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #27272a;
+}
+.install-prose .install-share-icon {
+  display: inline;
+  vertical-align: middle;
+  margin: 0 2px;
+  color: var(--color-primary, #2563eb);
+}
+
+.install-primary {
+  width: 100%;
+  padding: 14px 18px;
+  border: none;
+  border-radius: 12px;
+  background: var(--color-primary, #2563eb);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.install-primary:active { background: #1d4ed8; }
+.install-primary:disabled { background: #e4e4e7; color: #a1a1aa; cursor: not-allowed; }
+
+.install-secondary {
+  width: 100%;
+  padding: 12px 18px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: #52525b;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.install-secondary:active { background: #f4f4f5; }
+
+@media (prefers-color-scheme: dark) {
+  .install-sheet {
+    background: var(--color-surface, #1f1f23);
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.6);
+  }
+  .install-close { background: #27272a; color: #a1a1aa; }
+  .install-close:active { background: #3f3f46; }
+  .install-title { color: #f4f4f5; }
+  .install-subtitle { color: #a1a1aa; }
+  .install-benefits li { color: #d4d4d8; }
+  .install-benefit-icon {
+    background: rgba(34, 197, 94, 0.2);
+    color: #4ade80;
+  }
+  .install-steps li { background: #27272a; color: #e4e4e7; }
+  .install-steps strong { color: #f4f4f5; }
+  .install-inline-icon {
+    background: #1f1f23;
+    border-color: #3f3f46;
+    color: #93c5fd;
+  }
+  .install-prose { color: #e4e4e7; }
+  .install-prose .install-share-icon { color: #93c5fd; }
+  .install-secondary { color: #a1a1aa; }
+  .install-secondary:active { background: rgba(255, 255, 255, 0.05); }
+  .install-primary:disabled { background: #3f3f46; color: #71717a; }
+}
+
 .login-error {
   margin: 0 0 12px;
   padding: 10px 12px;
