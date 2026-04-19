@@ -3524,16 +3524,98 @@ textarea.form-input { resize: vertical; min-height: 80px; }
   line-height: 1.5;
   margin-bottom: 12px;
 }
+
+/* Category pills above the description — surfaced from the SOS
+   follow-up's "Ситуация: X, Y" prefix so the scenario reads at a
+   glance instead of blending into the free-text block. */
+.detail-situations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 12px;
+}
+.detail-situation-pill {
+  font-size: 13px;
+  font-weight: 600;
+  color: #b91c1c;
+  background: #fee2e2;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
 .detail-meta { margin-bottom: 16px; }
 .detail-meta-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   font-size: 13px;
   color: var(--color-muted);
   padding: 4px 0;
 }
-.detail-meta-row svg { flex-shrink: 0; }
+.detail-meta-row svg { flex-shrink: 0; margin-top: 2px; }
+
+/* Location row — stacked name + monospace coords (tap-to-copy) + ETA. */
+.detail-meta-row--location { align-items: flex-start; padding: 6px 0; }
+.detail-location {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.detail-location-name {
+  font-size: 14px;
+  color: var(--color-text);
+  font-weight: 500;
+  line-height: 1.3;
+}
+.detail-coords {
+  align-self: flex-start;
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 12px;
+  color: #71717a;
+  background: transparent;
+  border: none;
+  padding: 2px 0;
+  cursor: pointer;
+  text-align: left;
+}
+.detail-coords:active { color: var(--color-primary); }
+.detail-location-eta {
+  font-size: 12px;
+  color: #52525b;
+  font-weight: 500;
+}
+
+/* "Построить маршрут" — secondary-style CTA opening the RoutePickerSheet.
+   Placed inside the meta block (not the sticky footer) so the phone
+   + respond buttons below stay the primary actions. */
+.detail-route-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  justify-content: center;
+  margin: 8px 0 4px;
+  padding: 10px 14px;
+  border: 1px solid var(--color-primary);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.detail-route-btn:active { background: rgba(37, 99, 235, 0.08); }
+
+@media (prefers-color-scheme: dark) {
+  .detail-situation-pill {
+    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.16);
+  }
+  .detail-location-name { color: #f4f4f5; }
+  .detail-coords { color: #a1a1aa; }
+  .detail-location-eta { color: #d4d4d8; }
+}
 .detail-contact {
   border-top: 1px solid var(--color-border);
   padding-top: 12px;

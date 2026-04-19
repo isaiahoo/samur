@@ -1,19 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import type { HelpRequest, HelpResponse, HelpResponseStatus } from "@samur/shared";
 import {
   HELP_CATEGORY_LABELS,
   HELP_REQUEST_STATUS_LABELS,
+  calculateDistance,
+  formatDistance,
 } from "@samur/shared";
 import { formatRelativeTime } from "@samur/shared";
 import { UrgencyBadge } from "./UrgencyBadge.js";
 import { ImageLightbox } from "./ImageLightbox.js";
 import { HelpChat } from "./HelpChat.js";
 import { HelpProgressRail } from "./HelpProgressRail.js";
+import { RoutePickerSheet } from "./RoutePickerSheet.js";
 import { confirmAction, useUIStore } from "../store/ui.js";
 import { removeHelpParticipant, ApiError } from "../services/api.js";
+import { useGeolocation } from "../hooks/useGeolocation.js";
+import { reverseGeocode } from "../services/reverseGeocode.js";
 
 const categoryIcons: Record<string, string> = {
   rescue: "🆘", shelter: "🏠", food: "🍞", water: "💧",
@@ -120,8 +125,60 @@ export function HelpDetailSheet({
   item, isNeed, currentUserId, onClaim, onUpdateResponse, onClose,
 }: Props) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [routePickerOpen, setRoutePickerOpen] = useState(false);
+  // Reverse-geocoded place name. Null while loading / on failure;
+  // UI only shows this when item.address is missing, so silent
+  // failure is acceptable.
+  const [geocoded, setGeocoded] = useState<string | null>(null);
+  const [coordsCopied, setCoordsCopied] = useState(false);
   const navigate = useNavigate();
+  const { position } = useGeolocation();
   const photos = item.photoUrls ?? [];
+
+  // Only fetch if we need to — stored address wins over geocoding.
+  useEffect(() => {
+    if (item.address) return;
+    let cancelled = false;
+    reverseGeocode(item.lat, item.lng).then((name) => {
+      if (!cancelled) setGeocoded(name);
+    });
+    return () => { cancelled = true; };
+  }, [item.address, item.lat, item.lng]);
+
+  // Parse the SOS follow-up's "Ситуация: X, Y" prefix out of the
+  // description so the categories render as pills above the free
+  // text instead of as a raw first line. See SOSButton.composeDescription.
+  const { situationLabels, freeText } = useMemo(() => {
+    const raw = item.description ?? "";
+    // Strip the leading "SOS — " prefix the server prepends.
+    const body = raw.replace(/^SOS\s*(?:—|-)\s*/, "").trim();
+    const m = body.match(/^Ситуация:\s*([^\n]+?)\s*(?:\n\s*\n|$)/);
+    if (!m) return { situationLabels: [] as string[], freeText: body };
+    const labels = m[1].split(",").map((s) => s.trim()).filter(Boolean);
+    const rest = body.slice(m[0].length).trim();
+    return { situationLabels: labels, freeText: rest };
+  }, [item.description]);
+
+  // Distance + rough driving ETA, shown only when we have the user's
+  // position. 50 km/h is a generous average for flooded/rural roads
+  // in Dagestan — better to promise 10 min and arrive in 7 than the
+  // other way around. Not shown when the request is the viewer's own.
+  const locationStats = useMemo(() => {
+    if (!position) return null;
+    const meters = calculateDistance(position.lat, position.lng, item.lat, item.lng);
+    const km = meters / 1000;
+    const etaMin = Math.max(1, Math.round((km / 50) * 60));
+    return { dist: formatDistance(meters), etaMin };
+  }, [position, item.lat, item.lng]);
+
+  const copyCoords = async () => {
+    const text = `${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCoordsCopied(true);
+      setTimeout(() => setCoordsCopied(false), 1500);
+    } catch { /* best-effort */ }
+  };
   const openProfile = (userId?: string) => {
     if (!userId) return;
     // Don't use history.back() here — it races with the follow-up
@@ -330,16 +387,54 @@ export function HelpDetailSheet({
             </div>
           )}
 
-          {item.description && <p className="detail-desc">{item.description}</p>}
+          {situationLabels.length > 0 && (
+            <div className="detail-situations">
+              {situationLabels.map((label) => (
+                <span key={label} className="detail-situation-pill">{label}</span>
+              ))}
+            </div>
+          )}
+
+          {freeText && <p className="detail-desc">{freeText}</p>}
 
           {/* Condensed meta — address, time, contact all in one group */}
           <div className="detail-meta">
-            {item.address && (
-              <div className="detail-meta-row">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                <span>{item.address}</span>
+            <div className="detail-meta-row detail-meta-row--location">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              <div className="detail-location">
+                <span className="detail-location-name">
+                  {item.address ?? geocoded ?? "Место уточняется..."}
+                </span>
+                <button
+                  type="button"
+                  className="detail-coords"
+                  onClick={copyCoords}
+                  title="Скопировать координаты"
+                >
+                  {coordsCopied ? "Скопировано" : `${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}`}
+                </button>
+                {locationStats && !isAuthorMe && (
+                  <span className="detail-location-eta">
+                    {locationStats.dist} · ≈{locationStats.etaMin} мин на авто
+                  </span>
+                )}
               </div>
+            </div>
+
+            {!isAuthorMe && (
+              <button
+                type="button"
+                className="detail-route-btn"
+                onClick={() => setRoutePickerOpen(true)}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="10" r="3"/>
+                  <path d="M12 2a8 8 0 0 0-8 8c0 5 8 12 8 12s8-7 8-12a8 8 0 0 0-8-8z"/>
+                </svg>
+                Построить маршрут
+              </button>
             )}
+
             <div className="detail-meta-row">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
               <span>{formatRelativeTime(item.createdAt)}</span>
@@ -468,6 +563,15 @@ export function HelpDetailSheet({
           urls={photos}
           initialIndex={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
+        />
+      )}
+
+      {routePickerOpen && (
+        <RoutePickerSheet
+          lat={item.lat}
+          lng={item.lng}
+          label={item.address ?? geocoded ?? undefined}
+          onClose={() => setRoutePickerOpen(false)}
         />
       )}
     </div>,
