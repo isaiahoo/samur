@@ -28,26 +28,39 @@ function keyFor(lat: number, lng: number): string {
 
 async function fetchOnce(lat: number, lng: number): Promise<string | null> {
   try {
+    // zoom=18 asks Nominatim for building-level detail when available —
+    // we want the street + house number, not a district summary. Falls
+    // back gracefully to whatever the tile coverage actually contains.
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ru&zoom=14`,
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ru&zoom=18&addressdetails=1`,
       { headers: { "User-Agent": "Kunak-PWA/1.0" } },
     );
     if (!res.ok) return null;
     const data = (await res.json()) as { address?: Record<string, string>; display_name?: string };
     const a = data.address;
     if (!a) return null;
-    // Prefer fine-grained → coarse: village > town > city > suburb > district > county
+
+    // Priority: street-level > locality-level > district-level. A
+    // volunteer driving to the address wants "ул. Ленина 42, Ахты",
+    // not "Ахтынский район".
+    const street = a.road || a.pedestrian || a.residential || a.path || null;
+    const house = a.house_number || null;
     const locality =
       a.village || a.town || a.city || a.hamlet || a.suburb ||
-      a.city_district || a.county || null;
-    const region = a.state_district || a.state || null;
+      a.city_district || null;
+    const region = a.county || a.state_district || null;
+
     const bits: string[] = [];
+    if (street) {
+      bits.push(house ? `${street}, ${house}` : street);
+    }
     if (locality) bits.push(locality);
-    if (region && region !== locality) bits.push(region);
+    if (!street && !locality && region) bits.push(region);
+
     if (bits.length === 0) {
-      // Last-ditch — pick the first two comma-separated tokens from
+      // Last-ditch — pick the first three comma-separated tokens from
       // display_name so we don't just return null on sparse records.
-      return data.display_name?.split(",").slice(0, 2).join(",").trim() ?? null;
+      return data.display_name?.split(",").slice(0, 3).join(",").trim() ?? null;
     }
     return bits.join(", ");
   } catch {

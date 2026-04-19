@@ -130,7 +130,6 @@ export function HelpDetailSheet({
   // UI only shows this when item.address is missing, so silent
   // failure is acceptable.
   const [geocoded, setGeocoded] = useState<string | null>(null);
-  const [coordsCopied, setCoordsCopied] = useState(false);
   const navigate = useNavigate();
   const { position } = useGeolocation();
   const photos = item.photoUrls ?? [];
@@ -171,14 +170,6 @@ export function HelpDetailSheet({
     return { dist: formatDistance(meters), etaMin };
   }, [position, item.lat, item.lng]);
 
-  const copyCoords = async () => {
-    const text = `${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}`;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCoordsCopied(true);
-      setTimeout(() => setCoordsCopied(false), 1500);
-    } catch { /* best-effort */ }
-  };
   const openProfile = (userId?: string) => {
     if (!userId) return;
     // Don't use history.back() here — it races with the follow-up
@@ -405,14 +396,6 @@ export function HelpDetailSheet({
                 <span className="detail-location-name">
                   {item.address ?? geocoded ?? "Место уточняется..."}
                 </span>
-                <button
-                  type="button"
-                  className="detail-coords"
-                  onClick={copyCoords}
-                  title="Скопировать координаты"
-                >
-                  {coordsCopied ? "Скопировано" : `${item.lat.toFixed(5)}, ${item.lng.toFixed(5)}`}
-                </button>
                 {locationStats && !isAuthorMe && (
                   <span className="detail-location-eta">
                     {locationStats.dist} · ≈{locationStats.etaMin} мин на авто

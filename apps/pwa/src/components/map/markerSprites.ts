@@ -46,6 +46,23 @@ const ICONS: Record<string, string> = {
   other: `<circle cx="24" cy="24" r="16" fill="none" stroke="white" stroke-width="4"/><path d="M18 19a6 6 0 016-6 5 5 0 015 5c0 3-5 4-5 7v1M24 34v.5" fill="none" stroke="white" stroke-width="4" stroke-linecap="round"/>`,
   // SOS glyph — bold cross, worn by the SOS variant of the marker
   sos: `<path d="M24 10v28M10 24h28" stroke="white" stroke-width="6" stroke-linecap="round"/>`,
+
+  // ── Incident-type glyphs ─────────────────────────────────────────
+  // Keyed by IncidentType (packages/shared/src/types/index.ts).
+  // Flood — double wave
+  incident_flood: `<path d="M4 16c3 3 5 3 8 0s5-3 8 0 5 3 8 0 5-3 8 0" fill="none" stroke="white" stroke-width="4" stroke-linecap="round"/><path d="M4 26c3 3 5 3 8 0s5-3 8 0 5 3 8 0 5-3 8 0" fill="none" stroke="white" stroke-width="4" stroke-linecap="round"/><path d="M4 36c3 3 5 3 8 0s5-3 8 0 5 3 8 0 5-3 8 0" fill="none" stroke="white" stroke-width="4" stroke-linecap="round"/>`,
+  // Mudslide — downward angled flow of dots
+  incident_mudslide: `<path d="M6 10l36 28" fill="none" stroke="white" stroke-width="4" stroke-linecap="round"/><circle cx="14" cy="18" r="2.5" fill="white"/><circle cx="24" cy="26" r="2.5" fill="white"/><circle cx="34" cy="34" r="2.5" fill="white"/>`,
+  // Landslide — mountain slope with sliding rocks
+  incident_landslide: `<path d="M4 40l18-28 10 15 12-7v20z" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/><circle cx="28" cy="30" r="2" fill="white"/><circle cx="34" cy="36" r="2" fill="white"/>`,
+  // Road blocked — traffic cone + stripes
+  incident_road_blocked: `<path d="M18 42l6-28 6 28z" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/><path d="M6 42h36" stroke="white" stroke-width="4" stroke-linecap="round"/><path d="M19 30h10M20 24h8" stroke="white" stroke-width="3" stroke-linecap="round"/>`,
+  // Building damaged — house with cracked wall
+  incident_building_damaged: `<path d="M6 22l18-14 18 14v20H6z" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/><path d="M22 22l-4 8 6 3-4 9" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`,
+  // Power out — lightning with slash
+  incident_power_out: `<path d="M26 4L12 26h10l-4 18 18-22H26l4-18z" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/><path d="M6 6l36 36" stroke="white" stroke-width="4" stroke-linecap="round"/>`,
+  // Water contaminated — droplet with X
+  incident_water_contaminated: `<path d="M24 6l-10 16a10 10 0 0020 0L24 6z" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/><path d="M19 18l10 10M29 18l-10 10" stroke="white" stroke-width="3" stroke-linecap="round"/>`,
 };
 
 function makeSvg(path: string): string {

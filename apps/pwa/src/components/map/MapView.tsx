@@ -279,7 +279,29 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
 
     function setupSourcesAndLayers() {
       if (!map.getSource("incidents")) {
-        map.addSource("incidents", { type: "geojson", data: EMPTY_FC, cluster: true, clusterMaxZoom: 14, clusterRadius: 50, promoteId: "id" });
+        // Same accumulator idea as helpRequests — the cluster bubble
+        // paints by worst-severity so a cluster with a critical inside
+        // reads as red regardless of the surrounding lows.
+        map.addSource("incidents", {
+          type: "geojson",
+          data: EMPTY_FC,
+          cluster: true,
+          clusterMaxZoom: 14,
+          clusterRadius: 50,
+          promoteId: "id",
+          clusterProperties: {
+            max_severity: [
+              "max",
+              [
+                "case",
+                ["==", ["get", "severity"], "critical"], 4,
+                ["==", ["get", "severity"], "high"], 3,
+                ["==", ["get", "severity"], "medium"], 2,
+                1,
+              ],
+            ],
+          },
+        });
       }
       if (!map.getSource("helpRequests")) {
         // Cluster accumulators let the cluster layer paint know what's
@@ -327,6 +349,8 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
 
       // ── Incident layers ──────────────────────────────────────────────────
 
+      // Cluster — colour tracks the worst severity inside. Stroke white
+      // for contrast on every tile colour, size steps with point_count.
       if (!map.getLayer("incidents-clusters")) {
         map.addLayer({
           id: "incidents-clusters",
@@ -334,10 +358,16 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
           source: "incidents",
           filter: ["has", "point_count"],
           paint: {
-            "circle-color": "#EF4444",
+            "circle-color": [
+              "case",
+              [">=", ["get", "max_severity"], 4], INCIDENT_COLORS.critical,
+              [">=", ["get", "max_severity"], 3], INCIDENT_COLORS.high,
+              [">=", ["get", "max_severity"], 2], INCIDENT_COLORS.medium,
+              INCIDENT_COLORS.low,
+            ],
             "circle-radius": ["step", ["get", "point_count"], 18, 10, 24, 50, 32],
-            "circle-opacity": 0.85,
-            "circle-stroke-width": 2,
+            "circle-opacity": 0.9,
+            "circle-stroke-width": 3,
             "circle-stroke-color": "#fff",
           },
         });
@@ -352,31 +382,160 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
           layout: {
             "text-field": "{point_count_abbreviated}",
             "text-font": ["Open Sans Regular"],
-            "text-size": 13,
+            "text-size": 14,
+            "text-allow-overlap": true,
           },
           paint: { "text-color": "#fff" },
         });
       }
 
-      if (!map.getLayer("incidents-unclustered")) {
+      // Unclustered incidents — same 4D layer stack as help-requests.
+      // Base disk colored by severity, ring colored by verification
+      // status, incident-type glyph overlaid, cyan highlight on tap.
+      const INCIDENT_NOT_CLUSTERED: maplibregl.FilterSpecification =
+        ["!", ["has", "point_count"]] as unknown as maplibregl.FilterSpecification;
+
+      const INCIDENT_FILL: maplibregl.ExpressionSpecification = [
+        "case",
+        ["==", ["get", "status"], "resolved"], "#6B7280",
+        ["==", ["get", "status"], "false_report"], "#A1A1AA",
+        ["==", ["get", "severity"], "critical"], INCIDENT_COLORS.critical,
+        ["==", ["get", "severity"], "high"], INCIDENT_COLORS.high,
+        ["==", ["get", "severity"], "medium"], INCIDENT_COLORS.medium,
+        INCIDENT_COLORS.low,
+      ] as unknown as maplibregl.ExpressionSpecification;
+
+      // Status ring — "unverified" wears a dashed feel via a thinner
+      // white ring; "verified" gets a prominent solid blue ring that
+      // tells volunteers "this has been vouched for"; "resolved" and
+      // "false_report" fade into gray/neutral so they're clearly
+      // historical rather than actionable.
+      const INCIDENT_RING: maplibregl.ExpressionSpecification = [
+        "case",
+        ["==", ["get", "status"], "verified"], "#3B82F6",
+        ["==", ["get", "status"], "resolved"], "#16A34A",
+        ["==", ["get", "status"], "false_report"], "#52525B",
+        "#FFFFFF",
+      ] as unknown as maplibregl.ExpressionSpecification;
+
+      // Radius — critical incidents get the same visual weight as
+      // critical help requests so the eye ranks them together.
+      const INCIDENT_RADIUS: maplibregl.ExpressionSpecification = [
+        "case",
+        ["==", ["get", "severity"], "critical"], 14,
+        ["==", ["get", "severity"], "high"], 12,
+        10,
+      ] as unknown as maplibregl.ExpressionSpecification;
+
+      if (!map.getLayer("incidents-base")) {
         map.addLayer({
-          id: "incidents-unclustered",
+          id: "incidents-base",
           type: "circle",
           source: "incidents",
-          filter: ["!", ["has", "point_count"]],
+          filter: INCIDENT_NOT_CLUSTERED,
           paint: {
-            "circle-color": [
-              "match",
-              ["get", "severity"],
-              "critical", INCIDENT_COLORS.critical,
-              "high", INCIDENT_COLORS.high,
-              "medium", INCIDENT_COLORS.medium,
-              "low", INCIDENT_COLORS.low,
-              INCIDENT_COLORS.low,
+            "circle-color": INCIDENT_FILL,
+            "circle-radius": INCIDENT_RADIUS,
+            "circle-opacity": [
+              "case",
+              ["==", ["get", "status"], "resolved"], 0.55,
+              ["==", ["get", "status"], "false_report"], 0.35,
+              1,
             ],
-            "circle-radius": ["case", ["boolean", ["feature-state", "highlighted"], false], 11, 8],
-            "circle-stroke-width": ["case", ["boolean", ["feature-state", "highlighted"], false], 4, 2],
-            "circle-stroke-color": ["case", ["boolean", ["feature-state", "highlighted"], false], "#06B6D4", "#fff"],
+            "circle-stroke-width": 0,
+          },
+        });
+      }
+
+      if (!map.getLayer("incidents-status-ring")) {
+        map.addLayer({
+          id: "incidents-status-ring",
+          type: "circle",
+          source: "incidents",
+          filter: INCIDENT_NOT_CLUSTERED,
+          paint: {
+            "circle-color": "rgba(0,0,0,0)",
+            "circle-radius": INCIDENT_RADIUS,
+            "circle-stroke-color": INCIDENT_RING,
+            "circle-stroke-width": [
+              "case",
+              ["any",
+                ["==", ["get", "status"], "verified"],
+                ["==", ["get", "status"], "resolved"],
+                ["==", ["get", "status"], "false_report"],
+              ], 3,
+              2.5,
+            ],
+            "circle-stroke-opacity": [
+              "case",
+              ["==", ["get", "status"], "false_report"], 0.5,
+              1,
+            ],
+          },
+        });
+      }
+
+      if (!map.getLayer("incidents-icons")) {
+        map.addLayer({
+          id: "incidents-icons",
+          type: "symbol",
+          source: "incidents",
+          filter: INCIDENT_NOT_CLUSTERED,
+          layout: {
+            "icon-image": [
+              "case",
+              ["==", ["get", "type"], "flood"], "kunak-icon-incident_flood",
+              ["==", ["get", "type"], "mudslide"], "kunak-icon-incident_mudslide",
+              ["==", ["get", "type"], "landslide"], "kunak-icon-incident_landslide",
+              ["==", ["get", "type"], "road_blocked"], "kunak-icon-incident_road_blocked",
+              ["==", ["get", "type"], "building_damaged"], "kunak-icon-incident_building_damaged",
+              ["==", ["get", "type"], "power_out"], "kunak-icon-incident_power_out",
+              ["==", ["get", "type"], "water_contaminated"], "kunak-icon-incident_water_contaminated",
+              "kunak-icon-other",
+            ],
+            "icon-size": [
+              "case",
+              ["==", ["get", "severity"], "critical"], 0.46,
+              ["==", ["get", "severity"], "high"], 0.4,
+              0.35,
+            ],
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": true,
+          },
+          paint: {
+            "icon-color": "#FFFFFF",
+            "icon-opacity": [
+              "case",
+              ["==", ["get", "status"], "false_report"], 0.5,
+              1,
+            ],
+          },
+        });
+      }
+
+      if (!map.getLayer("incidents-highlight")) {
+        map.addLayer({
+          id: "incidents-highlight",
+          type: "circle",
+          source: "incidents",
+          filter: INCIDENT_NOT_CLUSTERED,
+          paint: {
+            "circle-color": "rgba(0,0,0,0)",
+            "circle-radius": [
+              "case",
+              ["boolean", ["feature-state", "highlighted"], false],
+              ["case",
+                ["==", ["get", "severity"], "critical"], 18,
+                ["==", ["get", "severity"], "high"], 16,
+                14,
+              ],
+              0,
+            ],
+            "circle-stroke-color": "#06B6D4",
+            "circle-stroke-width": [
+              "case",
+              ["boolean", ["feature-state", "highlighted"], false], 4, 0,
+            ],
           },
         });
       }
@@ -699,14 +858,14 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
       });
     }
 
-    showPopup("incidents-unclustered", incidentPopupHTML, "incident");
+    showPopup("incidents-base", incidentPopupHTML, "incident");
     showPopup("help-base", helpPopupHTML, "helpRequest");
     showPopup("shelters", shelterPopupHTML, "shelter");
     // rivers popup removed — gauge markers handle clicks directly
 
     // Pointer cursor on interactive layers
     const interactiveLayers = [
-      "incidents-clusters", "incidents-unclustered",
+      "incidents-clusters", "incidents-base",
       "help-clusters", "help-base",
       "shelters",
     ];
@@ -1379,7 +1538,11 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
     if (!map || !mapReady) return;
 
     const layerGroups: Record<string, string[]> = {
-      incidents: ["incidents-clusters", "incidents-cluster-count", "incidents-unclustered"],
+      incidents: [
+        "incidents-clusters", "incidents-cluster-count",
+        "incidents-base", "incidents-status-ring",
+        "incidents-icons", "incidents-highlight",
+      ],
       helpRequests: [
         "help-clusters", "help-cluster-count",
         "help-sos-pulse", "help-base", "help-status-ring",
