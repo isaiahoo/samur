@@ -41,27 +41,13 @@ const helpCategoryOptions: { category: HelpCategory; icon: string }[] = [
   { category: "labor", icon: "💪" },
 ];
 
-/** Reverse-geocode coordinates to a human-readable locality name */
-async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ru&zoom=14`,
-      { headers: { "User-Agent": "Kunak-PWA/1.0" } },
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const a = data.address;
-    if (!a) return null;
-    // Build locality string: village/town/city + district/county
-    const place = a.village || a.town || a.city || a.hamlet || a.suburb || a.neighbourhood || null;
-    const district = a.county || a.state_district || a.state || null;
-    if (place && district) return `${place}, ${district}`;
-    if (place) return place;
-    if (district) return district;
-    return data.display_name?.split(",").slice(0, 2).join(",").trim() || null;
-  } catch {
-    return null;
-  }
+import { reverseGeocode } from "../../services/reverseGeocode.js";
+
+function digitsOnly(phone: string): string {
+  return phone.replace(/[\s\-\(\)\+]/g, "");
+}
+function isValidPhone(phone: string): boolean {
+  return digitsOnly(phone).length >= 7;
 }
 
 export function ReportForm({ onClose, onCreated }: { onClose: () => void; onCreated?: (lat: number, lng: number) => void }) {
@@ -74,8 +60,9 @@ export function ReportForm({ onClose, onCreated }: { onClose: () => void; onCrea
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [locationName, setLocationName] = useState<string>("");
+  const [address, setAddress] = useState<string>("");
   const [locationLoading, setLocationLoading] = useState(false);
+  const addressTouchedRef = useRef(false);
   const [photos, setPhotos] = useState<{ file: File; preview: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -94,18 +81,23 @@ export function ReportForm({ onClose, onCreated }: { onClose: () => void; onCrea
     }
   }, [user]);
 
-  // Reverse-geocode when position is obtained
+  // Reverse-geocode when position is obtained — only fills the
+  // address if the user hasn't typed their own (so a partial typed
+  // address isn't clobbered by a slow Nominatim response).
   useEffect(() => {
     if (!position) return;
+    if (addressTouchedRef.current || address) return;
     let cancelled = false;
     setLocationLoading(true);
     reverseGeocode(position.lat, position.lng).then((name) => {
       if (cancelled) return;
-      setLocationName(name ?? `${position.lat.toFixed(4)}, ${position.lng.toFixed(4)}`);
+      if (!addressTouchedRef.current && !address && name) {
+        setAddress(name);
+      }
       setLocationLoading(false);
     });
     return () => { cancelled = true; };
-  }, [position]);
+  }, [position, address]);
 
   /** True once the user has done anything beyond the initial open — used
    * to gate the close path with a confirm so a stray backdrop tap or
@@ -117,6 +109,7 @@ export function ReportForm({ onClose, onCreated }: { onClose: () => void; onCrea
     description.trim() ||
     photos.length > 0 ||
     severity !== "medium" ||
+    addressTouchedRef.current ||
     (contactName.trim() && contactName !== (user?.name ?? "")) ||
     (contactPhone.trim() && contactPhone !== (user?.phone ?? ""))
   );
@@ -203,7 +196,10 @@ export function ReportForm({ onClose, onCreated }: { onClose: () => void; onCrea
           severity,
           lat: position.lat,
           lng: position.lng,
+          address: address.trim() || undefined,
           description: description || undefined,
+          contactName: contactName.trim() || undefined,
+          contactPhone: isValidPhone(contactPhone) ? contactPhone.trim() : undefined,
           photoUrls: photoUrls ?? undefined,
           source: "pwa" as const,
         };
@@ -223,10 +219,11 @@ export function ReportForm({ onClose, onCreated }: { onClose: () => void; onCrea
           category: helpCategory,
           lat: position.lat,
           lng: position.lng,
+          address: address.trim() || undefined,
           description: description || undefined,
           urgency: severity === "critical" ? "critical" as const : severity === "high" ? "urgent" as const : "normal" as const,
           contactName: contactName.trim() || undefined,
-          contactPhone: contactPhone.replace(/[\s\-\(\)]/g, "").length >= 7 ? contactPhone.trim() : undefined,
+          contactPhone: isValidPhone(contactPhone) ? contactPhone.trim() : undefined,
           photoUrls: photoUrls ?? undefined,
           source: "pwa" as const,
         };
@@ -334,21 +331,33 @@ export function ReportForm({ onClose, onCreated }: { onClose: () => void; onCrea
 
       {step === 2 && (
         <div className="report-step">
-          <h3>Местоположение</h3>
+          <h3>Адрес</h3>
           {geoLoading && <p className="text-muted">Определяем местоположение...</p>}
-          {position && (
+          {(position || address) && (
             <div className="form-group">
               <input
-                className="form-input"
+                className={`form-input${!address.trim() ? " form-input--error" : ""}`}
                 type="text"
-                value={locationLoading ? "Определяем адрес..." : locationName}
-                onChange={(e) => setLocationName(e.target.value)}
-                placeholder="Населённый пункт"
-                disabled={locationLoading}
+                value={locationLoading && !address ? "Определяем адрес..." : address}
+                onChange={(e) => {
+                  setAddress(e.target.value);
+                  addressTouchedRef.current = true;
+                }}
+                placeholder="Улица, дом, ориентир"
+                disabled={locationLoading && !address}
+                aria-invalid={!address.trim() ? "true" : undefined}
+                autoComplete="street-address"
               />
-              <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
-                {position.lat.toFixed(4)}, {position.lng.toFixed(4)}
-              </p>
+              {!address.trim() && !locationLoading && (
+                <p className="text-muted" style={{ fontSize: 12, marginTop: 4, color: "#dc2626" }}>
+                  Укажите адрес — без этого спасатели или волонтёры не знают, куда ехать
+                </p>
+              )}
+              {position && (
+                <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
+                  Геолокация: {position.lat.toFixed(4)}, {position.lng.toFixed(4)}
+                </p>
+              )}
             </div>
           )}
           {!position && !geoLoading && (
@@ -425,65 +434,87 @@ export function ReportForm({ onClose, onCreated }: { onClose: () => void; onCrea
             />
           </div>
 
-          <button className="btn btn-primary" onClick={() => setStep(3)}>
-            Далее
-          </button>
-        </div>
-      )}
-
-      {step === 3 && (
-        <div className="report-step">
-          <h3>Контактные данные</h3>
-          {hasContactInfo ? (
-            <p className="text-muted">
-              Данные из вашего профиля: {user?.name}{user?.phone ? `, ${user.phone}` : ""}
-            </p>
-          ) : (
-            <>
-              <p className="text-muted">Необязательно, но поможет быстрее оказать помощь</p>
-
-              <div className="form-group">
-                <label htmlFor="report-name">Имя</label>
-                <input
-                  id="report-name"
-                  className="form-input"
-                  type="text"
-                  maxLength={200}
-                  placeholder="Ваше имя"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="report-phone">Телефон</label>
-                <input
-                  id="report-phone"
-                  className="form-input"
-                  type="tel"
-                  placeholder="+79001234567"
-                  value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
-                />
-              </div>
-            </>
-          )}
-
           <button
-            className="btn btn-primary btn-lg"
-            onClick={handleSubmit}
-            disabled={submitting || !position}
+            className="btn btn-primary"
+            onClick={() => setStep(3)}
+            disabled={!address.trim() || !position}
           >
-            {submitting ? "Отправка..." : "Отправить"}
+            {!address.trim() ? "Укажите адрес" : "Далее"}
           </button>
-
-          {!online && (
-            <p className="text-muted" style={{ marginTop: 8 }}>
-              Вы офлайн. Заявка будет отправлена при подключении к сети.
-            </p>
-          )}
         </div>
       )}
+
+      {step === 3 && (() => {
+        const phoneValid = isValidPhone(contactPhone);
+        const phoneMissing = !contactPhone.trim();
+        return (
+          <div className="report-step">
+            <h3>Контактные данные</h3>
+            <p className="text-muted">
+              Телефон обязателен — спасатели или волонтёры должны иметь возможность дозвониться.
+            </p>
+
+            <div className="form-group">
+              <label htmlFor="report-name">Имя</label>
+              <input
+                id="report-name"
+                className="form-input"
+                type="text"
+                maxLength={200}
+                placeholder="Ваше имя"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                autoComplete="name"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="report-phone">Телефон</label>
+              <input
+                id="report-phone"
+                className={`form-input${contactPhone && !phoneValid ? " form-input--error" : ""}`}
+                type="tel"
+                placeholder="+7 900 123-45-67"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                autoComplete="tel"
+                inputMode="tel"
+                aria-invalid={contactPhone && !phoneValid ? "true" : undefined}
+              />
+              {contactPhone && !phoneValid && (
+                <p className="text-muted" style={{ fontSize: 12, marginTop: 4, color: "#dc2626" }}>
+                  Минимум 7 цифр
+                </p>
+              )}
+              {hasContactInfo && contactPhone === (user?.phone ?? "") && (
+                <p className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
+                  Из вашего профиля — можно изменить, если нужно
+                </p>
+              )}
+            </div>
+
+            <button
+              className="btn btn-primary btn-lg"
+              onClick={handleSubmit}
+              disabled={submitting || !position || !address.trim() || phoneMissing || !phoneValid}
+            >
+              {submitting
+                ? "Отправка..."
+                : phoneMissing
+                  ? "Укажите телефон"
+                  : !phoneValid
+                    ? "Проверьте телефон"
+                    : "Отправить"}
+            </button>
+
+            {!online && (
+              <p className="text-muted" style={{ marginTop: 8 }}>
+                Вы офлайн. Заявка будет отправлена при подключении к сети.
+              </p>
+            )}
+          </div>
+        );
+      })()}
         </div>
       </div>
     </>,

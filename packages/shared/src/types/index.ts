@@ -84,6 +84,8 @@ export interface Incident {
   lng: number;
   address: string | null;
   description: string | null;
+  contactPhone: string | null;
+  contactName: string | null;
   photoUrls: string[];
   status: IncidentStatus;
   verifiedBy: string | null;

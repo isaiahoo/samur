@@ -110,7 +110,7 @@ router.post(
   validateBody(CreateIncidentSchema),
   async (req, res, next) => {
     try {
-      const { type, severity, lat, lng, address, description, photoUrls, source } = req.body;
+      const { type, severity, lat, lng, address, description, contactPhone, contactName, photoUrls, source } = req.body;
 
       // Attachment ownership: authenticated callers must own the
       // photos they attach; anonymous callers must reference
@@ -127,6 +127,8 @@ router.post(
           lng,
           address,
           description,
+          contactPhone: contactPhone ?? null,
+          contactName: contactName ?? null,
           photoUrls: photoUrls ?? [],
           source: source ?? "pwa",
         },

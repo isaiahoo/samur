@@ -183,6 +183,8 @@ model Incident {
   location    Unsupported("geometry(Point, 4326)")?
   address     String?
   description String?
+  contactPhone String?       @map("contact_phone")
+  contactName String?        @map("contact_name")
   photoUrls   String[]       @default([]) @map("photo_urls")
   status      IncidentStatus @default(unverified)
   verifiedBy  String?        @map("verified_by")

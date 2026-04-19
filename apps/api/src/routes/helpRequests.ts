@@ -473,10 +473,13 @@ router.patch(
   async (req, res, next) => {
     try {
       const id = paramId(req);
-      const { updateToken, description, audioUrl, cancel } = req.body as {
+      const { updateToken, description, audioUrl, address, contactPhone, contactName, cancel } = req.body as {
         updateToken?: string;
         description?: string;
         audioUrl?: string | null;
+        address?: string;
+        contactPhone?: string;
+        contactName?: string;
         cancel?: boolean;
       };
 
@@ -514,6 +517,17 @@ router.patch(
       }
       if (audioUrl !== undefined) {
         data.audioUrl = audioUrl;
+      }
+      if (address !== undefined) {
+        const trimmed = address.trim();
+        data.address = trimmed || null;
+      }
+      if (contactPhone !== undefined) {
+        data.contactPhone = contactPhone || null;
+      }
+      if (contactName !== undefined) {
+        const trimmed = contactName.trim();
+        data.contactName = trimmed || null;
       }
       if (cancel === true) {
         // Author-initiated retraction (e.g. accidental press, test).

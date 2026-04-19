@@ -1295,6 +1295,8 @@ select {
 .form-input:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
 .form-input:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .form-input--sm { padding: 6px 10px; font-size: 16px; min-height: 36px; width: auto; }
+.form-input--error { border-color: #f87171 !important; background: #fef2f2; }
+.form-input--error:focus { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12); }
 .form-row { display: flex; gap: 12px; }
 .form-row .form-group { flex: 1; }
 textarea.form-input { resize: vertical; min-height: 80px; }
@@ -8755,6 +8757,42 @@ a.tg-auth-fallback {
   background: #fff;
 }
 
+.sos-followup-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 15px;
+  line-height: 1.3;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.sos-followup-input--light {
+  background: #fafafa;
+  border: 1px solid #d4d4d8;
+  color: #18181b;
+}
+.sos-followup-input--light::placeholder { color: #a1a1aa; }
+.sos-followup-input--light:focus {
+  outline: none;
+  border-color: #dc2626;
+  background: #fff;
+}
+.sos-followup-input--error {
+  border-color: #dc2626;
+}
+.sos-contact-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 8px;
+}
+.sos-followup-hint {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #71717a;
+  line-height: 1.35;
+}
+.sos-followup-hint--error { color: #dc2626; }
+
 .sos-followup-actions {
   display: flex;
   gap: 8px;
@@ -8855,6 +8893,18 @@ a.tg-auth-fallback {
     border-color: #f87171;
     background: #1f1f23;
   }
+  .sos-followup-input--light {
+    background: #27272a;
+    border-color: #3f3f46;
+    color: #f4f4f5;
+  }
+  .sos-followup-input--light::placeholder { color: #71717a; }
+  .sos-followup-input--light:focus {
+    border-color: #f87171;
+    background: #1f1f23;
+  }
+  .sos-followup-hint { color: #a1a1aa; }
+  .sos-followup-hint--error { color: #f87171; }
   .sos-followup-save--light:disabled {
     background: #3f3f46;
     color: #71717a;

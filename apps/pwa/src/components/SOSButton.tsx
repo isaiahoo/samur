@@ -4,8 +4,10 @@ import { createPortal } from "react-dom";
 import { createSOS, sosFollowUp, ApiError } from "../services/api.js";
 import { addToOutbox } from "../services/db.js";
 import { useOnline } from "../hooks/useOnline.js";
+import { useAuthStore } from "../store/auth.js";
 import { useUIStore, confirmAction } from "../store/ui.js";
 import { MAKHACHKALA_CENTER } from "@samur/shared";
+import { reverseGeocode } from "../services/reverseGeocode.js";
 
 /**
  * Stages:
@@ -203,6 +205,7 @@ function composeDescription(keys: Set<string>, freeText: string): string {
 
 export function SOSButton() {
   const reportFormOpen = useUIStore((s) => s.reportFormOpen);
+  const user = useAuthStore((s) => s.user);
   const [stage, setStage] = useState<Stage>("idle");
   const [holdProgress, setHoldProgress] = useState(0);
   const [location, setLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
@@ -218,6 +221,13 @@ export function SOSButton() {
   const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
   const [freeText, setFreeText] = useState("");
   const [savedFreeText, setSavedFreeText] = useState("");
+  const [address, setAddress] = useState("");
+  const [savedAddress, setSavedAddress] = useState("");
+  const [addressAutoFilled, setAddressAutoFilled] = useState(false);
+  const [contactPhone, setContactPhone] = useState("");
+  const [savedPhone, setSavedPhone] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [savedName, setSavedName] = useState("");
   const [savingText, setSavingText] = useState(false);
   // Server-side error message — shown on the error stage so the user
   // sees *why* sending failed (rate-limit vs network vs permission).
@@ -256,7 +266,13 @@ export function SOSButton() {
     setStage("sending");
 
     const batteryLevel = await getBatteryLevel();
-    const payload: Record<string, unknown> = { lat, lng, batteryLevel };
+    const payload: Record<string, unknown> = {
+      lat,
+      lng,
+      batteryLevel,
+      contactPhone: user?.phone ? user.phone : undefined,
+      contactName: user?.name ? user.name : undefined,
+    };
 
     try {
       if (onlineRef.current) {
@@ -266,6 +282,9 @@ export function SOSButton() {
           updateToken?: string;
           existing?: boolean;
           description?: string | null;
+          address?: string | null;
+          contactPhone?: string | null;
+          contactName?: string | null;
         } | undefined;
         setSentId(data?.id ?? null);
         setUpdateToken(data?.updateToken ?? null);
@@ -280,6 +299,23 @@ export function SOSButton() {
           setSavedKeys(new Set(keys));
           setFreeText(text);
           setSavedFreeText(text);
+          const addr = data.address ?? "";
+          setAddress(addr);
+          setSavedAddress(addr);
+          setAddressAutoFilled(!!addr);
+          const phoneFromRow = data.contactPhone ?? "";
+          const nameFromRow = data.contactName ?? "";
+          setContactPhone(phoneFromRow);
+          setSavedPhone(phoneFromRow);
+          setContactName(nameFromRow);
+          setSavedName(nameFromRow);
+        } else if (user) {
+          // Fresh SOS from a logged-in author — seed contact fields
+          // from profile so they don't have to type again.
+          setContactPhone(user.phone ?? "");
+          setSavedPhone(user.phone ?? "");
+          setContactName(user.name ?? "");
+          setSavedName(user.name ?? "");
         }
       } else {
         await addToOutbox({ endpoint: "/help-requests/sos", method: "POST", body: payload });
@@ -292,7 +328,30 @@ export function SOSButton() {
       setSendError(msg);
       setStage("error");
     }
-  }, [addOwnRequest]);
+  }, [addOwnRequest, user]);
+
+  /** Auto-fill the address field once the SOS is on the server. We
+   * can't rely on geolocation fix having the coords (loc may be null
+   * and the SOS fell back to MAKHACHKALA_CENTER), so only hit
+   * Nominatim when a real geolocation reading is available. The user
+   * can always type in an address if auto-fill fails or returns
+   * something too vague (rural districts). */
+  useEffect(() => {
+    if (stage !== "sent") return;
+    if (!sentId) return;
+    if (address || addressAutoFilled) return;
+    const loc = locationRef.current;
+    if (!loc) return;
+    let cancelled = false;
+    reverseGeocode(loc.lat, loc.lng).then((result) => {
+      if (cancelled) return;
+      if (result) {
+        setAddress(result);
+        setAddressAutoFilled(true);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [stage, sentId, address, addressAutoFilled]);
 
   const onHoldStart = useCallback(() => {
     holdStartRef.current = performance.now();
@@ -341,24 +400,42 @@ export function SOSButton() {
     });
   }, []);
 
+  const phoneValid = useMemo(() => {
+    if (!contactPhone.trim()) return true; // empty is allowed; Save button enforces
+    return contactPhone.replace(/[\s\-\(\)\+]/g, "").length >= 7;
+  }, [contactPhone]);
+
   const hasChanges = useMemo(() => {
     if (freeText.trim() !== savedFreeText.trim()) return true;
     if (selectedKeys.size !== savedKeys.size) return true;
     for (const k of selectedKeys) if (!savedKeys.has(k)) return true;
+    if (address.trim() !== savedAddress.trim()) return true;
+    if (contactPhone.trim() !== savedPhone.trim()) return true;
+    if (contactName.trim() !== savedName.trim()) return true;
     return false;
-  }, [selectedKeys, savedKeys, freeText, savedFreeText]);
+  }, [selectedKeys, savedKeys, freeText, savedFreeText, address, savedAddress, contactPhone, savedPhone, contactName, savedName]);
 
   const saveFollowUp = useCallback(async () => {
     if (!sentId || savingText || !hasChanges) return;
+    if (contactPhone.trim() && !phoneValid) {
+      showToast("Проверьте номер телефона", "error");
+      return;
+    }
     setSavingText(true);
     const composed = composeDescription(selectedKeys, freeText);
     try {
       await sosFollowUp(sentId, {
         updateToken: updateToken ?? undefined,
         description: composed,
+        address: address.trim(),
+        contactPhone: contactPhone.trim() || undefined,
+        contactName: contactName.trim() || undefined,
       });
       setSavedKeys(new Set(selectedKeys));
       setSavedFreeText(freeText);
+      setSavedAddress(address);
+      setSavedPhone(contactPhone);
+      setSavedName(contactName);
       showToast("Детали сохранены", "success");
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Не удалось сохранить";
@@ -366,7 +443,7 @@ export function SOSButton() {
     } finally {
       setSavingText(false);
     }
-  }, [sentId, updateToken, selectedKeys, freeText, hasChanges, savingText, showToast]);
+  }, [sentId, updateToken, selectedKeys, freeText, address, contactPhone, contactName, phoneValid, hasChanges, savingText, showToast]);
 
   /** Author retracts the SOS — "false alarm" / accidental press.
    *
@@ -402,6 +479,13 @@ export function SOSButton() {
     setSavedKeys(new Set());
     setFreeText("");
     setSavedFreeText("");
+    setAddress("");
+    setSavedAddress("");
+    setAddressAutoFilled(false);
+    setContactPhone("");
+    setSavedPhone("");
+    setContactName("");
+    setSavedName("");
     showToast("SOS отменён", "success");
 
     sosFollowUp(pendingId, {
@@ -415,12 +499,18 @@ export function SOSButton() {
 
   const close = useCallback(() => {
     // Auto-save any pending changes so the author can't accidentally
-    // discard detail they meant to send.
+    // discard detail they meant to send. Phone only flushed if it
+    // looks valid — we'd rather persist nothing than a malformed
+    // number the rescuer can't dial.
     if (sentId && hasChanges) {
       const composed = composeDescription(selectedKeys, freeText);
+      const phoneDigits = contactPhone.replace(/[\s\-\(\)\+]/g, "");
       sosFollowUp(sentId, {
         updateToken: updateToken ?? undefined,
         description: composed,
+        address: address.trim(),
+        contactPhone: phoneDigits.length >= 7 ? contactPhone.trim() : undefined,
+        contactName: contactName.trim() || undefined,
       }).catch(() => { /* best-effort */ });
     }
     setStage("idle");
@@ -433,7 +523,14 @@ export function SOSButton() {
     setSavedKeys(new Set());
     setFreeText("");
     setSavedFreeText("");
-  }, [sentId, updateToken, selectedKeys, freeText, hasChanges]);
+    setAddress("");
+    setSavedAddress("");
+    setAddressAutoFilled(false);
+    setContactPhone("");
+    setSavedPhone("");
+    setContactName("");
+    setSavedName("");
+  }, [sentId, updateToken, selectedKeys, freeText, address, contactPhone, contactName, hasChanges]);
 
   const cancel = useCallback(() => {
     setStage("idle");
@@ -446,6 +543,13 @@ export function SOSButton() {
     setSavedKeys(new Set());
     setFreeText("");
     setSavedFreeText("");
+    setAddress("");
+    setSavedAddress("");
+    setAddressAutoFilled(false);
+    setContactPhone("");
+    setSavedPhone("");
+    setContactName("");
+    setSavedName("");
     setSendError(null);
   }, []);
 
@@ -606,6 +710,61 @@ export function SOSButton() {
               })}
             </div>
 
+            <label className="sos-followup-label sos-followup-label--light" htmlFor="sos-address-input">
+              Адрес (где именно вы?)
+            </label>
+            <input
+              id="sos-address-input"
+              className="sos-followup-input sos-followup-input--light"
+              type="text"
+              placeholder="ул. Ленина, 42 — квартира, ориентир"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              maxLength={500}
+              disabled={!sentId || savingText}
+              autoComplete="street-address"
+            />
+            {!address && (
+              <p className="sos-followup-hint">
+                Геолокация даёт только примерный район. Допишите улицу и дом — спасатели приедут быстрее.
+              </p>
+            )}
+
+            <label className="sos-followup-label sos-followup-label--light" htmlFor="sos-phone-input">
+              Телефон для связи
+            </label>
+            <div className="sos-contact-row">
+              <input
+                id="sos-name-input"
+                className="sos-followup-input sos-followup-input--light"
+                type="text"
+                placeholder="Имя"
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
+                maxLength={200}
+                disabled={!sentId || savingText}
+                autoComplete="name"
+              />
+              <input
+                id="sos-phone-input"
+                className={`sos-followup-input sos-followup-input--light${contactPhone && !phoneValid ? " sos-followup-input--error" : ""}`}
+                type="tel"
+                placeholder="+7 999 123-45-67"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                maxLength={32}
+                disabled={!sentId || savingText}
+                autoComplete="tel"
+                inputMode="tel"
+                aria-invalid={contactPhone && !phoneValid ? "true" : undefined}
+              />
+            </div>
+            {contactPhone && !phoneValid && (
+              <p className="sos-followup-hint sos-followup-hint--error">
+                Минимум 7 цифр
+              </p>
+            )}
+
             <label className="sos-followup-label sos-followup-label--light" htmlFor="sos-desc-input">
               Дополнительно (необязательно)
             </label>
@@ -625,7 +784,7 @@ export function SOSButton() {
                 type="button"
                 className="sos-followup-save sos-followup-save--light"
                 onClick={saveFollowUp}
-                disabled={!sentId || savingText || !hasChanges}
+                disabled={!sentId || savingText || !hasChanges || !phoneValid}
               >
                 {savingText ? "Сохранение..." : "Сохранить"}
               </button>

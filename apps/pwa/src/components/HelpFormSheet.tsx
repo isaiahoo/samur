@@ -419,7 +419,9 @@ export function HelpFormSheet({ tab, onClose }: Props) {
           </div>
           {compressing && <div className="qf-hint">Сжатие фото...</div>}
 
-          {/* Address chip */}
+          {/* Address chip — required so rescuers have a street, not
+              just a district. Auto-filled from geolocation; user can
+              tap to edit or retype if the auto-value is too vague. */}
           {address && !editingAddress ? (
             <button
               type="button"
@@ -435,7 +437,7 @@ export function HelpFormSheet({ tab, onClose }: Props) {
             </button>
           ) : (
             <input
-              className="qf-inline-input"
+              className={`qf-inline-input${!address.trim() ? " qf-inline-input--error" : ""}`}
               value={address}
               onChange={(e) => {
                 setAddress(e.target.value);
@@ -444,7 +446,13 @@ export function HelpFormSheet({ tab, onClose }: Props) {
               placeholder="Адрес (улица, дом, район)"
               onBlur={() => { if (address) setEditingAddress(false); }}
               autoFocus={editingAddress}
+              aria-invalid={!address.trim() ? "true" : undefined}
             />
+          )}
+          {!address.trim() && (
+            <div className="qf-hint qf-hint--muted">
+              Укажите адрес — без него спасатели или волонтёры не смогут приехать
+            </div>
           )}
 
           {/* Contact summary */}
@@ -483,9 +491,9 @@ export function HelpFormSheet({ tab, onClose }: Props) {
               {contactPhone && !isValidPhone(contactPhone) && (
                 <div className="qf-field-error">Минимум 7 цифр</div>
               )}
-              {!contactName.trim() && !contactPhone.trim() && (
-                <div className="qf-hint qf-hint--muted">
-                  Без контактов — заявка будет анонимной
+              {!contactPhone.trim() && (
+                <div className="qf-field-error">
+                  Телефон обязателен — без него до вас не смогут дозвониться
                 </div>
               )}
             </>
@@ -495,8 +503,11 @@ export function HelpFormSheet({ tab, onClose }: Props) {
         <div className="sheet-form-footer">
           {(() => {
             const phoneInvalid = !!contactPhone && !isValidPhone(contactPhone);
-            const disabled = !category || submitting || phoneInvalid;
-            const primary = !!category && !phoneInvalid;
+            const phoneMissing = !contactPhone.trim();
+            const addressMissing = !address.trim();
+            const disabled =
+              !category || submitting || phoneInvalid || phoneMissing || addressMissing;
+            const primary = !!category && !phoneInvalid && !phoneMissing && !addressMissing;
             return (
               <button
                 className={`btn btn-lg qf-submit ${primary ? "btn-primary" : ""}`}
@@ -509,9 +520,13 @@ export function HelpFormSheet({ tab, onClose }: Props) {
                     : "Отправляем..."
                   : phoneInvalid
                     ? "Проверьте телефон"
-                    : category
-                      ? tab === "offer" ? "Предложить помощь" : "Запросить помощь"
-                      : "Выберите категорию"}
+                    : !category
+                      ? "Выберите категорию"
+                      : addressMissing
+                        ? "Укажите адрес"
+                        : phoneMissing
+                          ? "Укажите телефон"
+                          : tab === "offer" ? "Предложить помощь" : "Запросить помощь"}
               </button>
             );
           })()}

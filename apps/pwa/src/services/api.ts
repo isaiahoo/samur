@@ -324,6 +324,9 @@ export function sosFollowUp(
     updateToken?: string;
     description?: string;
     audioUrl?: string | null;
+    address?: string;
+    contactPhone?: string;
+    contactName?: string;
     cancel?: boolean;
   },
 ) {

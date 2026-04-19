@@ -204,6 +204,17 @@ function IncidentDetail({ data: inc }: { data: Incident & { photoUrls?: unknown 
       <p className="detail-meta-time">{formatRelativeTime(inc.createdAt)}</p>
       {inc.description && <p className="detail-desc">{inc.description}</p>}
       <LocationBlock address={address} lat={inc.lat} lng={inc.lng} label={INCIDENT_TYPE_LABELS[inc.type]} />
+      {(inc.contactName || inc.contactPhone) && (
+        <div className="detail-contact-row">
+          {inc.contactName && <span className="detail-contact-inline-name">{inc.contactName}</span>}
+          {inc.contactName && inc.contactPhone && " · "}
+          {inc.contactPhone && (
+            <a href={`tel:${inc.contactPhone}`} className="btn btn-primary detail-call-btn">
+              Позвонить: {inc.contactPhone}
+            </a>
+          )}
+        </div>
+      )}
       <p className="text-muted detail-status-line">Статус: {SEVERITY_LABELS[inc.status] ?? inc.status}</p>
     </div>
   );

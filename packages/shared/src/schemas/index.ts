@@ -160,6 +160,8 @@ export const CreateIncidentSchema = z.object({
   lng,
   address: z.string().max(500).optional(),
   description: z.string().max(2000).optional(),
+  contactPhone: phone.optional(),
+  contactName: z.string().max(200).optional(),
   photoUrls: z.array(photoUrl).max(10).optional(),
   source: SourceSchema.optional(),
 });
@@ -230,6 +232,13 @@ export const SOSFollowUpSchema = z.object({
     )
     .nullable()
     .optional(),
+  /** Street address attached post-send so rescuers know exactly where
+   * to go. Reverse-geocoded on the client when possible, or typed
+   * manually when geolocation is unavailable or the auto-filled result
+   * is too vague (rural areas where Nominatim only yields district). */
+  address: z.string().max(500).optional(),
+  contactPhone: phone.optional(),
+  contactName: z.string().max(200).optional(),
   /** Author retracts the SOS — e.g. they pressed it by accident or
    * were testing the feature. Sets status to "cancelled" so the
    * row stops appearing to volunteers, without deleting evidence. */
