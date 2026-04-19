@@ -695,7 +695,11 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1100;
+  /* Above every other overlay in the app: the SOS overlay sits at
+     9999, BottomSheets at 2000+, crisis banner at 10000. The confirm
+     dialog must render above any of them — otherwise it's triggered
+     but invisible and the user only sees a scrim with no dialog. */
+  z-index: 10100;
   padding: 16px;
   animation: fadeBackdrop 0.15s ease-out;
 }
