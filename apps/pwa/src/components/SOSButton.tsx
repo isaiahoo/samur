@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { createSOS, sosFollowUp, ApiError } from "../services/api.js";
 import { addToOutbox } from "../services/db.js";
@@ -10,20 +10,177 @@ import { MAKHACHKALA_CENTER } from "@samur/shared";
 /**
  * Stages:
  *   idle    — just the FAB; hold-to-activate
- *   sending — post auth dispatched, waiting for server ACK
- *   sent    — server accepted; follow-up form is open (text + voice)
+ *   sending — POST dispatched, waiting for server ACK
+ *   sent    — server accepted; follow-up form is open (cards + text)
  *   error   — POST /sos failed; retry or give up
  *
- * The 4-button "situation picker" stage is gone. Emergency dispatch
- * goes out immediately on hold-complete; details get attached after
- * via POST /sos/:id/follow-up. Volunteers see the SOS appear on the
- * map instantly and the follow-up description arrives over socket
- * later if the author takes time to write it.
+ * The SOS fires immediately on long-press complete. Details (which
+ * categories match, free text) get attached after via
+ * /sos/:id/follow-up so the emergency dispatch is never blocked on
+ * the author deciding what to type.
  */
 type Stage = "idle" | "sending" | "sent" | "error";
 
 const HOLD_DURATION = 1200;
 const SOS_STATE_MARKER = "kunakSos";
+
+/** Situation categories shown as tappable cards on the post-send
+ * screen. Every card is optional; the author picks any that apply
+ * (multi-select). Labels land in the request's `description` field as
+ * a human-readable prefix so volunteers scanning the list see what's
+ * going on at a glance. Keys are the machine-readable tags used to
+ * round-trip through `parseDescription` → UI state on re-open. */
+interface Category {
+  key: string;
+  label: string;
+  icon: JSX.Element;
+}
+
+const CATEGORIES: Category[] = [
+  {
+    key: "trapped_water",
+    label: "В ловушке водой",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M2 12c2 2 4 2 6 0s4-2 6 0 4 2 6 0" />
+        <path d="M2 16c2 2 4 2 6 0s4-2 6 0 4 2 6 0" />
+        <path d="M2 8c2 2 4 2 6 0s4-2 6 0 4 2 6 0" />
+      </svg>
+    ),
+  },
+  {
+    key: "on_roof",
+    label: "На крыше",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M3 12l9-8 9 8" />
+        <path d="M5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9" />
+      </svg>
+    ),
+  },
+  {
+    key: "cant_exit",
+    label: "Не могу выбраться",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="5" y="3" width="14" height="18" rx="1" />
+        <circle cx="15.5" cy="12" r="1" />
+        <path d="M9 7v3M9 14v3" />
+      </svg>
+    ),
+  },
+  {
+    key: "medical",
+    label: "Нужен врач",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="3" y="3" width="18" height="18" rx="3" />
+        <path d="M12 7v10M7 12h10" />
+      </svg>
+    ),
+  },
+  {
+    key: "dependents",
+    label: "С детьми или пожилыми",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="9" cy="7" r="3" />
+        <circle cx="17" cy="9" r="2" />
+        <path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" />
+        <path d="M15 21v-1a3 3 0 013-3h1a3 3 0 013 3v1" />
+      </svg>
+    ),
+  },
+  {
+    key: "evacuation",
+    label: "Нужна эвакуация",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M5 17H3a1 1 0 01-1-1v-5a3 3 0 013-3h14a3 3 0 013 3v5a1 1 0 01-1 1h-2" />
+        <circle cx="7" cy="17" r="2" />
+        <circle cx="17" cy="17" r="2" />
+        <path d="M5 8l1-3h12l1 3" />
+      </svg>
+    ),
+  },
+  {
+    key: "supplies",
+    label: "Нет еды или воды",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M12 2l-5.5 9a6.5 6.5 0 1011 0z" />
+      </svg>
+    ),
+  },
+  {
+    key: "missing_family",
+    label: "Ищу близких",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" />
+        <path d="M21 21l-4.3-4.3" />
+      </svg>
+    ),
+  },
+];
+
+const CATEGORY_BY_LABEL = new Map(CATEGORIES.map((c) => [c.label, c]));
+
+/** Legacy single-situation enum from the pre-redesign picker. Maps
+ * into the current multi-select model so an SOS created yesterday
+ * re-opens with the matching card preselected rather than showing the
+ * raw English enum in the textarea. */
+const LEGACY_SITUATION_MAP: Record<string, string> = {
+  water_inside: "trapped_water",
+  roof: "on_roof",
+  road: "cant_exit",
+  medical: "medical",
+};
+
+/** Round-trip description encoding. The stored description has two
+ * sections separated by a blank line:
+ *   Ситуация: Label 1, Label 2
+ *
+ *   free-form user description
+ * Either part may be missing. The server additionally prepends "SOS —"
+ * on the follow-up endpoint — that gets stripped here.
+ *
+ * Volunteers see the raw string in the request list, which is why we
+ * use Russian labels (readable) rather than machine keys. On re-open
+ * we map labels back to keys via CATEGORY_BY_LABEL. */
+function parseDescription(raw: string | null | undefined): { keys: Set<string>; text: string } {
+  const empty = { keys: new Set<string>(), text: "" };
+  if (!raw) return empty;
+
+  let body = raw.replace(/^SOS\s*(?:—|-)\s*/, "").trim();
+  if (!body) return empty;
+
+  // Legacy single-enum form from the old picker — still lives in DB.
+  const legacy = LEGACY_SITUATION_MAP[body];
+  if (legacy) {
+    return { keys: new Set([legacy]), text: "" };
+  }
+
+  const match = body.match(/^Ситуация:\s*([^\n]+?)\s*(?:\n\s*\n|$)/);
+  const keys = new Set<string>();
+  if (match) {
+    for (const label of match[1].split(",")) {
+      const cat = CATEGORY_BY_LABEL.get(label.trim());
+      if (cat) keys.add(cat.key);
+    }
+    body = body.slice(match[0].length).trim();
+  }
+  return { keys, text: body };
+}
+
+function composeDescription(keys: Set<string>, freeText: string): string {
+  const labels = CATEGORIES.filter((c) => keys.has(c.key)).map((c) => c.label);
+  const parts: string[] = [];
+  if (labels.length > 0) parts.push(`Ситуация: ${labels.join(", ")}`);
+  const trimmed = freeText.trim();
+  if (trimmed) parts.push(trimmed);
+  return parts.join("\n\n");
+}
 
 export function SOSButton() {
   const reportFormOpen = useUIStore((s) => s.reportFormOpen);
@@ -32,16 +189,16 @@ export function SOSButton() {
   const [location, setLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [sentId, setSentId] = useState<string | null>(null);
   const [updateToken, setUpdateToken] = useState<string | null>(null);
-  // True when the server returned an existing active SOS instead of
-  // creating a new one. Drives the post-send copy so repeat-presses
-  // read as "your signal is active" rather than "signal sent" (which
-  // would be misleading — nothing new went out).
   const [wasExisting, setWasExisting] = useState(false);
   const [hintVisible, setHintVisible] = useState(false);
 
-  // Follow-up form state (only meaningful in `sent` stage).
-  const [description, setDescription] = useState("");
-  const [savedDescription, setSavedDescription] = useState("");
+  // Follow-up form state — multi-select category keys plus free text.
+  // savedKeys/savedText track the last-persisted state so the Save
+  // button can stay disabled until there's something new to send.
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
+  const [freeText, setFreeText] = useState("");
+  const [savedFreeText, setSavedFreeText] = useState("");
   const [savingText, setSavingText] = useState(false);
 
   const holdStartRef = useRef<number>(0);
@@ -85,18 +242,16 @@ export function SOSButton() {
           updateToken?: string;
           existing?: boolean;
           description?: string | null;
-          audioUrl?: string | null;
         } | undefined;
         setSentId(data?.id ?? null);
         setUpdateToken(data?.updateToken ?? null);
         setWasExisting(data?.existing === true);
-        // Prefill description if re-opening an existing SOS so the
-        // author can edit rather than retype. Strip the "SOS — " prefix
-        // that the server adds on follow-up saves.
-        if (data?.existing && typeof data.description === "string") {
-          const existingDesc = data.description.replace(/^SOS\s*(?:—|-)\s*/, "").trim();
-          setDescription(existingDesc);
-          setSavedDescription(existingDesc);
+        if (data?.existing) {
+          const { keys, text } = parseDescription(data.description ?? "");
+          setSelectedKeys(keys);
+          setSavedKeys(new Set(keys));
+          setFreeText(text);
+          setSavedFreeText(text);
         }
       } else {
         await addToOutbox({ endpoint: "/help-requests/sos", method: "POST", body: payload });
@@ -109,7 +264,6 @@ export function SOSButton() {
     }
   }, [showToast]);
 
-  // Long-press handlers
   const onHoldStart = useCallback(() => {
     holdStartRef.current = performance.now();
     try { navigator.vibrate?.(50); } catch { /* ignore */ }
@@ -139,9 +293,7 @@ export function SOSButton() {
       if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
       hintTimerRef.current = setTimeout(() => setHintVisible(false), 1500);
     }
-    if (holdProgress < 1) {
-      setHoldProgress(0);
-    }
+    if (holdProgress < 1) setHoldProgress(0);
   }, [holdProgress]);
 
   useEffect(() => {
@@ -150,19 +302,33 @@ export function SOSButton() {
     };
   }, []);
 
-  // Save a typed description (debounced via explicit Save button — no
-  // per-keystroke PATCH; the author is mid-crisis and the network may
-  // be flaky, so one deliberate submit is the right model).
-  const saveDescription = useCallback(async () => {
-    if (!sentId || savingText) return;
-    if (description.trim() === savedDescription.trim()) return;
+  const toggleCategory = useCallback((key: string) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const hasChanges = useMemo(() => {
+    if (freeText.trim() !== savedFreeText.trim()) return true;
+    if (selectedKeys.size !== savedKeys.size) return true;
+    for (const k of selectedKeys) if (!savedKeys.has(k)) return true;
+    return false;
+  }, [selectedKeys, savedKeys, freeText, savedFreeText]);
+
+  const saveFollowUp = useCallback(async () => {
+    if (!sentId || savingText || !hasChanges) return;
     setSavingText(true);
+    const composed = composeDescription(selectedKeys, freeText);
     try {
       await sosFollowUp(sentId, {
         updateToken: updateToken ?? undefined,
-        description,
+        description: composed,
       });
-      setSavedDescription(description);
+      setSavedKeys(new Set(selectedKeys));
+      setSavedFreeText(freeText);
       showToast("Детали сохранены", "success");
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Не удалось сохранить";
@@ -170,15 +336,16 @@ export function SOSButton() {
     } finally {
       setSavingText(false);
     }
-  }, [sentId, updateToken, description, savedDescription, savingText, showToast]);
+  }, [sentId, updateToken, selectedKeys, freeText, hasChanges, savingText, showToast]);
 
   const close = useCallback(() => {
-    // Auto-save any unsaved description before closing so the author
-    // doesn't lose what they typed by tapping "Закрыть" too early.
-    if (sentId && description.trim() && description.trim() !== savedDescription.trim()) {
+    // Auto-save any pending changes so the author can't accidentally
+    // discard detail they meant to send.
+    if (sentId && hasChanges) {
+      const composed = composeDescription(selectedKeys, freeText);
       sosFollowUp(sentId, {
         updateToken: updateToken ?? undefined,
-        description,
+        description: composed,
       }).catch(() => { /* best-effort */ });
     }
     setStage("idle");
@@ -187,9 +354,11 @@ export function SOSButton() {
     setUpdateToken(null);
     setWasExisting(false);
     setLocation(null);
-    setDescription("");
-    setSavedDescription("");
-  }, [sentId, updateToken, description, savedDescription]);
+    setSelectedKeys(new Set());
+    setSavedKeys(new Set());
+    setFreeText("");
+    setSavedFreeText("");
+  }, [sentId, updateToken, selectedKeys, freeText, hasChanges]);
 
   const cancel = useCallback(() => {
     setStage("idle");
@@ -198,11 +367,12 @@ export function SOSButton() {
     setUpdateToken(null);
     setWasExisting(false);
     setLocation(null);
-    setDescription("");
-    setSavedDescription("");
+    setSelectedKeys(new Set());
+    setSavedKeys(new Set());
+    setFreeText("");
+    setSavedFreeText("");
   }, []);
 
-  // Escape key handling
   useEffect(() => {
     if (stage === "idle") return;
     const handleKey = (e: KeyboardEvent) => {
@@ -223,9 +393,6 @@ export function SOSButton() {
     return () => { document.body.style.overflow = prev; };
   }, [overlayActive]);
 
-  // History-stack integration — same pattern the old SOS used so
-  // Android back / Safari swipe-back closes the overlay instead of
-  // leaving the page.
   const stageRef = useRef(stage);
   stageRef.current = stage;
   const cancelRef = useRef(cancel);
@@ -296,79 +463,106 @@ export function SOSButton() {
   return createPortal(
     <div className="sos-overlay" role="alertdialog" aria-label="Экстренный сигнал SOS" aria-modal="true">
       {stage === "sending" && (
-        <div className="sos-panel">
-          <div className="sos-spinner" />
-          <p className="sos-panel-subtitle">Отправка сигнала...</p>
+        <div className="sos-panel sos-panel--light">
+          <div className="sos-spinner sos-spinner--light" />
+          <p className="sos-panel-subtitle sos-panel-subtitle--light">Отправка сигнала...</p>
         </div>
       )}
 
       {stage === "sent" && (
-        <div className="sos-panel sos-panel--wide">
-          <div className="sos-sent-header">
-            <div className="sos-check-icon">
+        <div className="sos-panel sos-panel--light sos-panel--wide">
+          <div className="sos-sent-header sos-sent-header--light">
+            <div className={`sos-badge${wasExisting ? " sos-badge--existing" : " sos-badge--fresh"}`}>
               {wasExisting ? (
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <circle cx="12" cy="12" r="10" />
                   <path d="M12 7v5l3 2" />
                 </svg>
               ) : (
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M20 6L9 17l-5-5" />
                 </svg>
               )}
             </div>
-            <p className={`sos-sent-title${wasExisting ? " sos-sent-title--existing" : ""}`}>
+            <p className="sos-sent-title sos-sent-title--light">
               {wasExisting ? "Ваш SOS активен" : "SOS отправлен"}
             </p>
-            <p className="sos-sent-sub">
+            <p className="sos-sent-sub sos-sent-sub--light">
               {!online
                 ? "Нет связи. Сигнал сохранён и уйдёт при подключении."
                 : wasExisting
-                  ? "Сигнал уже в работе. Можете дополнить описание или записать голосовое — это поможет быстрее прийти к вам."
-                  : "Волонтёры уведомлены. Расскажите, что происходит — это поможет быстрее прийти к вам."}
+                  ? "Сигнал уже в работе. Уточните ситуацию ниже — это поможет быстрее прийти."
+                  : "Волонтёры уведомлены. Выберите, что происходит — волонтёры поймут, кто нужен первым."}
             </p>
             {location && (
-              <p className="sos-meta">
-                Координаты получены (±{Math.round(location.accuracy)}м)
+              <p className="sos-meta sos-meta--light">
+                ±{Math.round(location.accuracy)}м
               </p>
             )}
           </div>
 
-          <div className="sos-followup">
-            <label className="sos-followup-label" htmlFor="sos-desc-input">
-              Опишите ситуацию
+          <div className="sos-followup sos-followup--light">
+            <p className="sos-followup-label sos-followup-label--light">
+              Отметьте, что подходит
+            </p>
+            <div className="sos-category-grid">
+              {CATEGORIES.map((cat) => {
+                const selected = selectedKeys.has(cat.key);
+                return (
+                  <button
+                    type="button"
+                    key={cat.key}
+                    className={`sos-category-card${selected ? " sos-category-card--selected" : ""}`}
+                    onClick={() => toggleCategory(cat.key)}
+                    aria-pressed={selected}
+                  >
+                    <span className="sos-category-icon">{cat.icon}</span>
+                    <span className="sos-category-label">{cat.label}</span>
+                    {selected && (
+                      <span className="sos-category-check" aria-hidden="true">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 6L9 17l-5-5" />
+                        </svg>
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            <label className="sos-followup-label sos-followup-label--light" htmlFor="sos-desc-input">
+              Дополнительно (необязательно)
             </label>
             <textarea
               id="sos-desc-input"
-              className="sos-followup-textarea"
-              placeholder="Например: мы втроём на крыше, вода поднялась до окон"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
+              className="sos-followup-textarea sos-followup-textarea--light"
+              placeholder="Например: нас трое, вода поднялась до окон"
+              value={freeText}
+              onChange={(e) => setFreeText(e.target.value)}
+              rows={3}
               maxLength={2000}
               disabled={!sentId || savingText}
             />
-            <button
-              type="button"
-              className="sos-followup-save"
-              onClick={saveDescription}
-              disabled={
-                !sentId ||
-                savingText ||
-                !description.trim() ||
-                description.trim() === savedDescription.trim()
-              }
-            >
-              {savingText ? "Сохранение..." : "Сохранить"}
-            </button>
-          </div>
 
-          <button className="sos-done-btn" onClick={close}>Готово</button>
+            <div className="sos-followup-actions">
+              <button
+                type="button"
+                className="sos-followup-save sos-followup-save--light"
+                onClick={saveFollowUp}
+                disabled={!sentId || savingText || !hasChanges}
+              >
+                {savingText ? "Сохранение..." : "Сохранить"}
+              </button>
+              <button type="button" className="sos-done-btn sos-done-btn--light" onClick={close}>
+                Готово
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
       {stage === "error" && (
-        <div className="sos-panel">
+        <div className="sos-panel sos-panel--light">
           <div className="sos-panel-icon">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
@@ -376,12 +570,16 @@ export function SOSButton() {
               <line x1="9" y1="9" x2="15" y2="15" />
             </svg>
           </div>
-          <p className="sos-panel-title" style={{ color: "#f87171" }}>Ошибка отправки</p>
-          <p className="sos-panel-subtitle">Попробуйте ещё раз</p>
+          <p className="sos-panel-title sos-panel-title--light" style={{ color: "#dc2626" }}>
+            Ошибка отправки
+          </p>
+          <p className="sos-panel-subtitle sos-panel-subtitle--light">Попробуйте ещё раз</p>
           <button className="sos-retry-btn" onClick={() => sendSOS()}>
             Повторить
           </button>
-          <button className="sos-cancel-btn" onClick={cancel}>Закрыть</button>
+          <button className="sos-cancel-btn sos-cancel-btn--light" onClick={cancel}>
+            Закрыть
+          </button>
         </div>
       )}
     </div>,

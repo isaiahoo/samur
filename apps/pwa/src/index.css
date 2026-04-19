@@ -7686,7 +7686,11 @@ a.tg-auth-fallback {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: rgba(10, 10, 14, 0.96);
+  /* Semi-transparent scrim — used to be opaque black, but a light
+     content panel against pitch-black reads as hostile. A softer
+     backdrop lets the SOS screen feel like a modal inside the app,
+     not a takeover. */
+  background: rgba(15, 23, 42, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7698,9 +7702,10 @@ a.tg-auth-fallback {
     max(24px, env(safe-area-inset-right))
     max(24px, env(safe-area-inset-bottom))
     max(24px, env(safe-area-inset-left));
-  animation: sos-fade-in 0.25s ease-out;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  animation: sos-fade-in 0.2s ease-out;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  overflow-y: auto;
 }
 @keyframes sos-fade-in {
   from { opacity: 0; }
@@ -8096,6 +8101,257 @@ a.tg-auth-fallback {
 }
 .sos-retry-btn:active {
   background: #b91c1c;
+}
+
+/* ── Light-theme SOS panel (post-send follow-up) ───────────────────────
+   Replaces the old pitch-black panel. The overlay is a semi-transparent
+   scrim; the panel is a normal app surface (white in light mode, dark
+   surface in dark mode via @media below) so the SOS follow-up doesn't
+   feel disconnected from the rest of the UI.
+*/
+.sos-panel--light {
+  background: #ffffff;
+  color: #18181b;
+  max-width: 460px;
+  width: 100%;
+  border-radius: 16px;
+  padding: 22px 20px 18px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  gap: 14px;
+  text-align: left;
+  align-items: stretch;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+}
+.sos-panel--light.sos-panel--wide { max-width: 460px; }
+.sos-spinner--light {
+  border-color: rgba(24, 24, 27, 0.15);
+  border-top-color: var(--color-primary, #2563eb);
+}
+.sos-panel-title--light { color: #18181b; }
+.sos-panel-subtitle--light { color: #52525b; }
+
+.sos-sent-header--light {
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.sos-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+.sos-badge--fresh {
+  background: rgba(34, 197, 94, 0.12);
+  color: #16a34a;
+}
+.sos-badge--existing {
+  background: rgba(234, 88, 12, 0.12);
+  color: #ea580c;
+}
+.sos-sent-title--light {
+  color: #18181b;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+.sos-sent-sub--light {
+  color: #52525b;
+  font-size: 14px;
+  line-height: 1.45;
+  max-width: 380px;
+  margin: 0 auto;
+}
+.sos-meta--light {
+  color: #71717a;
+  font-size: 12px;
+  margin-top: 6px;
+  font-family: ui-monospace, 'SF Mono', monospace;
+}
+
+.sos-followup--light {
+  background: transparent;
+  margin: 0;
+  padding: 0;
+  gap: 10px;
+}
+.sos-followup-label--light {
+  color: #3f3f46;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 6px 0 4px;
+}
+
+/* Category grid: 2 columns, comfortable tap targets. Cards flip to a
+   red-tinted selected state on tap; a small green check in the corner
+   confirms the pick. Multi-select — tap again to deselect. */
+.sos-category-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.sos-category-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 12px 14px;
+  min-height: 78px;
+  border: 1.5px solid #e4e4e7;
+  border-radius: 12px;
+  background: #fafafa;
+  color: #27272a;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, transform 0.08s;
+}
+.sos-category-card:active { transform: scale(0.98); }
+.sos-category-card--selected {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: #dc2626;
+  color: #18181b;
+}
+.sos-category-icon {
+  color: #dc2626;
+  display: inline-flex;
+}
+.sos-category-card--selected .sos-category-icon { color: #b91c1c; }
+.sos-category-label {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.25;
+}
+.sos-category-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  background: #16a34a;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sos-followup-textarea--light {
+  background: #fafafa;
+  border: 1px solid #d4d4d8;
+  color: #18181b;
+}
+.sos-followup-textarea--light::placeholder { color: #a1a1aa; }
+.sos-followup-textarea--light:focus {
+  outline: none;
+  border-color: #dc2626;
+  background: #fff;
+}
+
+.sos-followup-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.sos-followup-save--light {
+  flex: 1;
+  background: #dc2626;
+  color: #fff;
+}
+.sos-followup-save--light:active { background: #b91c1c; }
+.sos-followup-save--light:disabled {
+  background: #e4e4e7;
+  color: #a1a1aa;
+}
+.sos-done-btn--light {
+  flex: 0 0 auto;
+  background: #f4f4f5;
+  color: #3f3f46;
+  border: none;
+  margin: 0;
+  padding: 10px 18px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sos-done-btn--light:active { background: #e4e4e7; }
+.sos-cancel-btn--light {
+  border-color: #d4d4d8;
+  color: #52525b;
+}
+.sos-cancel-btn--light:active { background: #f4f4f5; }
+
+@media (prefers-color-scheme: dark) {
+  .sos-panel--light {
+    background: var(--color-surface, #1f1f23);
+    color: #f4f4f5;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+  }
+  .sos-panel-title--light { color: #f4f4f5; }
+  .sos-panel-subtitle--light { color: #a1a1aa; }
+  .sos-spinner--light {
+    border-color: rgba(255, 255, 255, 0.15);
+    border-top-color: #60a5fa;
+  }
+  .sos-sent-title--light { color: #f4f4f5; }
+  .sos-sent-sub--light { color: #a1a1aa; }
+  .sos-meta--light { color: #71717a; }
+  .sos-followup-label--light { color: #d4d4d8; }
+  .sos-badge--fresh {
+    background: rgba(34, 197, 94, 0.18);
+    color: #4ade80;
+  }
+  .sos-badge--existing {
+    background: rgba(234, 88, 12, 0.22);
+    color: #fb923c;
+  }
+  .sos-category-card {
+    background: #27272a;
+    border-color: #3f3f46;
+    color: #e4e4e7;
+  }
+  .sos-category-card--selected {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: #ef4444;
+    color: #f4f4f5;
+  }
+  .sos-category-icon { color: #f87171; }
+  .sos-category-card--selected .sos-category-icon { color: #fca5a5; }
+  .sos-category-check { background: #22c55e; }
+  .sos-followup-textarea--light {
+    background: #27272a;
+    border-color: #3f3f46;
+    color: #f4f4f5;
+  }
+  .sos-followup-textarea--light::placeholder { color: #71717a; }
+  .sos-followup-textarea--light:focus {
+    border-color: #f87171;
+    background: #1f1f23;
+  }
+  .sos-followup-save--light:disabled {
+    background: #3f3f46;
+    color: #71717a;
+  }
+  .sos-done-btn--light {
+    background: #3f3f46;
+    color: #e4e4e7;
+  }
+  .sos-done-btn--light:active { background: #52525b; }
+  .sos-cancel-btn--light {
+    border-color: #3f3f46;
+    color: #a1a1aa;
+  }
+  .sos-cancel-btn--light:active { background: rgba(255, 255, 255, 0.04); }
 }
 
 /* ── Dark mode ─────────────────────────────────────────────────────────── */
