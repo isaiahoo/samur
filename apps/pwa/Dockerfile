@@ -11,6 +11,8 @@ RUN npm install --workspace=@samur/pwa --workspace=@samur/shared
 COPY tsconfig.base.json ./
 COPY packages/shared/ packages/shared/
 COPY apps/pwa/ apps/pwa/
+# Privacy policy markdown — imported via @legal alias in vite.config.ts.
+COPY legal/ legal/
 
 RUN npm run build -w packages/shared && \
     npm run build -w apps/pwa
