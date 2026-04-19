@@ -219,6 +219,10 @@ export function SOSButton() {
   const [freeText, setFreeText] = useState("");
   const [savedFreeText, setSavedFreeText] = useState("");
   const [savingText, setSavingText] = useState(false);
+  // Server-side error message — shown on the error stage so the user
+  // sees *why* sending failed (rate-limit vs network vs permission).
+  // A generic "Ошибка отправки" leaves the retry path ambiguous.
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const holdStartRef = useRef<number>(0);
   const holdRafRef = useRef<number>(0);
@@ -276,12 +280,14 @@ export function SOSButton() {
         await addToOutbox({ endpoint: "/help-requests/sos", method: "POST", body: payload });
       }
       setStage("sent");
+      setSendError(null);
       try { navigator.vibrate?.([200, 100, 200]); } catch { /* ignore */ }
-    } catch {
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Не удалось отправить SOS. Проверьте соединение.";
+      setSendError(msg);
       setStage("error");
-      showToast("Ошибка отправки SOS", "error");
     }
-  }, [showToast]);
+  }, []);
 
   const onHoldStart = useCallback(() => {
     holdStartRef.current = performance.now();
@@ -435,6 +441,7 @@ export function SOSButton() {
     setSavedKeys(new Set());
     setFreeText("");
     setSavedFreeText("");
+    setSendError(null);
   }, []);
 
   useEffect(() => {
@@ -646,7 +653,9 @@ export function SOSButton() {
           <p className="sos-panel-title sos-panel-title--light" style={{ color: "#dc2626" }}>
             Ошибка отправки
           </p>
-          <p className="sos-panel-subtitle sos-panel-subtitle--light">Попробуйте ещё раз</p>
+          <p className="sos-panel-subtitle sos-panel-subtitle--light">
+            {sendError ?? "Попробуйте ещё раз"}
+          </p>
           <button className="sos-retry-btn" onClick={() => sendSOS()}>
             Повторить
           </button>

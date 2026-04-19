@@ -57,6 +57,17 @@ export async function checkSosRateLimit(ip: string): Promise<SosRateLimitResult>
   }
 }
 
+/** Clear the per-IP SOS rate-limit token. Called when the author
+ * retracts an SOS as a false alarm — otherwise the 1-per-5-min cap
+ * blocks them from re-sending a real SOS if the first was a test. */
+export async function clearSosRateLimit(ip: string): Promise<void> {
+  try {
+    await getSosLimiter().delete(ip);
+  } catch {
+    /* best-effort — a leftover token just means 5 minutes of cooldown */
+  }
+}
+
 // ---------- 1.2 Anonymous Dedup by IP + Coordinates ----------
 // For anonymous users: check for existing active SOS from same IP within 30 min and ~1km
 export async function findExistingAnonymousSOS(

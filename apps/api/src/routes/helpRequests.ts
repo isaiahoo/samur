@@ -40,6 +40,7 @@ import { getRealIp } from "../lib/clientIp.js";
 import { paramId } from "../lib/params.js";
 import {
   checkSosRateLimit,
+  clearSosRateLimit,
   findExistingAnonymousSOS,
   computeConfidenceScore,
   isCrisisMode,
@@ -372,19 +373,24 @@ router.post(
         }
       }
 
-      // Only reach the rate-limiter if we're actually going to create
-      // a NEW SOS. Protects against spam of fresh rows from the same IP.
-      const rateCheck = await checkSosRateLimit(clientIp);
-      if (!rateCheck.allowed) {
-        res.status(429).json({
-          success: false,
-          error: {
-            code: "SOS_RATE_LIMITED",
-            message: "Вы уже отправили сигнал SOS. Подождите 5 минут.",
-            retryAfterSeconds: rateCheck.retryAfterSeconds,
-          },
-        });
-        return;
+      // Rate-limit applies to anonymous callers only. Authenticated
+      // users are accountable via their userId (the dedup branch above
+      // already catches their re-presses). The rate-limiter was
+      // blocking a logged-in user from retrying after they cancelled
+      // their own test SOS — the cap wasn't the right tool for that.
+      if (!req.user?.sub) {
+        const rateCheck = await checkSosRateLimit(clientIp);
+        if (!rateCheck.allowed) {
+          res.status(429).json({
+            success: false,
+            error: {
+              code: "SOS_RATE_LIMITED",
+              message: "Вы уже отправили сигнал SOS. Подождите 5 минут.",
+              retryAfterSeconds: rateCheck.retryAfterSeconds,
+            },
+          });
+          return;
+        }
       }
 
       // Tier 1.3 — Contextual confidence score + Tier 1.4 — Adaptive crisis mode
@@ -520,6 +526,13 @@ router.patch(
             where: { helpRequestId: id, status: { not: "cancelled" } },
             data: { status: "cancelled" },
           });
+        }
+        // Free the per-IP rate-limit token so the author can
+        // immediately retry if the first SOS was a test — the 5-min
+        // cap is there to block spam, not to punish a legitimate
+        // "this was an accident, let me send the real one" retry.
+        if (hr.sourceIp) {
+          await clearSosRateLimit(hr.sourceIp);
         }
       }
 
