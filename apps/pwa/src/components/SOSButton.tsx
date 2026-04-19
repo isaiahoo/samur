@@ -1,39 +1,50 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { SOS_SITUATION_LABELS } from "@samur/shared";
-import type { SosSituation } from "@samur/shared";
-import { createSOS } from "../services/api.js";
+import { createSOS, sosFollowUp, uploadAudio, ApiError } from "../services/api.js";
 import { addToOutbox } from "../services/db.js";
 import { useOnline } from "../hooks/useOnline.js";
 import { useUIStore } from "../store/ui.js";
 import { MAKHACHKALA_CENTER } from "@samur/shared";
+import { VoiceRecorder } from "./VoiceRecorder.js";
 
-type Stage = "idle" | "situation" | "sending" | "sent" | "error";
+/**
+ * Stages:
+ *   idle    — just the FAB; hold-to-activate
+ *   sending — post auth dispatched, waiting for server ACK
+ *   sent    — server accepted; follow-up form is open (text + voice)
+ *   error   — POST /sos failed; retry or give up
+ *
+ * The 4-button "situation picker" stage is gone. Emergency dispatch
+ * goes out immediately on hold-complete; details get attached after
+ * via POST /sos/:id/follow-up. Volunteers see the SOS appear on the
+ * map instantly and the follow-up description arrives over socket
+ * later if the author takes time to write it.
+ */
+type Stage = "idle" | "sending" | "sent" | "error";
 
 const HOLD_DURATION = 1200;
-const AUTO_SEND_DELAY = 5000;
-/** Marker attached to the synthetic history entry we push while the SOS
- * overlay is open. Distinct from BottomSheet / HelpDetailSheet /
- * ImageLightbox markers so all can coexist on the stack. */
 const SOS_STATE_MARKER = "kunakSos";
 
 export function SOSButton() {
   const reportFormOpen = useUIStore((s) => s.reportFormOpen);
   const [stage, setStage] = useState<Stage>("idle");
   const [holdProgress, setHoldProgress] = useState(0);
-  const [autoSendCountdown, setAutoSendCountdown] = useState(AUTO_SEND_DELAY / 1000);
   const [location, setLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
-  const [locating, setLocating] = useState(false);
   const [sentId, setSentId] = useState<string | null>(null);
+  const [updateToken, setUpdateToken] = useState<string | null>(null);
   const [hintVisible, setHintVisible] = useState(false);
+
+  // Follow-up form state (only meaningful in `sent` stage).
+  const [description, setDescription] = useState("");
+  const [savedDescription, setSavedDescription] = useState("");
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [savingText, setSavingText] = useState(false);
+  const [audioUploading, setAudioUploading] = useState(false);
 
   const holdStartRef = useRef<number>(0);
   const holdRafRef = useRef<number>(0);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const autoSendTimerRef = useRef<ReturnType<typeof setTimeout>>(0 as unknown as ReturnType<typeof setTimeout>);
-  const countdownIntervalRef = useRef<ReturnType<typeof setInterval>>(0 as unknown as ReturnType<typeof setInterval>);
-  // Keep location in a ref so async callbacks always see the latest value
   const locationRef = useRef(location);
   locationRef.current = location;
 
@@ -43,57 +54,48 @@ export function SOSButton() {
   const showToast = useUIStore((s) => s.showToast);
   const crisisMode = useUIStore((s) => s.crisisMode);
 
-  // Acquire GPS when confirm overlay opens
   const acquireLocation = useCallback(() => {
     if (locationRef.current) return;
-    if (!navigator.geolocation) {
-      // Geolocation unavailable (HTTP or unsupported browser)
-      return;
-    }
-    setLocating(true);
+    if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy });
-        setLocating(false);
       },
-      () => setLocating(false),
+      () => { /* silent — we'll fall back to Makhachkala center */ },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
     );
   }, []);
 
-  // Send the SOS signal — reads from refs to avoid stale closures
-  const sendSOS = useCallback(async (situation?: SosSituation) => {
+  const sendSOS = useCallback(async () => {
     const loc = locationRef.current;
-    // Use GPS if available, otherwise fallback to Makhachkala center
     const lat = loc?.lat ?? MAKHACHKALA_CENTER.lat;
     const lng = loc?.lng ?? MAKHACHKALA_CENTER.lng;
     setStage("sending");
 
     const batteryLevel = await getBatteryLevel();
     const payload: Record<string, unknown> = { lat, lng, batteryLevel };
-    if (situation) payload.situation = situation;
 
     try {
       if (onlineRef.current) {
         const res = await createSOS(payload);
-        const data = res.data as { id: string } | undefined;
+        const data = res.data as { id: string; updateToken?: string } | undefined;
         setSentId(data?.id ?? null);
+        setUpdateToken(data?.updateToken ?? null);
       } else {
         await addToOutbox({ endpoint: "/help-requests/sos", method: "POST", body: payload });
       }
       setStage("sent");
-      try { navigator.vibrate?.([200, 100, 200]); } catch {}
+      try { navigator.vibrate?.([200, 100, 200]); } catch { /* ignore */ }
     } catch {
       setStage("error");
       showToast("Ошибка отправки SOS", "error");
     }
   }, [showToast]);
 
-  // Long-press handlers — FAB itself is the hold target
+  // Long-press handlers
   const onHoldStart = useCallback(() => {
     holdStartRef.current = performance.now();
-    try { navigator.vibrate?.(50); } catch {}
-    // Acquire GPS in background as soon as user starts holding
+    try { navigator.vibrate?.(50); } catch { /* ignore */ }
     acquireLocation();
 
     const animate = () => {
@@ -102,20 +104,19 @@ export function SOSButton() {
       setHoldProgress(progress);
 
       if (progress >= 1) {
-        try { navigator.vibrate?.([100, 50, 100, 50, 100]); } catch {}
-        setStage("situation");
+        try { navigator.vibrate?.([100, 50, 100, 50, 100]); } catch { /* ignore */ }
         setHoldProgress(0);
+        sendSOS();
         return;
       }
       holdRafRef.current = requestAnimationFrame(animate);
     };
     holdRafRef.current = requestAnimationFrame(animate);
-  }, [acquireLocation]);
+  }, [acquireLocation, sendSOS]);
 
   const onHoldEnd = useCallback(() => {
     cancelAnimationFrame(holdRafRef.current);
     const elapsed = performance.now() - holdStartRef.current;
-    // Quick tap (< 250ms) → show discovery hint so users learn the gesture
     if (elapsed < 250 && holdProgress < 1) {
       setHintVisible(true);
       if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
@@ -132,68 +133,99 @@ export function SOSButton() {
     };
   }, []);
 
-  // Auto-send countdown when in situation picker
-  useEffect(() => {
-    if (stage !== "situation") return;
-
-    setAutoSendCountdown(AUTO_SEND_DELAY / 1000);
-    countdownIntervalRef.current = setInterval(() => {
-      setAutoSendCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(countdownIntervalRef.current);
-          return 0;
-        }
-        return prev - 1;
+  // Save a typed description (debounced via explicit Save button — no
+  // per-keystroke PATCH; the author is mid-crisis and the network may
+  // be flaky, so one deliberate submit is the right model).
+  const saveDescription = useCallback(async () => {
+    if (!sentId || savingText) return;
+    if (description.trim() === savedDescription.trim()) return;
+    setSavingText(true);
+    try {
+      await sosFollowUp(sentId, {
+        updateToken: updateToken ?? undefined,
+        description,
       });
-    }, 1000);
+      setSavedDescription(description);
+      showToast("Детали сохранены", "success");
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Не удалось сохранить";
+      showToast(msg, "error");
+    } finally {
+      setSavingText(false);
+    }
+  }, [sentId, updateToken, description, savedDescription, savingText, showToast]);
 
-    autoSendTimerRef.current = setTimeout(() => {
-      sendSOS();
-    }, AUTO_SEND_DELAY);
+  // Voice recording complete → upload → attach URL to SOS.
+  const handleVoiceSaved = useCallback(async (blob: Blob) => {
+    if (!sentId) return;
+    setAudioUploading(true);
+    try {
+      const url = await uploadAudio(blob);
+      await sosFollowUp(sentId, {
+        updateToken: updateToken ?? undefined,
+        audioUrl: url,
+      });
+      setAudioUrl(url);
+      showToast("Голосовое сохранено", "success");
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Не удалось загрузить аудио";
+      showToast(msg, "error");
+    } finally {
+      setAudioUploading(false);
+    }
+  }, [sentId, updateToken, showToast]);
 
-    return () => {
-      clearTimeout(autoSendTimerRef.current);
-      clearInterval(countdownIntervalRef.current);
-    };
-  }, [stage, sendSOS]);
+  const removeAudio = useCallback(async () => {
+    if (!sentId || !audioUrl) return;
+    try {
+      await sosFollowUp(sentId, { updateToken: updateToken ?? undefined, audioUrl: null });
+      setAudioUrl(null);
+    } catch { /* keep local state — user can retry */ }
+  }, [sentId, updateToken, audioUrl]);
 
-  const selectSituation = useCallback((sit: SosSituation) => {
-    clearTimeout(autoSendTimerRef.current);
-    clearInterval(countdownIntervalRef.current);
-    sendSOS(sit);
-  }, [sendSOS]);
+  const close = useCallback(() => {
+    // Auto-save any unsaved description before closing so the author
+    // doesn't lose what they typed by tapping "Закрыть" too early.
+    if (sentId && description.trim() && description.trim() !== savedDescription.trim()) {
+      sosFollowUp(sentId, {
+        updateToken: updateToken ?? undefined,
+        description,
+      }).catch(() => { /* best-effort */ });
+    }
+    setStage("idle");
+    setHoldProgress(0);
+    setSentId(null);
+    setUpdateToken(null);
+    setLocation(null);
+    setDescription("");
+    setSavedDescription("");
+    setAudioUrl(null);
+  }, [sentId, updateToken, description, savedDescription]);
 
   const cancel = useCallback(() => {
     setStage("idle");
     setHoldProgress(0);
     setSentId(null);
+    setUpdateToken(null);
     setLocation(null);
-    clearTimeout(autoSendTimerRef.current);
-    clearInterval(countdownIntervalRef.current);
+    setDescription("");
+    setSavedDescription("");
+    setAudioUrl(null);
   }, []);
 
-  const close = useCallback(() => {
-    setStage("idle");
-    setHoldProgress(0);
-    setSentId(null);
-    setLocation(null);
-  }, []);
-
-  // Escape key to cancel/close
+  // Escape key handling
   useEffect(() => {
     if (stage === "idle") return;
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (stage === "sent" || stage === "error") close();
-        else cancel();
+        if (stage === "sent") close();
+        else if (stage === "error") cancel();
       }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [stage, cancel, close]);
 
-  // Body scroll lock while the overlay is up — the background was free to
-  // scroll before, which is wrong for a full-screen crisis action.
   const overlayActive = stage !== "idle";
   useEffect(() => {
     if (!overlayActive) return;
@@ -202,11 +234,9 @@ export function SOSButton() {
     return () => { document.body.style.overflow = prev; };
   }, [overlayActive]);
 
-  // Hardware / browser back closes the SOS overlay instead of leaving
-  // the page. Same pushState + popstate pattern as BottomSheet /
-  // HelpDetailSheet / ImageLightbox, keyed to SOS_STATE_MARKER. Refs
-  // keep the handler reading the latest stage/cancel/close without
-  // re-registering on every stage transition.
+  // History-stack integration — same pattern the old SOS used so
+  // Android back / Safari swipe-back closes the overlay instead of
+  // leaving the page.
   const stageRef = useRef(stage);
   stageRef.current = stage;
   const cancelRef = useRef(cancel);
@@ -219,7 +249,7 @@ export function SOSButton() {
     const onPopState = (e: PopStateEvent) => {
       if (e.state?.[SOS_STATE_MARKER]) return;
       const s = stageRef.current;
-      if (s === "sent" || s === "error") closeRef.current();
+      if (s === "sent") closeRef.current();
       else cancelRef.current();
     };
     window.addEventListener("popstate", onPopState);
@@ -231,10 +261,8 @@ export function SOSButton() {
     };
   }, [overlayActive]);
 
-  // Hide when report form is open — user already chose "+" over SOS
   if (stage === "idle" && reportFormOpen) return null;
 
-  // Render: idle FAB — hold-to-activate, progress ring around the button
   if (stage === "idle") {
     const alert = crisisMode;
     const classes = ["sos-fab"];
@@ -276,81 +304,8 @@ export function SOSButton() {
     );
   }
 
-  // Full-screen overlay for all active stages, portaled to document.body
-  // so no transformed ancestor (e.g. the crisis-mode layout transform)
-  // can trap the fixed overlay.
   return createPortal(
     <div className="sos-overlay" role="alertdialog" aria-label="Экстренный сигнал SOS" aria-modal="true">
-      {stage === "situation" && (
-        <div className="sos-panel">
-          <p className="sos-panel-title">Выберите ситуацию</p>
-          <p className="sos-countdown-text">
-            Не выбрали? Отправим через <span className="sos-countdown-num">{autoSendCountdown}</span>с
-          </p>
-          <p className="sos-location-status">
-            {locating && "Определяем местоположение..."}
-            {location && `Координаты получены (±${Math.round(location.accuracy)}м)`}
-            {!locating && !location && "GPS недоступен — отправим без координат"}
-          </p>
-
-          <div className="sos-situation-grid">
-            <button className="sos-sit-btn" onClick={() => selectSituation("roof")}>
-              <span className="sos-sit-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 12l9-8 9 8" />
-                  <path d="M5 10v9a1 1 0 001 1h12a1 1 0 001-1v-9" />
-                </svg>
-              </span>
-              <span className="sos-sit-label">На крыше</span>
-              <span className="sos-sit-sub">верхний этаж</span>
-            </button>
-            <button className="sos-sit-btn" onClick={() => selectSituation("water_inside")}>
-              <span className="sos-sit-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2l-5.5 9a6.5 6.5 0 1011 0z" />
-                </svg>
-              </span>
-              <span className="sos-sit-label">Вода в доме</span>
-              <span className="sos-sit-sub">затопление</span>
-            </button>
-            <button className="sos-sit-btn" onClick={() => selectSituation("road")}>
-              <span className="sos-sit-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 17H3a2 2 0 01-2-2V9a2 2 0 012-2h2" />
-                  <path d="M19 17h2a2 2 0 002-2V9a2 2 0 00-2-2h-2" />
-                  <rect x="5" y="5" width="14" height="14" rx="2" />
-                  <circle cx="9" cy="17" r="1" />
-                  <circle cx="15" cy="17" r="1" />
-                </svg>
-              </span>
-              <span className="sos-sit-label">На дороге</span>
-              <span className="sos-sit-sub">в машине</span>
-            </button>
-            <button className="sos-sit-btn" onClick={() => selectSituation("medical")}>
-              <span className="sos-sit-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 6v12M6 12h12" />
-                  <rect x="3" y="3" width="18" height="18" rx="3" />
-                </svg>
-              </span>
-              <span className="sos-sit-label">Медпомощь</span>
-              <span className="sos-sit-sub">нужен врач</span>
-            </button>
-          </div>
-
-          <button
-            className="sos-skip-btn"
-            onClick={() => {
-              clearTimeout(autoSendTimerRef.current);
-              clearInterval(countdownIntervalRef.current);
-              sendSOS();
-            }}
-          >
-            Отправить без выбора
-          </button>
-        </div>
-      )}
-
       {stage === "sending" && (
         <div className="sos-panel">
           <div className="sos-spinner" />
@@ -359,26 +314,70 @@ export function SOSButton() {
       )}
 
       {stage === "sent" && (
-        <div className="sos-panel">
-          <div className="sos-check-icon">
-            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 6L9 17l-5-5" />
-            </svg>
+        <div className="sos-panel sos-panel--wide">
+          <div className="sos-sent-header">
+            <div className="sos-check-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            </div>
+            <p className="sos-sent-title">SOS отправлен</p>
+            <p className="sos-sent-sub">
+              {online
+                ? "Волонтёры уведомлены. Расскажите, что происходит — это поможет быстрее прийти к вам."
+                : "Нет связи. Сигнал сохранён и уйдёт при подключении."}
+            </p>
+            {location && (
+              <p className="sos-meta">
+                Координаты получены (±{Math.round(location.accuracy)}м)
+              </p>
+            )}
           </div>
-          <p className="sos-sent-title">SOS ОТПРАВЛЕН</p>
-          {!online && (
-            <p className="sos-offline-note">
-              Нет связи. Сигнал сохранён и будет отправлен при подключении.
-            </p>
-          )}
-          {online && <p className="sos-panel-subtitle">Ожидайте помощи</p>}
-          {location && (
-            <p className="sos-meta">
-              {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
-            </p>
-          )}
-          {sentId && <p className="sos-meta">ID: {sentId.slice(0, 8)}</p>}
-          <button className="sos-done-btn" onClick={close}>Закрыть</button>
+
+          <div className="sos-followup">
+            <label className="sos-followup-label" htmlFor="sos-desc-input">
+              Опишите ситуацию
+            </label>
+            <textarea
+              id="sos-desc-input"
+              className="sos-followup-textarea"
+              placeholder="Например: мы втроём на крыше, вода поднялась до окон"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+              maxLength={2000}
+              disabled={!sentId || savingText}
+            />
+            <button
+              type="button"
+              className="sos-followup-save"
+              onClick={saveDescription}
+              disabled={
+                !sentId ||
+                savingText ||
+                !description.trim() ||
+                description.trim() === savedDescription.trim()
+              }
+            >
+              {savingText ? "Сохранение..." : "Сохранить текст"}
+            </button>
+
+            <div className="sos-followup-divider">
+              <span>или</span>
+            </div>
+
+            <p className="sos-followup-label">Голосовое сообщение</p>
+            {sentId && (
+              <VoiceRecorder
+                onSaved={handleVoiceSaved}
+                existingUrl={audioUrl}
+                onRemove={removeAudio}
+                disabled={audioUploading}
+              />
+            )}
+          </div>
+
+          <button className="sos-done-btn" onClick={close}>Готово</button>
         </div>
       )}
 
@@ -411,6 +410,6 @@ async function getBatteryLevel(): Promise<number | undefined> {
       const battery = await nav.getBattery();
       return Math.round(battery.level * 100);
     }
-  } catch {}
+  } catch { /* ignore */ }
   return undefined;
 }

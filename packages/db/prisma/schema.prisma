@@ -222,6 +222,11 @@ model HelpRequest {
   situation    String?
   peopleCount  Int?              @map("people_count")
   photoUrls       String[]          @default([]) @map("photo_urls")
+  /// Optional voice-memo attached by the author on the SOS follow-up
+  /// screen. Stored via the same object-storage backend as photos; the
+  /// client records webm/mp4 via MediaRecorder, uploads to /uploads,
+  /// PATCHes the URL back here.
+  audioUrl        String?           @map("audio_url")
   batteryLevel    Int?              @map("battery_level")
   sourceIp        String?           @map("source_ip")
   confidenceScore Int?              @map("confidence_score")

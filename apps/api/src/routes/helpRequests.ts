@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import crypto from "node:crypto";
 import { Router } from "express";
 import { prisma } from "@samur/db";
 import type { Prisma } from "@prisma/client";
+import { getRedis } from "../lib/redis.js";
 import { optionalAuth, requireAuth, requireRole } from "../middleware/auth.js";
 import { validateBody, validateQuery } from "../middleware/validate.js";
 import {
@@ -13,6 +15,7 @@ import {
   UpdateMyHelpResponseSchema,
   CreateHelpMessageSchema,
   CreateHelpMessageReportSchema,
+  SOSFollowUpSchema,
 } from "@samur/shared";
 import type { HelpRequest, HelpRequestParty, HelpRequestStatus, HelpResponseStatus, HelpMessage } from "@samur/shared";
 import { AppError } from "../middleware/error.js";
@@ -403,7 +406,103 @@ router.post(
       emitHelpRequestCreated(typed);
       helpRequestsCreatedTotal.inc({ source: hr.source, type: "sos" });
 
-      res.status(201).json({ success: true, data: hr });
+      // Issue an update token so the author can follow up with a text
+      // description or voice memo. The token is the only auth that
+      // anonymous SOS authors have (they have no JWT); logged-in
+      // authors can use JWT instead but we return the token for them
+      // too so the client can use a single code path.
+      const updateToken = crypto.randomBytes(24).toString("hex");
+      const redis = getRedis();
+      if (redis) {
+        await redis.set(`sos_update:${updateToken}`, hr.id, "EX", 3600);
+      }
+
+      res.status(201).json({ success: true, data: { ...hr, updateToken } });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+/**
+ * PATCH /help-requests/sos/:id/follow-up
+ *
+ * Attaches a typed description and/or a recorded voice memo to an SOS
+ * that was already fired. Authorization is EITHER a valid JWT whose
+ * subject is the SOS's author, OR an `updateToken` that the server
+ * returned at SOS creation (1-hour TTL in Redis, single request body
+ * ties it to exactly one SOS id). Anonymous SOS callers only have the
+ * token — there's no user row they could authenticate as.
+ *
+ * Body fields (all optional, independent): description, audioUrl.
+ */
+router.patch(
+  "/sos/:id/follow-up",
+  optionalAuth,
+  validateBody(SOSFollowUpSchema),
+  async (req, res, next) => {
+    try {
+      const id = paramId(req);
+      const { updateToken, description, audioUrl } = req.body as {
+        updateToken?: string;
+        description?: string;
+        audioUrl?: string | null;
+      };
+
+      const hr = await prisma.helpRequest.findFirst({
+        where: { id, deletedAt: null, isSOS: true },
+      });
+      if (!hr) {
+        throw new AppError(404, "NOT_FOUND", "SOS не найден");
+      }
+
+      // Two valid auth paths. Either is enough, but the token path is
+      // the one anonymous authors use — so we check it first to avoid
+      // a needless JWT round-trip check for them.
+      let authorized = false;
+      if (updateToken) {
+        const redis = getRedis();
+        if (redis) {
+          const owningId = await redis.get(`sos_update:${updateToken}`);
+          if (owningId === id) authorized = true;
+        }
+      }
+      if (!authorized && req.user?.sub && hr.userId === req.user.sub) {
+        authorized = true;
+      }
+      if (!authorized) {
+        throw new AppError(403, "FORBIDDEN", "Нет прав на обновление этого SOS");
+      }
+
+      const data: Prisma.HelpRequestUpdateInput = {};
+      if (description !== undefined) {
+        // Keep the "SOS" prefix + newline separator so volunteers
+        // scanning the list still see the emergency framing first.
+        const trimmed = description.trim();
+        data.description = trimmed ? `SOS — ${trimmed}` : "SOS";
+      }
+      if (audioUrl !== undefined) {
+        data.audioUrl = audioUrl;
+      }
+
+      if (Object.keys(data).length === 0) {
+        res.json({ success: true, data: hr });
+        return;
+      }
+
+      data.version = { increment: 1 };
+
+      const updated = await prisma.helpRequest.update({
+        where: { id, version: hr.version },
+        data,
+        include: {
+          author: { select: { id: true, name: true, role: true } },
+          claimer: { select: { id: true, name: true, role: true } },
+        },
+      });
+
+      emitHelpRequestUpdated(updated as unknown as HelpRequest);
+      res.json({ success: true, data: updated });
     } catch (err) {
       next(err);
     }

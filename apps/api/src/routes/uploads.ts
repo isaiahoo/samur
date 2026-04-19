@@ -191,6 +191,93 @@ router.post(
 );
 
 /**
+ * POST /uploads/audio
+ *
+ * Accepts a single audio blob recorded by the SOS follow-up screen
+ * (MediaRecorder output — webm on Chrome/Firefox, mp4/m4a on Safari).
+ * Unlike the photo pipeline, we DO NOT re-encode — audio transcode on
+ * the API node would cost CPU that a crisis platform can't afford,
+ * and the blob is already a browser-native format that every other
+ * browser can play back.
+ *
+ * `optionalAuth` matches the photo endpoint: anonymous SOS callers
+ * need to attach voice memos too. Rate-limited per IP by
+ * uploadsRateLimiter so the anonymous path can't be abused.
+ */
+const AUDIO_MAX_SIZE = 3 * 1024 * 1024; // 3 MB — ~60 s of compressed audio
+const AUDIO_MIME_TO_EXT: Record<string, string> = {
+  "audio/webm": "webm",
+  "audio/mp4": "mp4",
+  "audio/x-m4a": "m4a",
+  "audio/mpeg": "mp3",
+  "audio/ogg": "ogg",
+};
+
+const uploadAudio = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: AUDIO_MAX_SIZE, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    const base = file.mimetype.split(";")[0].trim();
+    if (AUDIO_MIME_TO_EXT[base]) {
+      cb(null, true);
+    } else {
+      cb(new AppError(400, "INVALID_FILE_TYPE", "Допустимые форматы: webm, mp4, m4a, ogg, mp3") as unknown as Error);
+    }
+  },
+});
+
+router.post(
+  "/audio",
+  optionalAuth,
+  uploadsRateLimiter,
+  (req: Request, res: Response, next: NextFunction) => {
+    uploadAudio.single("audio")(req, res, async (err) => {
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          if (err.code === "LIMIT_FILE_SIZE") {
+            return next(new AppError(400, "FILE_TOO_LARGE", "Максимальный размер аудио: 3 МБ"));
+          }
+          return next(new AppError(400, "UPLOAD_ERROR", err.message));
+        }
+        return next(err);
+      }
+
+      const file = req.file;
+      if (!file) {
+        return next(new AppError(400, "NO_FILE", "Файл не выбран"));
+      }
+
+      const baseMime = file.mimetype.split(";")[0].trim();
+      const ext = AUDIO_MIME_TO_EXT[baseMime];
+      if (!ext) {
+        return next(new AppError(400, "INVALID_FILE_TYPE", "Неподдерживаемый формат аудио"));
+      }
+
+      try {
+        const hex = crypto.randomBytes(16).toString("hex");
+        const filename = `${hex}.${ext}`;
+        await writeBlob(filename, file.buffer, baseMime);
+
+        const uploaderId = req.user?.sub ?? null;
+        await prisma.upload.createMany({
+          data: [{ filename, uploaderId }],
+          skipDuplicates: true,
+        });
+
+        logger.info(
+          { uploaderId, size: file.size, mime: baseMime, backend: isRemoteStorageEnabled() ? "yandex" : "local" },
+          "Audio uploaded",
+        );
+        res.json({ success: true, data: { url: `/api/v1/uploads/${filename}` } });
+      } catch (storageErr) {
+        logger.warn({ err: storageErr }, "Audio upload failed");
+        return next(new AppError(500, "UPLOAD_FAILED", "Не удалось сохранить аудио"));
+      }
+    });
+  },
+);
+
+/**
  * GET /uploads/:filename
  *
  * Serve a previously-uploaded blob. In remote mode (Yandex configured),
@@ -203,7 +290,7 @@ router.post(
  * redirecting, so someone passing `..%2F../etc/passwd` can't trick
  * us into emitting a Location header pointing somewhere unintended.
  */
-const UPLOAD_FILENAME_RE = /^[a-f0-9]{32}\.(?:jpg|png|webp|heic|heif)$/;
+const UPLOAD_FILENAME_RE = /^[a-f0-9]{32}\.(?:jpg|png|webp|heic|heif|webm|mp4|m4a|ogg|mp3)$/;
 
 router.get("/:filename", (req: Request, res: Response, next: NextFunction) => {
   try {

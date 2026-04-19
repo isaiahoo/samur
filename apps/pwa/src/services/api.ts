@@ -305,6 +305,41 @@ export function createSOS(data: Record<string, unknown>) {
   });
 }
 
+/** Attach a typed description and/or an audio URL to an already-fired
+ * SOS. For anonymous authors, pass the updateToken returned by the
+ * initial POST /sos response. Logged-in authors can omit the token —
+ * the server will accept their JWT. */
+export function sosFollowUp(
+  id: string,
+  data: { updateToken?: string; description?: string; audioUrl?: string | null },
+) {
+  return request<ApiResponse>(`/help-requests/sos/${id}/follow-up`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+/** Upload a recorded audio blob for an SOS follow-up. Returns the URL
+ * that should be sent back via sosFollowUp({ audioUrl }). */
+export async function uploadAudio(blob: Blob): Promise<string> {
+  const form = new FormData();
+  const ext = blob.type.includes("mp4") ? "mp4" : blob.type.includes("ogg") ? "ogg" : "webm";
+  form.append("audio", blob, `voice.${ext}`);
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${BASE}/uploads/audio`, {
+    method: "POST",
+    headers,
+    body: form,
+  });
+  const json = (await res.json()) as { success: boolean; data?: { url: string }; error?: { message: string } };
+  if (!res.ok || !json.success || !json.data?.url) {
+    throw new ApiError(res.status, "UPLOAD_FAILED", json.error?.message ?? "Ошибка загрузки аудио");
+  }
+  return json.data.url;
+}
+
 export function updateHelpRequest(id: string, data: Record<string, unknown>) {
   return request<ApiResponse>(`/help-requests/${id}`, {
     method: "PATCH",

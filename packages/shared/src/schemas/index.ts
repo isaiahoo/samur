@@ -208,6 +208,19 @@ export const CreateSOSSchema = z.object({
 
 export type CreateSOSInput = z.infer<typeof CreateSOSSchema>;
 
+/** Body of PATCH /help-requests/sos/:id/follow-up. Used to attach a
+ * typed description and/or a recorded voice memo to an SOS that was
+ * already fired. Authentication can be either a normal JWT (logged-in
+ * author) OR an `updateToken` returned at SOS creation for anonymous
+ * authors — the server accepts whichever is present. Both fields
+ * optional independently; a request with neither is a no-op. */
+export const SOSFollowUpSchema = z.object({
+  updateToken: z.string().min(16).max(128).optional(),
+  description: z.string().max(2000).optional(),
+  audioUrl: z.string().url().max(2000).nullable().optional(),
+});
+export type SOSFollowUpInput = z.infer<typeof SOSFollowUpSchema>;
+
 export const CreateAlertSchema = z.object({
   urgency: AlertUrgencySchema,
   title: z.string().min(1).max(200),

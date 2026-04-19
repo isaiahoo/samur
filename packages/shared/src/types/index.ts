@@ -190,6 +190,9 @@ export interface HelpRequest {
   peopleCount: number | null;
   batteryLevel: number | null;
   photoUrls: string[];
+  /** Optional voice memo attached post-send via the SOS follow-up
+   * screen. Public URL served by object storage. */
+  audioUrl?: string | null;
   sourceIp: string | null;
   confidenceScore: number | null;
   source: Source;

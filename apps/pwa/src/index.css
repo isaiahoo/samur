@@ -7872,6 +7872,210 @@ a.tg-auth-fallback {
   cursor: pointer;
   transition: background 0.15s;
 }
+
+/* ── SOS follow-up (post-send) form ────────────────────────────────────
+   Rendered inside the dark full-screen SOS overlay. Wider panel so the
+   textarea has room to breathe; styling is tuned for low-contrast
+   ambient light (outdoors, panic). */
+.sos-panel--wide {
+  max-width: 480px;
+  padding: 28px 20px 20px;
+  gap: 0;
+}
+.sos-sent-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.sos-sent-sub {
+  max-width: 360px;
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.75);
+  text-align: center;
+}
+.sos-followup {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.sos-followup-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  text-align: left;
+}
+.sos-followup-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 15px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 92px;
+  font-family: inherit;
+}
+.sos-followup-textarea::placeholder { color: rgba(255, 255, 255, 0.35); }
+.sos-followup-textarea:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.1);
+}
+.sos-followup-save {
+  align-self: flex-start;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 9px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+.sos-followup-save:active { background: #1d4ed8; }
+.sos-followup-save:disabled {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.45);
+  cursor: not-allowed;
+}
+.sos-followup-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.sos-followup-divider::before,
+.sos-followup-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Voice recorder ────────────────────────────────────────────────── */
+.voice-recorder {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.voice-recorder--saved {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.voice-player {
+  flex: 1 1 240px;
+  min-width: 0;
+  height: 36px;
+}
+.voice-start-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.voice-start-btn:active { background: rgba(255, 255, 255, 0.12); }
+.voice-start-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.voice-recording-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #fff;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.voice-rec-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: voice-pulse 1s ease-in-out infinite;
+}
+.voice-rec-time { font-weight: 600; }
+.voice-rec-max { color: rgba(255, 255, 255, 0.55); font-size: 13px; }
+@keyframes voice-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+.voice-recording-actions {
+  display: flex;
+  gap: 8px;
+}
+.voice-stop-btn {
+  flex: 1;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 9px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.voice-stop-btn:active { background: #b91c1c; }
+.voice-cancel-btn {
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+  cursor: pointer;
+}
+.voice-remove-btn {
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  cursor: pointer;
+}
+.voice-remove-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.voice-error {
+  margin: 0;
+  font-size: 13px;
+  color: #fca5a5;
+}
+.voice-uploading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+}
+.sos-spinner--sm { width: 18px; height: 18px; border-width: 2px; }
 .sos-done-btn:active {
   background: rgba(255, 255, 255, 0.18);
 }
