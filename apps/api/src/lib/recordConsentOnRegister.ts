@@ -5,7 +5,6 @@ import type { ConsentInput } from "@samur/shared";
 import { AppError } from "../middleware/error.js";
 import { getConsentVersion } from "./consentVersion.js";
 import { getRealIp } from "./clientIp.js";
-import { invalidateDistributionConsentCache } from "./consent.js";
 
 /**
  * Validates the registration-time consent payload and writes a
@@ -54,7 +53,4 @@ export async function recordConsentOnRegister(
       },
     ],
   });
-  if (consent.distribution === true) {
-    invalidateDistributionConsentCache();
-  }
 }

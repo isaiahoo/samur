@@ -5,7 +5,7 @@ import { ConsentRecordSchema } from "@samur/shared";
 import { requireAuth } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validate.js";
 import { getConsentVersion } from "../lib/consentVersion.js";
-import { getMyConsentState, invalidateDistributionConsentCache } from "../lib/consent.js";
+import { getMyConsentState } from "../lib/consent.js";
 import { getRealIp } from "../lib/clientIp.js";
 import { logger } from "../lib/logger.js";
 
@@ -69,9 +69,6 @@ router.post(
           userAgent: typeof ua === "string" ? ua.slice(0, 500) : null,
         },
       });
-      if (type === "distribution") {
-        invalidateDistributionConsentCache();
-      }
       logger.info({ userId: req.user!.sub, type, accepted }, "Consent recorded");
       res.json({ success: true, data: { recorded: true } });
     } catch (err) {

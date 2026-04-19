@@ -50,10 +50,10 @@ export function LoginPage() {
   const [tgAuthToken, setTgAuthToken] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [error, setError] = useState("");
-  // 152-ФЗ consents — required at registration. Submit/social-login
-  // buttons stay disabled until processing is checked.
+  // 152-ФЗ consent — required at registration. Submit/social-login
+  // buttons stay disabled until checked. Distribution is now implicit
+  // in the policy text (single-checkbox UX).
   const [processingConsent, setProcessingConsent] = useState(false);
-  const [distributionConsent, setDistributionConsent] = useState(false);
 
   const setAuth = useAuthStore((s) => s.setAuth);
   const showToast = useUIStore((s) => s.showToast);
@@ -102,7 +102,7 @@ export function LoginPage() {
     try {
       const res = await telegramInit({
         processing: processingConsent,
-        distribution: distributionConsent,
+        distribution: true,
       });
       const { token } = res.data as { token: string };
       setTgAuthToken(token);
@@ -159,7 +159,7 @@ export function LoginPage() {
     // to the exchange. Server only writes ConsentLog on user-create.
     sessionStorage.setItem(
       "vk_consent",
-      JSON.stringify({ processing: processingConsent, distribution: distributionConsent }),
+      JSON.stringify({ processing: processingConsent, distribution: true }),
     );
 
     const params = new URLSearchParams({
@@ -212,7 +212,7 @@ export function LoginPage() {
     try {
       const res = await phoneVerify(phone, code, undefined, undefined, {
         processing: processingConsent,
-        distribution: distributionConsent,
+        distribution: true,
       });
       const data = res.data as { token: string; user: User; isNew: boolean };
 
@@ -412,9 +412,7 @@ export function LoginPage() {
           <>
             <ConsentCheckboxes
               processing={processingConsent}
-              distribution={distributionConsent}
               onProcessingChange={setProcessingConsent}
-              onDistributionChange={setDistributionConsent}
               disabled={submitting || tgLoading}
             />
             <div className="social-login-section">

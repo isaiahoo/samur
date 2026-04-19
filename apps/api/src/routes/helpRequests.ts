@@ -28,9 +28,6 @@ import {
 } from "../lib/emitter.js";
 import { evictUserFromHelpRoom, clearHelpRoom } from "../socket.js";
 import { assertHelpChatAccess, getHelpChatJoinTime } from "../lib/helpAccess.js";
-import { getDistributionConsentedUserIds } from "../lib/consent.js";
-
-const PRIVILEGED_ROLES = new Set(["volunteer", "coordinator", "admin"]);
 import { assertOwnedUploads, assertOwnedNewUploads } from "../lib/uploadOwnership.js";
 import { reportsRateLimiter, messagesRateLimiter } from "../middleware/rateLimiter.js";
 import { auditLog } from "../lib/auditLog.js";
@@ -249,25 +246,6 @@ router.get(
         where.lng = { gte: q.west, lte: q.east };
       }
 
-      // 152-ФЗ ст. 10.1 — public/anonymous + resident callers only see
-      // items whose author granted distribution consent. Author can still
-      // see their own. Anonymous (userId IS NULL — SOS without account)
-      // stays public regardless: there's no person whose consent applies.
-      const callerCheck = req.user;
-      const isPrivileged = callerCheck && PRIVILEGED_ROLES.has(callerCheck.role);
-      if (!isPrivileged) {
-        const consented = await getDistributionConsentedUserIds();
-        const consentedIds = Array.from(consented);
-        const visibilityClauses: Prisma.HelpRequestWhereInput[] = [
-          { userId: null },
-          { userId: { in: consentedIds } },
-        ];
-        if (callerCheck?.sub) {
-          visibilityClauses.push({ userId: callerCheck.sub });
-        }
-        where.OR = visibilityClauses;
-      }
-
       const orderBy: Prisma.HelpRequestOrderByWithRelationInput =
         q.sort === "urgency"
           ? { urgency: q.order as Prisma.SortOrder }
@@ -451,19 +429,6 @@ router.get("/:id", optionalAuth, async (req, res, next) => {
 
     if (!hr) {
       throw new AppError(404, "NOT_FOUND", "Запрос помощи не найден");
-    }
-
-    // 152-ФЗ ст. 10.1 — same gate as the list endpoint, applied per-row.
-    // Return 404 (not 403) so we don't leak existence to the public.
-    if (hr.userId) {
-      const isPrivileged = req.user && PRIVILEGED_ROLES.has(req.user.role);
-      const isAuthor = req.user?.sub === hr.userId;
-      if (!isPrivileged && !isAuthor) {
-        const consented = await getDistributionConsentedUserIds();
-        if (!consented.has(hr.userId)) {
-          throw new AppError(404, "NOT_FOUND", "Запрос помощи не найден");
-        }
-      }
     }
 
     const caller = getCaller(req as never);

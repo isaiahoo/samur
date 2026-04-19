@@ -27,7 +27,6 @@ export function ConsentGate() {
   const [needsGate, setNeedsGate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [distribution, setDistribution] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -64,11 +63,11 @@ export function ConsentGate() {
     try {
       // Two writes — keep them sequential so a partial failure (network
       // drop after the first POST) leaves the user with at least the
-      // required processing consent recorded. Distribution is optional;
-      // if the second call fails, the user is still legally usable —
-      // they just won't appear on the public map until they retry.
+      // required processing consent recorded. Distribution is implicit
+      // in the policy text now (single-checkbox UX); we still write the
+      // row so the audit trail captures both grants from the same event.
       await recordConsent("processing", true);
-      await recordConsent("distribution", distribution);
+      await recordConsent("distribution", true);
       setNeedsGate(false);
       showToast("Спасибо! Согласие сохранено.", "success");
     } catch (err) {
@@ -95,9 +94,7 @@ export function ConsentGate() {
 
         <ConsentCheckboxes
           processing={processing}
-          distribution={distribution}
           onProcessingChange={setProcessing}
-          onDistributionChange={setDistribution}
           disabled={submitting}
         />
 
