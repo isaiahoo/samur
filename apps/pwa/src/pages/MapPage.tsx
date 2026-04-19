@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { Incident, HelpRequest, Shelter, RiverLevel, EarthquakeEvent } from "@samur/shared";
+import { calculateDistance } from "@samur/shared";
+import { useAuthStore } from "../store/auth.js";
 import { MapView, type MapViewHandle, type MarkerType } from "../components/map/MapView.js";
 import { LayerToggle } from "../components/map/LayerToggle.js";
 import { floodLegendGradientCSS } from "../components/map/FloodZoneOverlay.js";
@@ -25,6 +27,33 @@ import { useUIStore } from "../store/ui.js";
 import { useLocation, useNavigate } from "react-router-dom";
 
 type MapBounds = { north: number; south: number; east: number; west: number };
+
+/** Distance thresholds for realtime alerting. The toast is noise for
+ * a user nowhere near the incident — they can't help, and a toast for
+ * every SOS in the region would be spammy during a crisis. Markers
+ * still appear on the map for everyone; only the toast is gated.
+ *
+ * SOS gets a wider radius than regular help requests (SOS is more
+ * urgent, worth pulling attention from further out). Numbers tuned
+ * for Dagestan's geography — 25 km covers a reasonable drive-time
+ * for a volunteer, 15 km keeps the non-SOS signal manageable. */
+const SOS_ALERT_RADIUS_KM = 25;
+const HELP_ALERT_RADIUS_KM = 15;
+
+/** Returns true when the user's last-known position is within
+ * `radiusKm` of the target. If position is unknown, we err on the
+ * side of alerting — "I don't know where you are, but something's
+ * happening" beats silent failure during a crisis. */
+function isNearby(
+  position: { lat: number; lng: number } | null | undefined,
+  targetLat: number,
+  targetLng: number,
+  radiusKm: number,
+): boolean {
+  if (!position) return true;
+  const meters = calculateDistance(position.lat, position.lng, targetLat, targetLng);
+  return meters <= radiusKm * 1000;
+}
 
 export function MapPage() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -97,6 +126,12 @@ export function MapPage() {
   const mapViewRef = useRef<MapViewHandle>(null);
   const [eventPanelOpen, setEventPanelOpen] = useState(true);
   const { position, status: geoStatus, requestPosition } = useGeolocation();
+  // Ref mirror of the user's GPS position so realtime socket callbacks
+  // can geofilter incoming help-request toasts without re-registering
+  // on every position update (the listeners are stable; the position
+  // is what changes). See useSocketEvent calls below.
+  const positionRef = useRef(position);
+  positionRef.current = position;
   const [geoBannerDismissed, setGeoBannerDismissed] = useState(false);
   const openSheet = useUIStore((s) => s.openSheet);
   const closeSheet = useUIStore((s) => s.closeSheet);
@@ -104,6 +139,16 @@ export function MapPage() {
   const setCrisis = useUIStore((s) => s.setCrisis);
   const crisisMode = useUIStore((s) => s.crisisMode);
   const showToast = useUIStore((s) => s.showToast);
+  const ownRequestIds = useUIStore((s) => s.ownRequestIds);
+  const currentUserId = useAuthStore((s) => s.user?.id);
+  // Refs so the socket-event callbacks always read the latest values
+  // without re-registering on every render. The position updates as
+  // the user moves; authStore swaps after login; ownRequestIds grows
+  // as the user creates more requests in this session.
+  const ownRequestIdsRef = useRef(ownRequestIds);
+  ownRequestIdsRef.current = ownRequestIds;
+  const currentUserIdRef = useRef(currentUserId);
+  currentUserIdRef.current = currentUserId;
 
   useSocketSubscription(position?.lat ?? null, position?.lng ?? null, 50000);
 
@@ -388,12 +433,32 @@ export function MapPage() {
   });
   useSocketEvent("help_request:created", (hr) => {
     setHelpRequests((prev) => [hr, ...prev]);
+    // Same three gates as the SOS toast, with a tighter radius: a
+    // regular help request is less urgent than an SOS, so a volunteer
+    // two towns over doesn't need a toast. SOSes (broadcast via
+    // sos:created too) are skipped here — sos:created handles them
+    // with the wider radius.
+    if (hr.isSOS) return;
+    if (ownRequestIdsRef.current.has(hr.id)) return;
+    if (hr.userId && hr.userId === currentUserIdRef.current) return;
+    if (!isNearby(positionRef.current, hr.lat, hr.lng, HELP_ALERT_RADIUS_KM)) return;
+    const verb = hr.type === "offer" ? "предлагает помощь" : "просит о помощи";
+    const name = hr.contactName ?? hr.author?.name ?? "Кто-то рядом";
+    showToast(`${name} ${verb}`, "info");
   });
   useSocketEvent("sos:created", (hr) => {
     setHelpRequests((prev) => {
       const exists = prev.some((h) => h.id === hr.id);
       return exists ? prev : [hr, ...prev];
     });
+    // Suppress the toast when it would alert the author about their
+    // own SOS — they're already looking at the post-send screen.
+    // Three gates: id matches one this browser just created (covers
+    // anon), author userId matches the signed-in viewer, or the SOS
+    // is too far away to be actionable for this user.
+    if (ownRequestIdsRef.current.has(hr.id)) return;
+    if (hr.userId && hr.userId === currentUserIdRef.current) return;
+    if (!isNearby(positionRef.current, hr.lat, hr.lng, SOS_ALERT_RADIUS_KM)) return;
     const name = hr.contactName ?? "Неизвестный";
     showToast(`SOS: ${name} просит о помощи`, "error");
   });

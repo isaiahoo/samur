@@ -41,6 +41,15 @@ interface UIState {
 
   reportFormOpen: boolean;
   setReportFormOpen: (open: boolean) => void;
+
+  /** Ids of help-requests the current browser just created. Used to
+   * suppress the "someone nearby asked for help" toast for the author
+   * themselves — otherwise pressing SOS shows a toast about your own
+   * request. Anonymous flows have no userId to match on, so we stash
+   * the returned id client-side and check against it here. Cleared
+   * after 10 min so the set doesn't grow unbounded in a long session. */
+  ownRequestIds: Set<string>;
+  addOwnRequest: (id: string) => void;
 }
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -103,6 +112,27 @@ export const useUIStore = create<UIState>()((set) => ({
 
   reportFormOpen: false,
   setReportFormOpen: (open) => set({ reportFormOpen: open }),
+
+  ownRequestIds: new Set<string>(),
+  addOwnRequest: (id) => {
+    set((s) => {
+      const next = new Set(s.ownRequestIds);
+      next.add(id);
+      return { ownRequestIds: next };
+    });
+    // Evict after 10 min — long enough to cover the toast window from
+    // any reasonable socket delay, short enough that a stale set
+    // doesn't mask a genuinely different request that happens to
+    // reuse an id (shouldn't happen with cuid but defence in depth).
+    setTimeout(() => {
+      set((s) => {
+        if (!s.ownRequestIds.has(id)) return s;
+        const next = new Set(s.ownRequestIds);
+        next.delete(id);
+        return { ownRequestIds: next };
+      });
+    }, 10 * 60 * 1000);
+  },
 }));
 
 /** Module-level shortcut for non-hook call sites (event handlers).

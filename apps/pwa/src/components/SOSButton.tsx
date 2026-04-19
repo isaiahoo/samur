@@ -234,6 +234,7 @@ export function SOSButton() {
   const onlineRef = useRef(online);
   onlineRef.current = online;
   const showToast = useUIStore((s) => s.showToast);
+  const addOwnRequest = useUIStore((s) => s.addOwnRequest);
   const crisisMode = useUIStore((s) => s.crisisMode);
 
   const acquireLocation = useCallback(() => {
@@ -269,6 +270,10 @@ export function SOSButton() {
         setSentId(data?.id ?? null);
         setUpdateToken(data?.updateToken ?? null);
         setWasExisting(data?.existing === true);
+        // Mark as "ours" so the realtime toast listener doesn't fire
+        // for the author themselves when the sos:created broadcast
+        // arrives. Covers anon authors who have no userId to match on.
+        if (data?.id) addOwnRequest(data.id);
         if (data?.existing) {
           const { keys, text } = parseDescription(data.description ?? "");
           setSelectedKeys(keys);
@@ -287,7 +292,7 @@ export function SOSButton() {
       setSendError(msg);
       setStage("error");
     }
-  }, []);
+  }, [addOwnRequest]);
 
   const onHoldStart = useCallback(() => {
     holdStartRef.current = performance.now();
