@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { Incident, HelpRequest, Shelter, RiverLevel, EarthquakeEvent } from "@samur/shared";
-import { calculateDistance } from "@samur/shared";
+import { calculateDistance, INCIDENT_TYPE_LABELS } from "@samur/shared";
 import { useAuthStore } from "../store/auth.js";
 import { MapView, type MapViewHandle, type MarkerType } from "../components/map/MapView.js";
 import { LayerToggle } from "../components/map/LayerToggle.js";
@@ -425,9 +425,6 @@ export function MapPage() {
     requestPosition();
   }, [requestPosition]);
 
-  useSocketEvent("incident:created", (inc) => {
-    setIncidents((prev) => [inc, ...prev]);
-  });
   useSocketEvent("incident:updated", (inc) => {
     setIncidents((prev) => prev.map((i) => (i.id === inc.id ? inc : i)));
   });
@@ -444,7 +441,11 @@ export function MapPage() {
     if (!isNearby(positionRef.current, hr.lat, hr.lng, HELP_ALERT_RADIUS_KM)) return;
     const verb = hr.type === "offer" ? "предлагает помощь" : "просит о помощи";
     const name = hr.contactName ?? hr.author?.name ?? "Кто-то рядом";
-    showToast(`${name} ${verb}`, "info");
+    // Clickable — "Показать" flies the map to the request and
+    // highlights the marker.
+    showToast(`${name} ${verb}`, "info", {
+      id: hr.id, markerType: "helpRequest", lat: hr.lat, lng: hr.lng,
+    });
   });
   useSocketEvent("sos:created", (hr) => {
     setHelpRequests((prev) => {
@@ -460,7 +461,23 @@ export function MapPage() {
     if (hr.userId && hr.userId === currentUserIdRef.current) return;
     if (!isNearby(positionRef.current, hr.lat, hr.lng, SOS_ALERT_RADIUS_KM)) return;
     const name = hr.contactName ?? "Неизвестный";
-    showToast(`SOS: ${name} просит о помощи`, "error");
+    showToast(`SOS: ${name} просит о помощи`, "error", {
+      id: hr.id, markerType: "helpRequest", lat: hr.lat, lng: hr.lng,
+    });
+  });
+  // Incident broadcasts — same nearby + not-own gates, same clickable
+  // treatment. An incident isn't a help request (no author asks for
+  // aid) but reporting one nearby is still useful context for
+  // volunteers doing their own reports / routes.
+  useSocketEvent("incident:created", (inc) => {
+    setIncidents((prev) => [inc, ...prev]);
+    if (ownRequestIdsRef.current.has(inc.id)) return;
+    if (inc.userId && inc.userId === currentUserIdRef.current) return;
+    if (!isNearby(positionRef.current, inc.lat, inc.lng, HELP_ALERT_RADIUS_KM)) return;
+    const label = INCIDENT_TYPE_LABELS[inc.type] ?? "Инцидент";
+    showToast(`${label} рядом`, "info", {
+      id: inc.id, markerType: "incident", lat: inc.lat, lng: inc.lng,
+    });
   });
   useSocketEvent("help_request:updated", (hr) => {
     setHelpRequests((prev) => prev.map((h) => (h.id === hr.id ? hr : h)));
@@ -595,6 +612,29 @@ export function MapPage() {
 
     if (layerParam === "shelters") {
       setLayers((prev) => (prev.shelters ? prev : { ...prev, shelters: true }));
+      consumed = true;
+    }
+
+    // ?focus=<id>&markerType=helpRequest|incident&lat=<n>&lng=<n>
+    // Used by the clickable "nearby SOS / help request" toast. The
+    // lat/lng are in the URL so the map can pan immediately without
+    // waiting for the record to show up in helpRequests/incidents
+    // state — which matters if the user tapped the toast from a tab
+    // other than the map (state hasn't loaded yet on first render).
+    const focusId = params.get("focus");
+    const markerType = params.get("markerType");
+    const focusLat = Number(params.get("lat"));
+    const focusLng = Number(params.get("lng"));
+    if (
+      focusId &&
+      (markerType === "helpRequest" || markerType === "incident") &&
+      Number.isFinite(focusLat) &&
+      Number.isFinite(focusLng)
+    ) {
+      setTimeout(() => {
+        mapViewRef.current?.flyTo(focusLng, focusLat, 15);
+        mapViewRef.current?.highlightMarker(markerType, focusId);
+      }, 300);
       consumed = true;
     }
 

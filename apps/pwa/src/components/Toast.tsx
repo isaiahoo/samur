@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useUIStore } from "../store/ui.js";
 
 /** How many px of keyboard overlap the toast before we start lifting it.
@@ -37,7 +38,9 @@ function useKeyboardLift(): number {
 
 export function Toast() {
   const toast = useUIStore((s) => s.toast);
+  const clearToast = useUIStore((s) => s.clearToast);
   const lift = useKeyboardLift();
+  const navigate = useNavigate();
   if (!toast) return null;
 
   const colorMap = {
@@ -46,16 +49,54 @@ export function Toast() {
     info: "toast--info",
   };
 
+  const style = lift > 0
+    ? { bottom: `calc(env(safe-area-inset-bottom, 0px) + 80px + ${lift}px)` }
+    : undefined;
+
+  // Focus-toast: clickable. Navigates to the map with `?focus=<id>&
+  // markerType=<t>&lat=<n>&lng=<n>` and MapPage's URL-effect flies
+  // there + highlights the marker. Keeping both the lat and lng in
+  // the URL lets the map pan instantly without waiting for the socket
+  // payload to round-trip through state — important if the user is
+  // coming from the /alerts or /help tab (cold map).
+  if (toast.focus) {
+    const { id, markerType, lat, lng } = toast.focus;
+    const go = () => {
+      clearToast();
+      const params = new URLSearchParams({
+        focus: id,
+        markerType,
+        lat: lat.toFixed(6),
+        lng: lng.toFixed(6),
+      });
+      navigate(`/?${params.toString()}`);
+    };
+    return (
+      <button
+        type="button"
+        className={`toast toast--clickable ${colorMap[toast.type]}`}
+        role="alert"
+        aria-live="assertive"
+        onClick={go}
+        style={style}
+      >
+        <span className="toast-message">{toast.message}</span>
+        <span className="toast-action" aria-hidden="true">
+          Показать
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </span>
+      </button>
+    );
+  }
+
   return (
     <div
       className={`toast ${colorMap[toast.type]}`}
       role="status"
       aria-live="polite"
-      style={
-        lift > 0
-          ? { bottom: `calc(env(safe-area-inset-bottom, 0px) + 80px + ${lift}px)` }
-          : undefined
-      }
+      style={style}
     >
       {toast.message}
     </div>

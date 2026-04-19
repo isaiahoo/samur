@@ -1156,6 +1156,40 @@ select {
 .toast--info { background: var(--color-primary); }
 @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
+/* Clickable variant — used for the "SOS/help just appeared nearby"
+   notification. Renders as a button with a right-aligned "Показать"
+   affordance so the user knows it's tappable rather than informational. */
+.toast--clickable {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px 12px 18px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  text-align: left;
+  font-family: inherit;
+  font-weight: 500;
+}
+.toast--clickable:active { filter: brightness(0.92); }
+.toast-message {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.35;
+}
+.toast-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
 .urgency-badge {
   display: inline-block;
   padding: 2px 8px;

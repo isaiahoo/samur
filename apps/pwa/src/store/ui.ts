@@ -1,9 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { create } from "zustand";
 
+/** Optional "tap me to see it" payload attached to a toast. When set,
+ * the Toast component renders as a clickable button that navigates
+ * the map to this point and highlights the matching marker. Used for
+ * the "nearby SOS / help request just appeared" alerts so the user
+ * can go from "oh, there's something" to "show me where" in one tap. */
+export interface ToastFocus {
+  id: string;
+  markerType: "helpRequest" | "incident";
+  lat: number;
+  lng: number;
+}
+
 interface ToastItem {
   message: string;
   type: "success" | "error" | "info";
+  focus?: ToastFocus;
 }
 
 export interface ConfirmOptions {
@@ -25,7 +38,7 @@ interface UIState {
 
   toast: ToastItem | null;
   toastQueue: ToastItem[];
-  showToast: (message: string, type?: "success" | "error" | "info") => void;
+  showToast: (message: string, type?: "success" | "error" | "info", focus?: ToastFocus) => void;
   clearToast: () => void;
 
   confirmRequest: ConfirmRequest | null;
@@ -58,7 +71,9 @@ function advanceToastQueue(set: (fn: (s: UIState) => Partial<UIState>) => void) 
   set((s) => {
     if (s.toastQueue.length > 0) {
       const [next, ...rest] = s.toastQueue;
-      toastTimer = setTimeout(() => advanceToastQueue(set), 4000);
+      // Focus-toasts hold longer so the user has a fair chance to tap.
+      const dwell = next.focus ? 6000 : 4000;
+      toastTimer = setTimeout(() => advanceToastQueue(set), dwell);
       return { toast: next, toastQueue: rest };
     }
     toastTimer = null;
@@ -73,16 +88,19 @@ export const useUIStore = create<UIState>()((set) => ({
 
   toast: null,
   toastQueue: [],
-  showToast: (message, type = "info") => {
-    const item: ToastItem = { message, type };
+  showToast: (message, type = "info", focus) => {
+    const item: ToastItem = focus ? { message, type, focus } : { message, type };
     set((s) => {
       if (s.toast) {
         // Queue if a toast is already showing
         return { toastQueue: [...s.toastQueue, item] };
       }
-      // Show immediately
+      // Show immediately. Focus-toasts get a longer dwell (6 s) so
+      // the user has time to react and tap them; plain toasts
+      // stay on the existing 4 s beat.
       if (toastTimer) clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => advanceToastQueue(set), 4000);
+      const dwell = focus ? 6000 : 4000;
+      toastTimer = setTimeout(() => advanceToastQueue(set), dwell);
       return { toast: item };
     });
   },
