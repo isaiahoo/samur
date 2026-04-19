@@ -1391,27 +1391,37 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 }
 .report-cancel-btn:active { background: rgba(0, 0, 0, 0.04); }
 .report-step h3 { font-size: 16px; margin-bottom: 12px; color: #3f3f46; }
-.report-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+.report-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
 .report-type-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 12px 8px;
+  gap: 8px;
+  padding: 14px 8px;
   border: 2px solid #e4e4e7;
   border-radius: 12px;
   background: #fff;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
   color: #3f3f46;
-  min-height: 80px;
+  min-height: 96px;
   justify-content: center;
   text-align: center;
+  line-height: 1.2;
 }
 .report-type-btn:active { border-color: var(--color-primary); background: #eff6ff; }
 .report-type-btn--offer { border-color: #bbf7d0; }
 .report-type-btn--offer:active { border-color: #22c55e; background: #f0fdf4; }
-.report-type-icon { font-size: 28px; }
+.report-type-icon {
+  font-size: 36px;
+  line-height: 1;
+  /* Emoji rendering hack — iOS Safari bakes in tight metrics that
+     make the glyph sit low in its line box, shifting the whole card
+     off-centre. Reset line-height + add a small top nudge so the
+     icon visually centres above the label. */
+  display: inline-block;
+}
 
 .popup-content { font-size: 13px; max-width: 220px; }
 .popup-content strong { display: block; margin-bottom: 4px; }

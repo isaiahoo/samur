@@ -486,6 +486,19 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
         });
       }
 
+      // Marker radius drives both the base fill and the outer status
+      // ring. Tuned for thumb-reachable tap-targets on mobile and for
+      // the category glyph inside to read at a glance:
+      //   SOS        18 px  (36 px disk — reads across a room)
+      //   Critical   14 px  (28 px disk)
+      //   Normal     12 px  (24 px disk)
+      const RADIUS: maplibregl.ExpressionSpecification = [
+        "case",
+        ["==", ["get", "isSOS"], true], 18,
+        ["==", ["get", "urgency"], "critical"], 14,
+        12,
+      ] as unknown as maplibregl.ExpressionSpecification;
+
       if (!map.getLayer("help-base")) {
         map.addLayer({
           id: "help-base",
@@ -494,12 +507,7 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
           filter: NOT_CLUSTERED,
           paint: {
             "circle-color": FILL_COLOR,
-            "circle-radius": [
-              "case",
-              ["==", ["get", "isSOS"], true], 14,
-              ["==", ["get", "urgency"], "critical"], 11,
-              9,
-            ],
+            "circle-radius": RADIUS,
             "circle-opacity": [
               "case",
               ["==", ["get", "status"], "completed"], 0.55,
@@ -519,12 +527,7 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
           filter: NOT_CLUSTERED,
           paint: {
             "circle-color": "rgba(0,0,0,0)",
-            "circle-radius": [
-              "case",
-              ["==", ["get", "isSOS"], true], 14,
-              ["==", ["get", "urgency"], "critical"], 11,
-              9,
-            ],
+            "circle-radius": RADIUS,
             "circle-stroke-color": RING_COLOR,
             "circle-stroke-width": [
               "case",
@@ -533,7 +536,7 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
                 ["==", ["get", "status"], "in_progress"],
                 ["==", ["get", "status"], "completed"],
               ], 3,
-              2,
+              2.5,
             ],
             "circle-stroke-opacity": [
               "case",
@@ -570,11 +573,15 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
               ["==", ["get", "category"], "pump"], "kunak-icon-pump",
               "kunak-icon-other",
             ],
+            // Icon-size multiplies against the 48 px SDF source. Chosen
+            // so the visible glyph (≈70 % of source) roughly matches
+            // half the disk diameter — legible without crowding the
+            // colored halo that carries urgency info.
             "icon-size": [
               "case",
-              ["==", ["get", "isSOS"], true], 0.45,
-              ["==", ["get", "urgency"], "critical"], 0.35,
-              0.3,
+              ["==", ["get", "isSOS"], true], 0.6,
+              ["==", ["get", "urgency"], "critical"], 0.46,
+              0.4,
             ],
             "icon-allow-overlap": true,
             "icon-ignore-placement": true,
@@ -601,7 +608,7 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
             "circle-radius": [
               "case",
               ["boolean", ["feature-state", "highlighted"], false],
-              ["case", ["==", ["get", "isSOS"], true], 18, 13],
+              ["case", ["==", ["get", "isSOS"], true], 22, 17],
               0,
             ],
             "circle-stroke-color": "#06B6D4",
@@ -806,8 +813,12 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
     let rafId = 0;
     const start = performance.now();
     const period = 1400;
-    const minR = 16;
-    const maxR = 32;
+    // Pulse expands from just-outside the SOS disk (radius 18) out to
+    // roughly 2.3× that, then fades as it grows. Anything too tight
+    // makes the halo imperceptible; too wide and it swallows
+    // neighbouring markers.
+    const minR = 20;
+    const maxR = 42;
 
     const animate = (now: number) => {
       const phase = ((now - start) % period) / period;
