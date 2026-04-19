@@ -219,7 +219,6 @@ export function SOSButton() {
   const [freeText, setFreeText] = useState("");
   const [savedFreeText, setSavedFreeText] = useState("");
   const [savingText, setSavingText] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
 
   const holdStartRef = useRef<number>(0);
   const holdRafRef = useRef<number>(0);
@@ -359,13 +358,18 @@ export function SOSButton() {
   }, [sentId, updateToken, selectedKeys, freeText, hasChanges, savingText, showToast]);
 
   /** Author retracts the SOS — "false alarm" / accidental press.
-   * Confirmed via the global ConfirmDialog so one stray tap can't
-   * take down an active signal. On success, the server flips the
-   * row to status=cancelled, emits a socket update, and we wipe the
-   * overlay. The dedup query ignores cancelled rows, so the next
-   * SOS press creates a fresh one. */
+   *
+   * Optimistic: after the user confirms in the dialog we dismiss the
+   * overlay and reset state INSTANTLY, then fire the PATCH in the
+   * background. Holding the UI hostage on a round-trip made the
+   * cancel feel broken on flaky mobile connections (user saw
+   * "Отмена..." for seconds). If the PATCH genuinely fails we
+   * surface a toast — but the UI is already unblocked and the dedup
+   * query treats the (still-open) row as an existing SOS, so the
+   * author can retry by pressing SOS again and hitting this same
+   * button. */
   const cancelSOS = useCallback(async () => {
-    if (!sentId || cancelling) return;
+    if (!sentId) return;
     const ok = await confirmAction({
       title: "Отменить SOS?",
       message: "Волонтёры перестанут получать этот сигнал. Это действие нельзя отменить — придётся отправить SOS заново.",
@@ -373,30 +377,30 @@ export function SOSButton() {
       kind: "destructive",
     });
     if (!ok) return;
-    setCancelling(true);
-    try {
-      await sosFollowUp(sentId, {
-        updateToken: updateToken ?? undefined,
-        cancel: true,
-      });
-      showToast("SOS отменён", "success");
-      setStage("idle");
-      setHoldProgress(0);
-      setSentId(null);
-      setUpdateToken(null);
-      setWasExisting(false);
-      setLocation(null);
-      setSelectedKeys(new Set());
-      setSavedKeys(new Set());
-      setFreeText("");
-      setSavedFreeText("");
-    } catch (err) {
-      const msg = err instanceof ApiError ? err.message : "Не удалось отменить SOS";
+
+    const pendingId = sentId;
+    const pendingToken = updateToken;
+
+    setStage("idle");
+    setHoldProgress(0);
+    setSentId(null);
+    setUpdateToken(null);
+    setWasExisting(false);
+    setLocation(null);
+    setSelectedKeys(new Set());
+    setSavedKeys(new Set());
+    setFreeText("");
+    setSavedFreeText("");
+    showToast("SOS отменён", "success");
+
+    sosFollowUp(pendingId, {
+      updateToken: pendingToken ?? undefined,
+      cancel: true,
+    }).catch((err) => {
+      const msg = err instanceof ApiError ? err.message : "Не удалось отменить SOS на сервере";
       showToast(msg, "error");
-    } finally {
-      setCancelling(false);
-    }
-  }, [sentId, updateToken, cancelling, showToast]);
+    });
+  }, [sentId, updateToken, showToast]);
 
   const close = useCallback(() => {
     // Auto-save any pending changes so the author can't accidentally
@@ -622,9 +626,9 @@ export function SOSButton() {
               type="button"
               className="sos-false-alarm-btn"
               onClick={cancelSOS}
-              disabled={!sentId || cancelling}
+              disabled={!sentId}
             >
-              {cancelling ? "Отмена..." : "Это была ошибка — отменить SOS"}
+              Это была ошибка — отменить SOS
             </button>
           </div>
         </div>
