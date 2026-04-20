@@ -8,6 +8,7 @@ import {
 } from "@samur/shared";
 import { updateMyPreferences, ApiError } from "../services/api.js";
 import { useUIStore } from "../store/ui.js";
+import { AchievementDetailModal } from "./AchievementDetailModal.js";
 
 export interface ProfileData {
   user: { id: string; name: string | null; role: string; hideAchievements?: boolean };
@@ -143,7 +144,18 @@ export function ProfileAchievements({
   rarity?: Record<string, number>;
   isSelf?: boolean;
 }) {
+  const [selected, setSelected] = useState<Achievement | null>(null);
   const earnedCount = earned.size;
+  const showRarity = isSelf !== false;
+
+  const selectedEarned = selected ? earned.has(selected.key) : false;
+  const selectedProgress = selected && !selectedEarned
+    ? computeAchievementProgress(selected, snapshot)
+    : null;
+  const selectedRarityLabel = selected && showRarity
+    ? formatRarity(rarity?.[selected.key], selected.tier)
+    : null;
+
   return (
     <div className="profile-achievements">
       <div className="profile-section-header">
@@ -168,10 +180,19 @@ export function ProfileAchievements({
             earned={earned.has(ach.key)}
             snapshot={snapshot}
             rarityCount={rarity?.[ach.key]}
-            showRarity={isSelf !== false}
+            showRarity={showRarity}
+            onOpen={() => setSelected(ach)}
           />
         ))}
       </div>
+
+      <AchievementDetailModal
+        ach={selected}
+        earned={selectedEarned}
+        progress={selectedProgress}
+        rarityLabel={selectedRarityLabel}
+        onClose={() => setSelected(null)}
+      />
     </div>
   );
 }
@@ -186,22 +207,26 @@ function formatRarity(count: number | undefined, tier: string): string | null {
 }
 
 function AchievementCard({
-  ach, earned, snapshot, rarityCount, showRarity,
+  ach, earned, snapshot, rarityCount, showRarity, onOpen,
 }: {
   ach: Achievement;
   earned: boolean;
   snapshot: UserActivitySnapshot;
   rarityCount?: number;
   showRarity: boolean;
+  onOpen: () => void;
 }) {
   const progress = earned ? null : computeAchievementProgress(ach, snapshot);
   const rarityLabel = showRarity ? formatRarity(rarityCount, ach.tier) : null;
   return (
-    <div
+    <button
+      type="button"
       className={`achievement-card achievement-card--${ach.tier} ${earned ? "achievement-card--earned" : "achievement-card--locked"}`}
       title={ach.description}
+      onClick={onOpen}
+      aria-label={`${ach.name} — ${earned ? "получена" : "не открыта"}`}
     >
-      <div className="achievement-icon">
+      <div className={`achievement-icon achievement-icon--${ach.tier}`}>
         <img
           src={`/achievements/${ach.key}.webp`}
           alt=""
@@ -231,7 +256,7 @@ function AchievementCard({
       ) : (
         <div className="achievement-progress-text">ещё не открыта</div>
       )}
-    </div>
+    </button>
   );
 }
 

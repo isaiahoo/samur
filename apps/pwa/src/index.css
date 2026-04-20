@@ -420,10 +420,28 @@ select {
   padding: 14px 12px 12px;
   text-align: center;
   border: 1px solid transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.achievement-card:hover {
+  transform: translateY(-1px);
+}
+.achievement-card:active {
+  transform: translateY(0);
+}
+.achievement-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 .achievement-card--earned {
   background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.achievement-card--earned:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 .achievement-card--locked {
   background: #fafafa;
@@ -433,19 +451,46 @@ select {
 .achievement-card--earned.achievement-card--bronze { border-color: #a87d48; }
 .achievement-card--earned.achievement-card--silver { border-color: #a1a1aa; }
 .achievement-card--earned.achievement-card--gold   { border-color: #d4af37; }
+
+/* Medal rings — the image itself gets a tier-coloured frame so the art
+   feels like a struck medallion. */
 .achievement-icon {
   width: 72px;
   height: 72px;
   margin: 0 auto 8px;
-  border-radius: 10px;
+  border-radius: 50%;
   overflow: hidden;
   background: #f4f4f5;
+  padding: 3px;
+  box-sizing: border-box;
 }
 .achievement-icon img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  border-radius: 50%;
+}
+.achievement-icon--bronze {
+  background:
+    radial-gradient(circle at 30% 30%, #d4a47a 0%, #a87d48 55%, #7a5a34 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.25),
+    0 2px 6px rgba(168,125,72,0.3);
+}
+.achievement-icon--silver {
+  background:
+    radial-gradient(circle at 30% 30%, #e4e4e7 0%, #a1a1aa 55%, #71717a 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.35),
+    0 2px 6px rgba(161,161,170,0.3);
+}
+.achievement-icon--gold {
+  background:
+    radial-gradient(circle at 30% 30%, #fde68a 0%, #d4af37 50%, #a07b1a 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.4),
+    0 2px 10px rgba(212,175,55,0.4);
 }
 .achievement-name {
   font-size: 13px;
@@ -558,9 +603,11 @@ select {
   width: 160px;
   height: 160px;
   margin: 8px auto 16px;
-  border-radius: 14px;
+  border-radius: 50%;
   overflow: hidden;
   background: #f4f4f5;
+  padding: 6px;
+  box-sizing: border-box;
   animation: unlock-icon-pulse 0.8s ease-out;
 }
 .unlock-icon img {
@@ -568,6 +615,28 @@ select {
   height: 100%;
   object-fit: cover;
   display: block;
+  border-radius: 50%;
+}
+.unlock-icon--bronze {
+  background:
+    radial-gradient(circle at 30% 30%, #d4a47a 0%, #a87d48 55%, #7a5a34 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,0.25),
+    0 6px 20px rgba(168,125,72,0.4);
+}
+.unlock-icon--silver {
+  background:
+    radial-gradient(circle at 30% 30%, #e4e4e7 0%, #a1a1aa 55%, #71717a 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,0.35),
+    0 6px 20px rgba(161,161,170,0.4);
+}
+.unlock-icon--gold {
+  background:
+    radial-gradient(circle at 30% 30%, #fde68a 0%, #d4af37 50%, #a07b1a 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,0.4),
+    0 6px 24px rgba(212,175,55,0.55);
 }
 @keyframes unlock-icon-pulse {
   0%   { transform: scale(0.3) rotate(-20deg); opacity: 0; }
@@ -590,6 +659,18 @@ select {
   font-size: 12px;
   color: #a1a1aa;
   margin-bottom: 12px;
+}
+.unlock-rarity {
+  font-size: 12px;
+  color: #71717a;
+  margin: -4px 0 16px;
+}
+.unlock-progress {
+  margin: 4px 0 18px;
+}
+.unlock-card--locked .unlock-icon {
+  filter: grayscale(0.7);
+  opacity: 0.75;
 }
 .unlock-btn { width: 100%; }
 
@@ -10269,8 +10350,6 @@ a.tg-auth-fallback {
   .profile-achievements-empty { background: #27272a; color: #a1a1aa; }
   .achievement-card--earned { background: linear-gradient(135deg, #27272a 0%, #1f1f23 100%); }
   .achievement-card--locked { background: #1a1a1e; }
-  .achievement-icon,
-  .unlock-icon { background: #27272a; }
   .achievement-name { color: #f4f4f5; }
   .achievement-desc { color: #a1a1aa; }
   .achievement-progress-bar { background: #27272a; }

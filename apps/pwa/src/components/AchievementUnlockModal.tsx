@@ -90,7 +90,7 @@ export function AchievementUnlockModal({ userId, earned }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="unlock-kicker">Новая награда — {TIER_LABEL[ach.tier]}</div>
-        <div className="unlock-icon">
+        <div className={`unlock-icon unlock-icon--${ach.tier}`}>
           <img src={`/achievements/${ach.key}.webp`} alt="" decoding="async" />
         </div>
         <h2 className="unlock-name">{ach.name}</h2>
