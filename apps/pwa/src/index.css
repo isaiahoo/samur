@@ -434,9 +434,18 @@ select {
 .achievement-card--earned.achievement-card--silver { border-color: #a1a1aa; }
 .achievement-card--earned.achievement-card--gold   { border-color: #d4af37; }
 .achievement-icon {
-  font-size: 32px;
-  line-height: 1;
-  margin-bottom: 6px;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 8px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f4f4f5;
+}
+.achievement-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .achievement-name {
   font-size: 13px;
@@ -546,10 +555,19 @@ select {
   margin-bottom: 14px;
 }
 .unlock-icon {
-  font-size: 72px;
-  line-height: 1;
-  margin: 8px 0 16px;
+  width: 160px;
+  height: 160px;
+  margin: 8px auto 16px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f4f4f5;
   animation: unlock-icon-pulse 0.8s ease-out;
+}
+.unlock-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 @keyframes unlock-icon-pulse {
   0%   { transform: scale(0.3) rotate(-20deg); opacity: 0; }
@@ -10251,6 +10269,8 @@ a.tg-auth-fallback {
   .profile-achievements-empty { background: #27272a; color: #a1a1aa; }
   .achievement-card--earned { background: linear-gradient(135deg, #27272a 0%, #1f1f23 100%); }
   .achievement-card--locked { background: #1a1a1e; }
+  .achievement-icon,
+  .unlock-icon { background: #27272a; }
   .achievement-name { color: #f4f4f5; }
   .achievement-desc { color: #a1a1aa; }
   .achievement-progress-bar { background: #27272a; }

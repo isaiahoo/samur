@@ -201,7 +201,14 @@ function AchievementCard({
       className={`achievement-card achievement-card--${ach.tier} ${earned ? "achievement-card--earned" : "achievement-card--locked"}`}
       title={ach.description}
     >
-      <div className="achievement-icon" aria-hidden="true">{ach.icon}</div>
+      <div className="achievement-icon">
+        <img
+          src={`/achievements/${ach.key}.webp`}
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
       <div className="achievement-name">{ach.name}</div>
       <div className="achievement-desc">{ach.description}</div>
       {earned ? (
