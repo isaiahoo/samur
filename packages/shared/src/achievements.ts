@@ -57,8 +57,8 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   // ── Request-side ────────────────────────────────────────────────────
   {
     key: "first_request",
-    name: "Подняли платок",
-    description: "Первая просьба. Подняли белый платок — в горах никто мимо не пройдёт.",
+    name: "Позвали",
+    description: "Первая просьба. В горах никто мимо не пройдёт.",
     tier: "bronze",
     unlock: { kind: "requests", threshold: 1 },
   },
