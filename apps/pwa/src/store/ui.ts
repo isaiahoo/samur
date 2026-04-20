@@ -63,6 +63,13 @@ interface UIState {
    * after 10 min so the set doesn't grow unbounded in a long session. */
   ownRequestIds: Set<string>;
   addOwnRequest: (id: string) => void;
+
+  /** Bumped by flows that change the caller's achievement eligibility
+   * (e.g. PWA install marks `installed_pwa_at` server-side) so the
+   * Layout-level stats fetch re-runs and the unlock modal picks up
+   * the new medal regardless of which tab the user is on. */
+  statsRefreshKey: number;
+  bumpStatsRefresh: () => void;
 }
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -130,6 +137,9 @@ export const useUIStore = create<UIState>()((set) => ({
 
   reportFormOpen: false,
   setReportFormOpen: (open) => set({ reportFormOpen: open }),
+
+  statsRefreshKey: 0,
+  bumpStatsRefresh: () => set((s) => ({ statsRefreshKey: s.statsRefreshKey + 1 })),
 
   ownRequestIds: new Set<string>(),
   addOwnRequest: (id) => {

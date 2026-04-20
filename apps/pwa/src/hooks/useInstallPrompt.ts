@@ -148,7 +148,6 @@ export function useInstallPrompt(): UseInstallPromptResult {
     dismissedRecently(BANNER_DISMISSED_KEY, BANNER_DISMISS_COOLDOWN_MS),
   );
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn());
-  const showToast = useUIStore((s) => s.showToast);
 
   // Capture the Android native install prompt. Cache it — the event
   // can only be prompt()-ed once, so we hold the reference until the
@@ -168,8 +167,10 @@ export function useInstallPrompt(): UseInstallPromptResult {
   // Fire-and-forget server notification that the current user has a
   // PWA install. Idempotent on the backend, but we also guard
   // client-side so a flurry of visibility events doesn't issue a
-  // pile of requests. A celebratory toast surfaces the achievement
-  // the first time it's earned (server returns alreadyInstalled=false).
+  // pile of requests. On first-time success, bumps the stats-refresh
+  // key so the Layout-level AchievementUnlockModal re-fetches and
+  // celebrates the new medal regardless of which tab the user is on.
+  const bumpStatsRefresh = useUIStore((s) => s.bumpStatsRefresh);
   const reportInstallToServer = useCallback(() => {
     if (!isLoggedIn) return;
     try {
@@ -179,13 +180,11 @@ export function useInstallPrompt(): UseInstallPromptResult {
       recordPwaInstalled()
         .then((res) => {
           const data = res.data as { alreadyInstalled: boolean } | undefined;
-          if (data && !data.alreadyInstalled) {
-            showToast("🎉 Получено достижение «В сообществе»", "success");
-          }
+          if (data && !data.alreadyInstalled) bumpStatsRefresh();
         })
         .catch(() => { /* best-effort */ });
     } catch { /* sessionStorage can throw in private mode */ }
-  }, [isLoggedIn, showToast]);
+  }, [isLoggedIn, bumpStatsRefresh]);
 
   // If the user installs (either via our button or the browser's own
   // address-bar shortcut), kill every install surface. appinstalled is

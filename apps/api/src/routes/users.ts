@@ -172,7 +172,7 @@ router.patch("/me/preferences", requireAuth, async (req, res, next) => {
  * observed on this account. Idempotent — subsequent calls are no-ops
  * so we don't reset the original install timestamp on reinstalls.
  *
- * Unlocks the "В сообществе" achievement (see packages/shared/src/
+ * Unlocks the "За общим столом" achievement (see packages/shared/src/
  * achievements.ts). No response body beyond success — the client
  * doesn't need to know when it was flipped, only that the achievement
  * list on the next profile load will include it.

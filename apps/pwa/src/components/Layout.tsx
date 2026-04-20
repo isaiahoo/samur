@@ -16,6 +16,7 @@ import { Toast } from "./Toast.js";
 import { SOSButton } from "./SOSButton.js";
 import { ConsentGate } from "./ConsentGate.js";
 import { InstallPrompt } from "./InstallPrompt.js";
+import { AchievementUnlockModal } from "./AchievementUnlockModal.js";
 import { MapPage } from "../pages/MapPage.js";
 import { HelpPage } from "../pages/HelpPage.js";
 import { AlertsPage } from "../pages/AlertsPage.js";
@@ -89,6 +90,8 @@ export function Layout() {
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [myStats, setMyStats] = useState<UserStats | null>(null);
+  const [earnedAchievements, setEarnedAchievements] = useState<string[]>([]);
+  const statsRefreshKey = useUIStore((s) => s.statsRefreshKey);
   const [myActivity, setMyActivity] = useState<MyActivity | null>(null);
   /** Debounce socket-driven activity refetches — a burst of chat messages
    * or a cascade of response-state updates would otherwise hammer the
@@ -143,15 +146,26 @@ export function Layout() {
 
   // Fetch stats once on login and whenever the profile menu opens — the
   // latter keeps them fresh after the user completes a help (helpsCompleted
-  // goes up) without requiring a reload.
+  // goes up) without requiring a reload. Also re-runs when statsRefreshKey
+  // is bumped (e.g. PWA install just landed) so the Layout-level unlock
+  // modal picks up newly-earned achievements from any screen.
   useEffect(() => {
-    if (!loggedIn || !user?.id) { setMyStats(null); return; }
+    if (!loggedIn || !user?.id) {
+      setMyStats(null);
+      setEarnedAchievements([]);
+      return;
+    }
     let cancelled = false;
     getUserStats(user.id)
-      .then((res) => { if (!cancelled) setMyStats(res.data as UserStats | null); })
+      .then((res) => {
+        if (cancelled) return;
+        const data = res.data as (UserStats & { achievements?: string[] }) | null;
+        setMyStats(data);
+        setEarnedAchievements(data?.achievements ?? []);
+      })
       .catch(() => { /* silent — stats are a nicety, not critical */ });
     return () => { cancelled = true; };
-  }, [loggedIn, user?.id, profileOpen]);
+  }, [loggedIn, user?.id, profileOpen, statsRefreshKey]);
 
   // Refresh activity counts when the menu opens too — covers the case
   // where a socket event was dropped or the user was offline.
@@ -219,6 +233,9 @@ export function Layout() {
     <div className={`app-layout${crisisMode ? " crisis-mode" : ""}`}>
       <a href="#app-main" className="skip-link">Перейти к содержимому</a>
       <InstallPrompt />
+      {loggedIn && user?.id && (
+        <AchievementUnlockModal userId={user.id} earned={earnedAchievements} />
+      )}
       <header className="app-header">
         <h1 className="app-title">
           <img src="/icons/icon-192.png?v=5" alt="" className="app-logo" width="48" height="48" />

@@ -13,7 +13,6 @@ import {
   ProfilePrivacyToggle,
   type ProfileData,
 } from "../components/ProfileBlocks.js";
-import { AchievementUnlockModal } from "../components/AchievementUnlockModal.js";
 
 export function InfoPage() {
   return (
@@ -96,7 +95,6 @@ function ProfileSection() {
 
   return (
     <>
-      <AchievementUnlockModal userId={data.user.id} earned={data.achievements} />
       <section className="info-profile">
         <ProfileIdentity data={data} />
         <ProfileStats data={data} />

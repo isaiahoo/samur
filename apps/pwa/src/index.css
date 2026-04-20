@@ -6448,9 +6448,9 @@ a.tg-auth-fallback {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 20px 16px 18px;
-  margin: 0 0 18px;
+  gap: 4px;
+  padding: 14px 16px 12px;
+  margin: 0 0 14px;
   background:
     radial-gradient(circle at 50% 0%, rgba(251,191,36,0.18) 0%, transparent 60%),
     linear-gradient(135deg, #fffaf0 0%, #fef3c7 100%);
@@ -6459,12 +6459,12 @@ a.tg-auth-fallback {
   text-align: center;
 }
 .install-reward-medal {
-  width: 104px;
-  height: 104px;
+  width: 92px;
+  height: 92px;
   border-radius: 50%;
-  padding: 4px;
+  padding: 3px;
   box-sizing: border-box;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 .install-reward-medal img {
   width: 100%;
