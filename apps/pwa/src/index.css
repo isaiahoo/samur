@@ -461,6 +461,136 @@ select {
 .achievement-card--bronze .achievement-tier { color: #a87d48; }
 .achievement-card--silver .achievement-tier { color: #71717a; }
 .achievement-card--gold   .achievement-tier { color: #b8860b; }
+.achievement-rarity {
+  font-size: 10px;
+  color: #a1a1aa;
+  margin-top: 3px;
+  font-weight: 500;
+}
+
+/* Privacy toggle — sits at the bottom of the profile section so it's
+   discoverable but never the first thing a new user sees. */
+.profile-privacy-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--color-surface);
+  cursor: pointer;
+  border-top: 1px solid #e4e4e7;
+}
+.profile-privacy-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--color-primary);
+}
+.profile-privacy-toggle-body { display: flex; flex-direction: column; gap: 2px; }
+.profile-privacy-toggle-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #27272a;
+}
+.profile-privacy-toggle-sub {
+  font-size: 12px;
+  color: #71717a;
+  line-height: 1.4;
+}
+
+/* Achievement unlock — celebratory modal that fires once per new medal. */
+.unlock-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: unlock-overlay-in 0.2s ease-out;
+}
+@keyframes unlock-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.unlock-card {
+  max-width: 340px;
+  width: 100%;
+  padding: 28px 20px 20px;
+  border-radius: 20px;
+  background: #fff;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3), 0 0 0 4px rgba(255,255,255,0.1);
+  animation: unlock-card-in 0.35s cubic-bezier(0.2, 0.8, 0.2, 1.1);
+  position: relative;
+}
+@keyframes unlock-card-in {
+  from { transform: translateY(20px) scale(0.9); opacity: 0; }
+  to   { transform: translateY(0)    scale(1);   opacity: 1; }
+}
+.unlock-card--bronze { border: 3px solid #a87d48; }
+.unlock-card--silver { border: 3px solid #a1a1aa; }
+.unlock-card--gold   {
+  border: 3px solid #d4af37;
+  box-shadow: 0 20px 60px rgba(212,175,55,0.35), 0 0 0 4px rgba(255,255,255,0.1);
+}
+.unlock-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #71717a;
+  margin-bottom: 14px;
+}
+.unlock-icon {
+  font-size: 72px;
+  line-height: 1;
+  margin: 8px 0 16px;
+  animation: unlock-icon-pulse 0.8s ease-out;
+}
+@keyframes unlock-icon-pulse {
+  0%   { transform: scale(0.3) rotate(-20deg); opacity: 0; }
+  60%  { transform: scale(1.15) rotate(8deg);  opacity: 1; }
+  100% { transform: scale(1) rotate(0);        opacity: 1; }
+}
+.unlock-name {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 10px;
+}
+.unlock-desc {
+  font-size: 14px;
+  color: #52525b;
+  line-height: 1.5;
+  margin: 0 0 20px;
+}
+.unlock-counter {
+  font-size: 12px;
+  color: #a1a1aa;
+  margin-bottom: 12px;
+}
+.unlock-btn { width: 100%; }
+
+@media (prefers-color-scheme: dark) {
+  .achievement-rarity { color: #71717a; }
+  .profile-privacy-toggle {
+    background: var(--color-surface);
+    border-top-color: var(--color-border);
+  }
+  .profile-privacy-toggle-title { color: #e4e4e7; }
+  .profile-privacy-toggle-sub { color: #a1a1aa; }
+
+  .unlock-overlay { background: rgba(0,0,0,0.7); }
+  .unlock-card { background: #18181b; color: #e4e4e7; }
+  .unlock-kicker { color: #a1a1aa; }
+  .unlock-name { color: #e4e4e7; }
+  .unlock-desc { color: #a1a1aa; }
+  .unlock-counter { color: #71717a; }
+}
 .achievement-progress-bar {
   height: 4px;
   background: #e4e4e7;

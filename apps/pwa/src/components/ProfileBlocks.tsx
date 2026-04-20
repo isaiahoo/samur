@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import { useState } from "react";
 import {
   ACHIEVEMENTS,
   computeAchievementProgress,
   type Achievement,
   type UserActivitySnapshot,
 } from "@samur/shared";
+import { updateMyPreferences, ApiError } from "../services/api.js";
+import { useUIStore } from "../store/ui.js";
 
 export interface ProfileData {
-  user: { id: string; name: string | null; role: string };
+  user: { id: string; name: string | null; role: string; hideAchievements?: boolean };
   helpsCompleted: number;
   helpsActive: number;
   requestsResolved: number;
@@ -28,6 +31,7 @@ export interface ProfileData {
     authorName: string | null;
   }>;
   achievements: string[];
+  achievementRarity?: Record<string, number>;
 }
 
 const MONTHS_RU = [
@@ -132,8 +136,13 @@ export function ProfileThanks({ quotes }: { quotes: ProfileData["thankYouQuotes"
 }
 
 export function ProfileAchievements({
-  earned, snapshot,
-}: { earned: Set<string>; snapshot: UserActivitySnapshot }) {
+  earned, snapshot, rarity, isSelf,
+}: {
+  earned: Set<string>;
+  snapshot: UserActivitySnapshot;
+  rarity?: Record<string, number>;
+  isSelf?: boolean;
+}) {
   const earnedCount = earned.size;
   return (
     <div className="profile-achievements">
@@ -158,6 +167,8 @@ export function ProfileAchievements({
             ach={ach}
             earned={earned.has(ach.key)}
             snapshot={snapshot}
+            rarityCount={rarity?.[ach.key]}
+            showRarity={isSelf !== false}
           />
         ))}
       </div>
@@ -165,10 +176,26 @@ export function ProfileAchievements({
   );
 }
 
+function formatRarity(count: number | undefined, tier: string): string | null {
+  if (count == null) return null;
+  if (count === 0) return "ещё никто не получил — будьте первыми";
+  if (tier === "gold" && count < 10) return `редкая · получили ${count}`;
+  if (count === 1) return "получил 1 человек";
+  if (count < 5) return `получили ${count} человека`;
+  return `получили ${count} человек`;
+}
+
 function AchievementCard({
-  ach, earned, snapshot,
-}: { ach: Achievement; earned: boolean; snapshot: UserActivitySnapshot }) {
+  ach, earned, snapshot, rarityCount, showRarity,
+}: {
+  ach: Achievement;
+  earned: boolean;
+  snapshot: UserActivitySnapshot;
+  rarityCount?: number;
+  showRarity: boolean;
+}) {
   const progress = earned ? null : computeAchievementProgress(ach, snapshot);
+  const rarityLabel = showRarity ? formatRarity(rarityCount, ach.tier) : null;
   return (
     <div
       className={`achievement-card achievement-card--${ach.tier} ${earned ? "achievement-card--earned" : "achievement-card--locked"}`}
@@ -178,7 +205,10 @@ function AchievementCard({
       <div className="achievement-name">{ach.name}</div>
       <div className="achievement-desc">{ach.description}</div>
       {earned ? (
-        <div className="achievement-tier">{TIER_LABEL[ach.tier]}</div>
+        <>
+          <div className="achievement-tier">{TIER_LABEL[ach.tier]}</div>
+          {rarityLabel && <div className="achievement-rarity">{rarityLabel}</div>}
+        </>
       ) : progress ? (
         <div className="achievement-progress">
           <div className="achievement-progress-bar">
@@ -195,5 +225,40 @@ function AchievementCard({
         <div className="achievement-progress-text">ещё не открыта</div>
       )}
     </div>
+  );
+}
+
+export function ProfilePrivacyToggle({
+  initial, onChange,
+}: { initial: boolean; onChange?: (value: boolean) => void }) {
+  const [hide, setHide] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const showToast = useUIStore((s) => s.showToast);
+
+  const toggle = async () => {
+    const next = !hide;
+    setHide(next);
+    setSaving(true);
+    try {
+      await updateMyPreferences({ hideAchievements: next });
+      onChange?.(next);
+    } catch (e) {
+      setHide(!next);
+      showToast(e instanceof ApiError ? e.message : "Не удалось сохранить", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <label className="profile-privacy-toggle">
+      <input type="checkbox" checked={hide} onChange={toggle} disabled={saving} />
+      <span className="profile-privacy-toggle-body">
+        <span className="profile-privacy-toggle-title">Скрыть награды от других</span>
+        <span className="profile-privacy-toggle-sub">
+          Вы сами будете видеть свои награды, остальные — нет.
+        </span>
+      </span>
+    </label>
   );
 }

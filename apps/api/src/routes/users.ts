@@ -4,6 +4,7 @@ import { prisma } from "@samur/db";
 import { requireAuth } from "../middleware/auth.js";
 import { AppError } from "../middleware/error.js";
 import { computeUserActivity } from "../lib/userStats.js";
+import { getAchievementRarity } from "../lib/achievementRarity.js";
 
 const router = Router();
 
@@ -88,24 +89,58 @@ router.get("/me/activity", requireAuth, async (req, res, next) => {
 router.get("/:id/stats", requireAuth, async (req, res, next) => {
   try {
     const id = String(req.params.id);
+    const isSelf = req.user!.sub === id;
 
     // Cheap existence check + pull the public identity for the profile page.
     const user = await prisma.user.findUnique({
       where: { id },
-      select: { id: true, name: true, role: true },
+      select: { id: true, name: true, role: true, hideAchievements: true },
     });
     if (!user) throw new AppError(404, "NOT_FOUND", "Пользователь не найден");
 
-    const activity = await computeUserActivity(id);
+    const [activity, rarity] = await Promise.all([
+      computeUserActivity(id),
+      getAchievementRarity(),
+    ]);
+    const hidden = !isSelf && user.hideAchievements;
+    const data = activity && hidden
+      ? { ...activity, achievements: [], thankYouQuotes: [] }
+      : activity;
     res.json({
       success: true,
       data: {
-        ...activity,
-        // Profile-page convenience: identity alongside stats so the client
-        // doesn't need a second round-trip for name/role.
-        user: { id: user.id, name: user.name, role: user.role },
+        ...data,
+        achievementRarity: rarity,
+        user: {
+          id: user.id,
+          name: user.name,
+          role: user.role,
+          ...(isSelf ? { hideAchievements: user.hideAchievements } : {}),
+        },
       },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PATCH /api/v1/users/me/preferences — small bag of caller-owned flags.
+// Currently just hideAchievements, but shaped as a preferences object so
+// future toggles land here without new endpoints.
+router.patch("/me/preferences", requireAuth, async (req, res, next) => {
+  try {
+    const { hideAchievements } = req.body as { hideAchievements?: unknown };
+    const update: { hideAchievements?: boolean } = {};
+    if (typeof hideAchievements === "boolean") update.hideAchievements = hideAchievements;
+    if (Object.keys(update).length === 0) {
+      throw new AppError(400, "NO_FIELDS", "Нечего обновлять");
+    }
+    const user = await prisma.user.update({
+      where: { id: req.user!.sub },
+      data: update,
+      select: { id: true, hideAchievements: true },
+    });
+    res.json({ success: true, data: user });
   } catch (err) {
     next(err);
   }

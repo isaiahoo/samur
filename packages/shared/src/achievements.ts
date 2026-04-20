@@ -42,14 +42,6 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
     unlock: { kind: "helps", threshold: 1 },
   },
   {
-    key: "five_helps",
-    name: "Пять откликов",
-    description: "Пять завершённых помощей. Вас узнают соседи.",
-    icon: "🤝",
-    tier: "bronze",
-    unlock: { kind: "helps", threshold: 5 },
-  },
-  {
     key: "ten_helps",
     name: "Опытный кунак",
     description: "Десять помощей, минимум две подтверждены спасибо от соседей.",

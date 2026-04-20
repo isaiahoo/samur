@@ -153,6 +153,11 @@ model User {
   /// achievement; never unset even if they uninstall later, so the
   /// recognition survives reinstalls.
   installedPwaAt DateTime? @map("installed_pwa_at")
+  /// Privacy opt-out: when true, /users/:id/stats strips achievements
+  /// and thank-you quotes for anyone other than the user themself.
+  /// The user still sees their own wall — this is about what strangers
+  /// see, not self-erasure.
+  hideAchievements Boolean @default(false) @map("hide_achievements")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

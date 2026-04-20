@@ -89,7 +89,12 @@ export function ProfilePage() {
           <ProfileIdentity data={data} />
           <ProfileStats data={data} />
           <ProfileThanks quotes={data.thankYouQuotes} />
-          <ProfileAchievements earned={new Set(data.achievements)} snapshot={snapshot!} />
+          <ProfileAchievements
+            earned={new Set(data.achievements)}
+            snapshot={snapshot!}
+            rarity={data.achievementRarity}
+            isSelf={isMe}
+          />
         </>
       ) : null}
     </div>

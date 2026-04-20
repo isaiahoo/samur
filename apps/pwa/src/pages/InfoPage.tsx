@@ -10,8 +10,10 @@ import {
   ProfileStats,
   ProfileAchievements,
   ProfileThanks,
+  ProfilePrivacyToggle,
   type ProfileData,
 } from "../components/ProfileBlocks.js";
+import { AchievementUnlockModal } from "../components/AchievementUnlockModal.js";
 
 export function InfoPage() {
   return (
@@ -93,17 +95,26 @@ function ProfileSection() {
   if (!data) return null;
 
   return (
-    <section className="info-profile">
-      <ProfileIdentity data={data} />
-      <ProfileStats data={data} />
-      <ProfileThanks quotes={data.thankYouQuotes} />
-      {snapshot && (
-        <ProfileAchievements
-          earned={new Set(data.achievements)}
-          snapshot={snapshot}
+    <>
+      <AchievementUnlockModal userId={data.user.id} earned={data.achievements} />
+      <section className="info-profile">
+        <ProfileIdentity data={data} />
+        <ProfileStats data={data} />
+        <ProfileThanks quotes={data.thankYouQuotes} />
+        {snapshot && (
+          <ProfileAchievements
+            earned={new Set(data.achievements)}
+            snapshot={snapshot}
+            rarity={data.achievementRarity}
+            isSelf
+          />
+        )}
+        <ProfilePrivacyToggle
+          initial={data.user.hideAchievements ?? false}
+          onChange={(v) => { if (data.user) data.user.hideAchievements = v; }}
         />
-      )}
-    </section>
+      </section>
+    </>
   );
 }
 

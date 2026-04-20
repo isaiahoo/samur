@@ -71,6 +71,7 @@ export interface User {
   role: UserRole;
   vkId: string | null;
   tgId: string | null;
+  hideAchievements?: boolean;
   createdAt: string;
   updatedAt: string;
 }

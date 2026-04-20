@@ -418,6 +418,13 @@ export function undoRejectHelpResponse(requestId: string, responseId: string) {
   );
 }
 
+export function updateMyPreferences(prefs: { hideAchievements?: boolean }) {
+  return request<ApiResponse>(`/users/me/preferences`, {
+    method: "PATCH",
+    body: JSON.stringify(prefs),
+  });
+}
+
 // ── Help-request chat (Phase 2) ──────────────────────────────────────────
 export function getHelpMessages(id: string, opts?: { before?: string; limit?: number }) {
   const qs = new URLSearchParams();
