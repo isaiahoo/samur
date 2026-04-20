@@ -9,11 +9,10 @@ import { getAchievementRarity } from "../services/api.js";
 const INSTALL_ACHIEVEMENT = ACHIEVEMENTS.find((a) => a.key === "installed_pwa")!;
 
 function formatInstallRarity(count: number | null): string {
-  if (count == null) return "Новая награда за установку";
-  if (count === 0) return "Станьте первым, кто получит эту награду";
-  if (count === 1) return "Уже получил 1 человек";
-  if (count < 5) return `Уже получили ${count} человека`;
-  return `Уже получили ${count} человек`;
+  if (count == null) return "присоединитесь к соседям";
+  if (count === 0) return "вы первый, кто её получит";
+  if (count === 1) return "уже с 1 соседом";
+  return `уже с ${count} соседями`;
 }
 
 /** Single controller that owns the install-prompt hook and renders
@@ -182,12 +181,9 @@ function InstallSheet({ platform, onTriggerNative, onDismiss, onCloseOnly }: She
               decoding="async"
             />
           </div>
-          <div className="install-reward-body">
-            <div className="install-reward-kicker">Награда за установку</div>
-            <div className="install-reward-name">«{INSTALL_ACHIEVEMENT.name}»</div>
-            <div className="install-reward-desc">{INSTALL_ACHIEVEMENT.description}</div>
-            <div className="install-reward-rarity">{formatInstallRarity(rarityCount)}</div>
-          </div>
+          <div className="install-reward-kicker">Награда</div>
+          <div className="install-reward-name">«{INSTALL_ACHIEVEMENT.name}»</div>
+          <div className="install-reward-rarity">{formatInstallRarity(rarityCount)}</div>
         </div>
 
         <PlatformBody
