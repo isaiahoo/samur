@@ -9,6 +9,23 @@ import { getAchievementRarity } from "../lib/achievementRarity.js";
 const router = Router();
 
 /**
+ * GET /api/v1/users/achievement-rarity
+ *
+ * Public snapshot of how many users have earned each achievement.
+ * No auth: the numbers are fully aggregate and the install prompt
+ * needs them before login to show social proof ("уже получили X").
+ * Cached upstream in Redis for 1 hour.
+ */
+router.get("/achievement-rarity", async (_req, res, next) => {
+  try {
+    const rarity = await getAchievementRarity();
+    res.json({ success: true, data: { rarity } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * GET /api/v1/users/:id/stats
  *
  * Returns a user's full activity snapshot — lightweight counts, per-category

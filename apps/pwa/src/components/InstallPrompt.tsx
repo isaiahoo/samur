@@ -1,8 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { ACHIEVEMENTS } from "@samur/shared";
 import { useInstallPrompt, type InstallPlatform } from "../hooks/useInstallPrompt.js";
 import { useUIStore } from "../store/ui.js";
+import { getAchievementRarity } from "../services/api.js";
+
+const INSTALL_ACHIEVEMENT = ACHIEVEMENTS.find((a) => a.key === "installed_pwa")!;
+
+function formatInstallRarity(count: number | null): string {
+  if (count == null) return "Новая награда за установку";
+  if (count === 0) return "Станьте первым, кто получит эту награду";
+  if (count === 1) return "Уже получил 1 человек";
+  if (count < 5) return `Уже получили ${count} человека`;
+  return `Уже получили ${count} человек`;
+}
 
 /** Single controller that owns the install-prompt hook and renders
  * the two surfaces it drives: a persistent top banner (always
@@ -87,6 +99,19 @@ interface SheetProps {
 function InstallSheet({ platform, onTriggerNative, onDismiss, onCloseOnly }: SheetProps) {
   const showToast = useUIStore((s) => s.showToast);
   const [installing, setInstalling] = useState(false);
+  const [rarityCount, setRarityCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAchievementRarity()
+      .then((res) => {
+        if (cancelled) return;
+        const count = res.data?.rarity?.[INSTALL_ACHIEVEMENT.key];
+        if (typeof count === "number") setRarityCount(count);
+      })
+      .catch(() => { /* non-fatal — we just omit the rarity line */ });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleInstall = async () => {
     if (installing) return;
@@ -147,11 +172,23 @@ function InstallSheet({ platform, onTriggerNative, onDismiss, onCloseOnly }: She
             <BenefitIcon />
             <span>Уведомления о SOS и заявках рядом с вами</span>
           </li>
-          <li>
-            <BenefitIcon />
-            <span>Получите достижение «В сообществе» сразу после установки</span>
-          </li>
         </ul>
+
+        <div className="install-reward">
+          <div className={`install-reward-medal install-reward-medal--${INSTALL_ACHIEVEMENT.tier}`}>
+            <img
+              src={`/achievements/${INSTALL_ACHIEVEMENT.key}.webp`}
+              alt=""
+              decoding="async"
+            />
+          </div>
+          <div className="install-reward-body">
+            <div className="install-reward-kicker">Награда за установку</div>
+            <div className="install-reward-name">«{INSTALL_ACHIEVEMENT.name}»</div>
+            <div className="install-reward-desc">{INSTALL_ACHIEVEMENT.description}</div>
+            <div className="install-reward-rarity">{formatInstallRarity(rarityCount)}</div>
+          </div>
+        </div>
 
         <PlatformBody
           platform={platform}

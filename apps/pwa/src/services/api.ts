@@ -178,6 +178,13 @@ export function getUserStats(id: string) {
   return request<ApiResponse>(`/users/${encodeURIComponent(id)}/stats`);
 }
 
+// Public rarity snapshot — no auth, used by the install prompt for social proof.
+export function getAchievementRarity() {
+  return request<ApiResponse<{ rarity: Record<string, number> }>>(
+    "/users/achievement-rarity",
+  );
+}
+
 // Caller's in-flight work snapshot — drives the profile-menu activity rows
 // and the header unread dot. Scoped to the authenticated user.
 export interface MyActivity {

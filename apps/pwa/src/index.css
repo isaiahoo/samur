@@ -6441,6 +6441,77 @@ a.tg-auth-fallback {
   justify-content: center;
 }
 
+/* Featured "award you'll earn" card, shown in the install sheet between
+   the benefits list and the platform-specific CTA. Uses the same tier
+   ring as the profile grid so the reward feels like the real medallion
+   they'll unlock. */
+.install-reward {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  margin: 0 0 18px;
+  background: linear-gradient(135deg, #fffaf0 0%, #fef3c7 100%);
+  border: 1px solid #fde68a;
+  border-radius: 14px;
+}
+.install-reward-medal {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  padding: 3px;
+  box-sizing: border-box;
+}
+.install-reward-medal img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+.install-reward-medal--bronze {
+  background: radial-gradient(circle at 30% 30%, #d4a47a 0%, #a87d48 55%, #7a5a34 100%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25), 0 2px 6px rgba(168,125,72,0.3);
+}
+.install-reward-medal--silver {
+  background: radial-gradient(circle at 30% 30%, #e4e4e7 0%, #a1a1aa 55%, #71717a 100%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35), 0 2px 6px rgba(161,161,170,0.3);
+}
+.install-reward-medal--gold {
+  background: radial-gradient(circle at 30% 30%, #fde68a 0%, #d4af37 50%, #a07b1a 100%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.4), 0 2px 10px rgba(212,175,55,0.4);
+}
+.install-reward-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.install-reward-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #b8860b;
+}
+.install-reward-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.install-reward-desc {
+  font-size: 12px;
+  color: #52525b;
+  line-height: 1.4;
+}
+.install-reward-rarity {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #71717a;
+  font-weight: 500;
+}
+
 .install-body {
   display: flex;
   flex-direction: column;
@@ -6567,6 +6638,14 @@ a.tg-auth-fallback {
   .install-secondary { color: #a1a1aa; }
   .install-secondary:active { background: rgba(255, 255, 255, 0.05); }
   .install-primary:disabled { background: #3f3f46; color: #71717a; }
+  .install-reward {
+    background: linear-gradient(135deg, rgba(251,191,36,0.08) 0%, rgba(180,83,9,0.15) 100%);
+    border-color: rgba(251,191,36,0.25);
+  }
+  .install-reward-kicker { color: #facc15; }
+  .install-reward-name { color: #f4f4f5; }
+  .install-reward-desc { color: #a1a1aa; }
+  .install-reward-rarity { color: #71717a; }
 }
 
 .login-error {
