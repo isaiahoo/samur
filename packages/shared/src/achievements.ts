@@ -58,7 +58,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     key: "first_request",
     name: "Подняли платок",
-    description: "Первая заявка. Белый платок у калитки — и в горах никто не отвернётся.",
+    description: "Первая просьба. Подняли белый платок — в горах никто мимо не пройдёт.",
     tier: "bronze",
     unlock: { kind: "requests", threshold: 1 },
   },
@@ -76,7 +76,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     key: "rescue_specialist",
     name: "Спасатель",
-    description: "Три раза выручили соседа из беды. Верёвка натянута, трос держит.",
+    description: "Вытащили троих соседей из беды. В горах такое помнят.",
     tier: "silver",
     unlock: { kind: "category_helps", category: "rescue", threshold: 3, confirmedOnly: true },
   },
@@ -90,7 +90,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   {
     key: "food_water",
     name: "Накормил и напоил",
-    description: "Три раза принесли хлеб и воду тому, кто не мог выйти.",
+    description: "Разделили хлеб-соль с тремя соседями.",
     tier: "silver",
     unlock: { kind: "category_helps", category: "food_water", threshold: 3, confirmedOnly: true },
   },
