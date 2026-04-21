@@ -25,6 +25,11 @@ export interface ConfirmOptions {
   confirmLabel?: string;
   cancelLabel?: string;
   destructive?: boolean;
+  /** Optional async handler. When provided, the dialog runs it on
+   * confirm click, shows a spinner + disables both buttons, and
+   * only closes once the handler resolves. Caller's await on
+   * confirmAction() still resolves to true iff onConfirm finished. */
+  onConfirm?: () => Promise<void> | void;
 }
 
 interface ConfirmRequest extends ConfirmOptions {
@@ -171,6 +176,7 @@ export function confirmAction(opts: {
   message?: string;
   confirmLabel: string;
   kind?: "default" | "destructive";
+  onConfirm?: () => Promise<void> | void;
 }): Promise<boolean> {
   return useUIStore.getState().confirm({
     title: opts.title,
@@ -178,5 +184,6 @@ export function confirmAction(opts: {
     confirmLabel: opts.confirmLabel,
     cancelLabel: "Отмена",
     destructive: opts.kind === "destructive",
+    onConfirm: opts.onConfirm,
   });
 }

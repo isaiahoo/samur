@@ -1010,6 +1010,22 @@ select {
 .confirm-message { font-size: 14px; line-height: 1.45; color: #52525b; margin: 0 0 18px; }
 .confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .confirm-actions .btn { min-width: 96px; }
+.confirm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+}
+.confirm-btn[disabled] { opacity: 1; cursor: default; }
+.confirm-btn-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
 @media (prefers-color-scheme: dark) {
   .confirm-dialog { background: var(--color-surface); }
   .confirm-title { color: #f4f4f5; }

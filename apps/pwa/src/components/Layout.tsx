@@ -198,39 +198,40 @@ export function Layout() {
     }
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     setProfileOpen(false);
-    const ok = await confirmAction({
+    void confirmAction({
       title: "Выйти из аккаунта?",
       message: "На этом устройстве сессия будет завершена. Другие устройства останутся в аккаунте.",
       confirmLabel: "Выйти",
       kind: "destructive",
+      onConfirm: () => { logout(); },
     });
-    if (!ok) return;
-    logout();
   };
 
-  const handleLogoutEverywhere = async () => {
+  const handleLogoutEverywhere = () => {
     setProfileOpen(false);
-    const ok = await confirmAction({
+    void confirmAction({
       title: "Выйти со всех устройств?",
       message: "Все активные сессии на этом и других устройствах будут отменены.",
       confirmLabel: "Выйти везде",
       kind: "destructive",
+      onConfirm: async () => {
+        try {
+          await logoutAll();
+        } catch (err) {
+          // 401 means the session was already invalidated server-side —
+          // the revoke still succeeded, proceed with local logout. Any
+          // other error surfaces as a toast; we still log out locally
+          // so the UI doesn't get stuck with an "already signed out"
+          // state on the server but logged-in state on the client.
+          if (!(err instanceof ApiError) || err.status !== 401) {
+            showToast(err instanceof Error ? err.message : "Ошибка", "error");
+          }
+        }
+        logout();
+      },
     });
-    if (!ok) return;
-    try {
-      await logoutAll();
-    } catch (err) {
-      // 401 means the session was already invalidated server-side — the
-      // revoke still succeeded, proceed with local logout. Any other
-      // error surfaces and we stay logged in so the user can retry.
-      if (!(err instanceof ApiError) || err.status !== 401) {
-        showToast(err instanceof Error ? err.message : "Ошибка", "error");
-        return;
-      }
-    }
-    logout();
   };
 
   const initial = user?.name?.charAt(0)?.toUpperCase() || "?";
