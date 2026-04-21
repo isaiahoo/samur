@@ -198,42 +198,39 @@ export function Layout() {
     }
   };
 
-  const openLogoutSheet = () => {
+  const handleLogout = async () => {
     setProfileOpen(false);
-    const doLogout = () => {
-      closeSheet();
-      logout();
-    };
-    const doLogoutEverywhere = async () => {
-      closeSheet();
-      const ok = await confirmAction({
-        title: "Выйти со всех устройств?",
-        message: "Все активные сессии на этом и других устройствах будут отменены.",
-        confirmLabel: "Выйти везде",
-        kind: "destructive",
-      });
-      if (!ok) return;
-      try {
-        await logoutAll();
-      } catch (err) {
-        // 401 means the session was already invalidated server-side —
-        // the revoke still succeeded, proceed with local logout. Any
-        // other error surfaces and we stay logged in so the user can
-        // retry.
-        if (!(err instanceof ApiError) || err.status !== 401) {
-          showToast(err instanceof Error ? err.message : "Ошибка", "error");
-          return;
-        }
+    const ok = await confirmAction({
+      title: "Выйти из аккаунта?",
+      message: "На этом устройстве сессия будет завершена. Другие устройства останутся в аккаунте.",
+      confirmLabel: "Выйти",
+      kind: "destructive",
+    });
+    if (!ok) return;
+    logout();
+  };
+
+  const handleLogoutEverywhere = async () => {
+    setProfileOpen(false);
+    const ok = await confirmAction({
+      title: "Выйти со всех устройств?",
+      message: "Все активные сессии на этом и других устройствах будут отменены.",
+      confirmLabel: "Выйти везде",
+      kind: "destructive",
+    });
+    if (!ok) return;
+    try {
+      await logoutAll();
+    } catch (err) {
+      // 401 means the session was already invalidated server-side — the
+      // revoke still succeeded, proceed with local logout. Any other
+      // error surfaces and we stay logged in so the user can retry.
+      if (!(err instanceof ApiError) || err.status !== 401) {
+        showToast(err instanceof Error ? err.message : "Ошибка", "error");
+        return;
       }
-      logout();
-    };
-    useUIStore.getState().openSheet(
-      <LogoutActionSheet
-        onLogoutDevice={doLogout}
-        onLogoutEverywhere={doLogoutEverywhere}
-        onCancel={closeSheet}
-      />,
-    );
+    }
+    logout();
   };
 
   const initial = user?.name?.charAt(0)?.toUpperCase() || "?";
@@ -369,13 +366,23 @@ export function Layout() {
                   Мой профиль
                 </button>
                 <div className="profile-menu-divider" />
-                <button className="profile-menu-item profile-menu-logout" onClick={openLogoutSheet}>
+                <button className="profile-menu-item profile-menu-logout" onClick={handleLogout}>
                   <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                     <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
                     <polyline points="16 17 21 12 16 7" />
                     <line x1="21" y1="12" x2="9" y2="12" />
                   </svg>
                   Выйти
+                </button>
+                <button className="profile-menu-item profile-menu-logout profile-menu-logout-all" onClick={handleLogoutEverywhere}>
+                  <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                    <line x1="18" y1="9" x2="21" y2="9" />
+                    <line x1="18" y1="15" x2="21" y2="15" />
+                  </svg>
+                  Со всех устройств
                 </button>
               </div>
             )}
@@ -455,34 +462,6 @@ export function Layout() {
       <Toast />
 
       <ConsentGate />
-    </div>
-  );
-}
-
-function LogoutActionSheet({
-  onLogoutDevice, onLogoutEverywhere, onCancel,
-}: {
-  onLogoutDevice: () => void;
-  onLogoutEverywhere: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="logout-sheet">
-      <div className="logout-sheet-header">
-        <h2>Выйти</h2>
-        <p>Выберите, где завершить сессию.</p>
-      </div>
-      <button type="button" className="logout-sheet-option" onClick={onLogoutDevice}>
-        <span className="logout-sheet-option-title">Выйти с этого устройства</span>
-        <span className="logout-sheet-option-sub">На других устройствах вы останетесь в аккаунте.</span>
-      </button>
-      <button type="button" className="logout-sheet-option" onClick={onLogoutEverywhere}>
-        <span className="logout-sheet-option-title">Выйти со всех устройств</span>
-        <span className="logout-sheet-option-sub">Все активные сессии будут отменены.</span>
-      </button>
-      <button type="button" className="logout-sheet-cancel" onClick={onCancel}>
-        Отмена
-      </button>
     </div>
   );
 }
