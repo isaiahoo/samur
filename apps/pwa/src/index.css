@@ -749,23 +749,74 @@ select {
 .profile-menu-logout { color: #ef4444; }
 .profile-menu-logout:active { background: #fef2f2; }
 
-/* Secondary "sign out everywhere" link. Sits directly under "Выйти"
-   as a muted continuation — same destructive scope but quieter so it
-   doesn't compete with the primary action. iOS Settings pattern. */
-.profile-menu-logout-all {
-  display: block;
-  width: 100%;
-  padding: 6px 16px 12px;
-  border: none;
-  background: none;
-  font: inherit;
-  font-size: 12px;
-  color: #a1a1aa;
-  text-align: center;
-  cursor: pointer;
-  transition: color 0.1s;
+/* Logout action sheet — native iOS-style choice between this device
+   and all devices, with a clearly separated Cancel row below. Opens
+   as a bottom sheet from the profile menu's "Выйти" entry, so the
+   sheet itself is the confirmation step. */
+.logout-sheet {
+  padding: 4px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
-.profile-menu-logout-all:active { color: #ef4444; }
+.logout-sheet-header {
+  padding: 4px 8px 14px;
+  text-align: center;
+}
+.logout-sheet-header h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #18181b;
+}
+.logout-sheet-header p {
+  margin: 0;
+  font-size: 13px;
+  color: #71717a;
+  line-height: 1.4;
+}
+.logout-sheet-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border: none;
+  background: #fafafa;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  border-bottom: 1px solid #e4e4e7;
+  transition: background 0.1s;
+}
+.logout-sheet-option:first-of-type { border-radius: 12px 12px 0 0; }
+.logout-sheet-option:nth-of-type(2) { border-radius: 0 0 12px 12px; border-bottom: none; }
+.logout-sheet-option:active { background: #fef2f2; }
+.logout-sheet-option-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ef4444;
+}
+.logout-sheet-option-sub {
+  font-size: 12px;
+  color: #71717a;
+  line-height: 1.35;
+}
+.logout-sheet-cancel {
+  margin-top: 10px;
+  padding: 14px 16px;
+  border: none;
+  border-radius: 12px;
+  background: #fafafa;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: #18181b;
+  text-align: center;
+  transition: background 0.1s;
+}
+.logout-sheet-cancel:active { background: #e4e4e7; }
 
 /* Activity rows — deep-link shortcuts into /help. Lays out as:
    [icon] [label, grows] [count pill] [unread chip?] [chevron]. */
@@ -10460,8 +10511,15 @@ a.tg-auth-fallback {
   .profile-menu-item:active { background: rgba(255, 255, 255, 0.05); }
   .profile-menu-logout { color: #f87171; }
   .profile-menu-logout:active { background: rgba(239, 68, 68, 0.1); }
-  .profile-menu-logout-all { color: #71717a; }
-  .profile-menu-logout-all:active { color: #f87171; }
+
+  .logout-sheet-header h2 { color: #f4f4f5; }
+  .logout-sheet-header p { color: #a1a1aa; }
+  .logout-sheet-option { background: #27272a; border-bottom-color: #3f3f46; }
+  .logout-sheet-option:active { background: rgba(239, 68, 68, 0.15); }
+  .logout-sheet-option-title { color: #f87171; }
+  .logout-sheet-option-sub { color: #a1a1aa; }
+  .logout-sheet-cancel { background: #27272a; color: #f4f4f5; }
+  .logout-sheet-cancel:active { background: #3f3f46; }
 
   /* ── Achievement tier labels ─────────────────────────────────────────
      Bronze/gold hues stay close to their brand, bumped a touch brighter

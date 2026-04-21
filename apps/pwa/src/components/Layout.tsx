@@ -198,33 +198,42 @@ export function Layout() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
+  const openLogoutSheet = () => {
     setProfileOpen(false);
-  };
-
-  const handleLogoutEverywhere = async () => {
-    setProfileOpen(false);
-    const ok = await confirmAction({
-      title: "Выйти со всех устройств?",
-      message: "Все текущие сессии на этом и других устройствах будут отменены. Вам потребуется войти снова.",
-      confirmLabel: "Выйти везде",
-      kind: "destructive",
-    });
-    if (!ok) return;
-    try {
-      await logoutAll();
-    } catch (err) {
-      // If the call 401s because the backend already invalidated the
-      // in-flight session, the revocation still succeeded — we proceed
-      // with local logout anyway. Any other error, surface + stay
-      // logged in locally so the user can retry.
-      if (!(err instanceof ApiError) || err.status !== 401) {
-        showToast(err instanceof Error ? err.message : "Ошибка", "error");
-        return;
+    const doLogout = () => {
+      closeSheet();
+      logout();
+    };
+    const doLogoutEverywhere = async () => {
+      closeSheet();
+      const ok = await confirmAction({
+        title: "Выйти со всех устройств?",
+        message: "Все активные сессии на этом и других устройствах будут отменены.",
+        confirmLabel: "Выйти везде",
+        kind: "destructive",
+      });
+      if (!ok) return;
+      try {
+        await logoutAll();
+      } catch (err) {
+        // 401 means the session was already invalidated server-side —
+        // the revoke still succeeded, proceed with local logout. Any
+        // other error surfaces and we stay logged in so the user can
+        // retry.
+        if (!(err instanceof ApiError) || err.status !== 401) {
+          showToast(err instanceof Error ? err.message : "Ошибка", "error");
+          return;
+        }
       }
-    }
-    logout();
+      logout();
+    };
+    useUIStore.getState().openSheet(
+      <LogoutActionSheet
+        onLogoutDevice={doLogout}
+        onLogoutEverywhere={doLogoutEverywhere}
+        onCancel={closeSheet}
+      />,
+    );
   };
 
   const initial = user?.name?.charAt(0)?.toUpperCase() || "?";
@@ -360,20 +369,13 @@ export function Layout() {
                   Мой профиль
                 </button>
                 <div className="profile-menu-divider" />
-                <button className="profile-menu-item profile-menu-logout" onClick={handleLogout}>
+                <button className="profile-menu-item profile-menu-logout" onClick={openLogoutSheet}>
                   <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                     <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
                     <polyline points="16 17 21 12 16 7" />
                     <line x1="21" y1="12" x2="9" y2="12" />
                   </svg>
                   Выйти
-                </button>
-                <button
-                  type="button"
-                  className="profile-menu-logout-all"
-                  onClick={handleLogoutEverywhere}
-                >
-                  со всех устройств
                 </button>
               </div>
             )}
@@ -453,6 +455,34 @@ export function Layout() {
       <Toast />
 
       <ConsentGate />
+    </div>
+  );
+}
+
+function LogoutActionSheet({
+  onLogoutDevice, onLogoutEverywhere, onCancel,
+}: {
+  onLogoutDevice: () => void;
+  onLogoutEverywhere: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="logout-sheet">
+      <div className="logout-sheet-header">
+        <h2>Выйти</h2>
+        <p>Выберите, где завершить сессию.</p>
+      </div>
+      <button type="button" className="logout-sheet-option" onClick={onLogoutDevice}>
+        <span className="logout-sheet-option-title">Выйти с этого устройства</span>
+        <span className="logout-sheet-option-sub">На других устройствах вы останетесь в аккаунте.</span>
+      </button>
+      <button type="button" className="logout-sheet-option" onClick={onLogoutEverywhere}>
+        <span className="logout-sheet-option-title">Выйти со всех устройств</span>
+        <span className="logout-sheet-option-sub">Все активные сессии будут отменены.</span>
+      </button>
+      <button type="button" className="logout-sheet-cancel" onClick={onCancel}>
+        Отмена
+      </button>
     </div>
   );
 }
