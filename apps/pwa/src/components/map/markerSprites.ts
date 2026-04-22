@@ -42,6 +42,18 @@ const ICONS: Record<string, string> = {
   generator: `<path d="M26 4L10 26h10l-4 18 16-22H22l4-18z" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/>`,
   // Pump — arrow up from water waves
   pump: `<path d="M24 8v22M16 18l8-10 8 10" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 36c3 3 5 3 8 0s5-3 8 0 5 3 8 0 5-3 8 0" fill="none" stroke="white" stroke-width="4" stroke-linecap="round"/>`,
+  // Childcare — parent + child silhouettes
+  childcare: `<circle cx="16" cy="14" r="5" fill="none" stroke="white" stroke-width="4"/><circle cx="32" cy="18" r="3.5" fill="none" stroke="white" stroke-width="3"/><path d="M7 42c0-6 4-10 9-10s9 4 9 10" fill="none" stroke="white" stroke-width="4" stroke-linecap="round"/><path d="M26 42c0-4 3-7 6-7s6 3 6 7" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"/>`,
+  // Petcare — paw print
+  petcare: `<circle cx="12" cy="22" r="3.5" fill="white"/><circle cx="20" cy="14" r="3.5" fill="white"/><circle cx="28" cy="14" r="3.5" fill="white"/><circle cx="36" cy="22" r="3.5" fill="white"/><path d="M14 34c0-5 4-8 10-8s10 3 10 8c0 4-3 6-10 6s-10-2-10-6z" fill="none" stroke="white" stroke-width="4"/>`,
+  // Tutoring — open book
+  tutoring: `<path d="M6 10a4 4 0 014-4h10v30H10a4 4 0 00-4 4V10z" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/><path d="M42 10a4 4 0 00-4-4H28v30h10a4 4 0 014 4V10z" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/>`,
+  // Errands — shopping bag with check
+  errands: `<path d="M10 14h28l-2 26a3 3 0 01-3 3H15a3 3 0 01-3-3L10 14z" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/><path d="M18 14V8a6 6 0 0112 0v6" fill="none" stroke="white" stroke-width="4"/><path d="M18 28l4 4 8-8" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`,
+  // Repair — wrench
+  repair: `<path d="M30 6a9 9 0 01-12 12L6 30l6 6 12-12a9 9 0 0112-12l-6 6-6 2v-6l6-6z" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/>`,
+  // Giveaway — gift box with ribbon
+  giveaway: `<path d="M6 22h36v18a2 2 0 01-2 2H8a2 2 0 01-2-2V22z" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/><path d="M4 14h40v8H4z" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/><path d="M24 42V14" fill="none" stroke="white" stroke-width="4"/><path d="M24 14s-3-8-8-8a4 4 0 000 8h8zM24 14s3-8 8-8a4 4 0 010 8h-8z" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/>`,
   // Fallback — question mark in circle
   other: `<circle cx="24" cy="24" r="16" fill="none" stroke="white" stroke-width="4"/><path d="M18 19a6 6 0 016-6 5 5 0 015 5c0 3-5 4-5 7v1M24 34v.5" fill="none" stroke="white" stroke-width="4" stroke-linecap="round"/>`,
   // SOS glyph — bold cross, worn by the SOS variant of the marker

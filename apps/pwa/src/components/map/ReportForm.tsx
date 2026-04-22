@@ -32,13 +32,20 @@ const incidentOptions: ReportTypeOption[] = [
 
 const helpCategoryOptions: { category: HelpCategory; icon: string }[] = [
   { category: "rescue", icon: "🆘" },
-  { category: "shelter", icon: "🏠" },
-  { category: "food", icon: "🍞" },
-  { category: "water", icon: "💧" },
   { category: "medicine", icon: "💊" },
-  { category: "equipment", icon: "🔧" },
+  { category: "shelter", icon: "🏠" },
+  { category: "water", icon: "💧" },
+  { category: "food", icon: "🍞" },
   { category: "transport", icon: "🚗" },
   { category: "labor", icon: "💪" },
+  { category: "equipment", icon: "🔧" },
+  { category: "errands", icon: "🛒" },
+  { category: "repair", icon: "🛠️" },
+  { category: "childcare", icon: "👶" },
+  { category: "petcare", icon: "🐾" },
+  { category: "tutoring", icon: "📚" },
+  { category: "giveaway", icon: "🎁" },
+  { category: "other", icon: "📋" },
 ];
 
 import { reverseGeocode } from "../../services/reverseGeocode.js";

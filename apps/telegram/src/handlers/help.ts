@@ -18,6 +18,13 @@ const CATEGORY_EMOJIS: Record<string, string> = {
   labor: "💪",
   generator: "⚡",
   pump: "🔧",
+  childcare: "👶",
+  petcare: "🐾",
+  tutoring: "📚",
+  errands: "🛒",
+  repair: "🛠️",
+  giveaway: "🎁",
+  other: "📋",
 };
 
 export async function startHelpFlow(bot: TelegramBot, chatId: number): Promise<void> {
@@ -213,7 +220,11 @@ async function submitHelp(
         lng: state.lng!,
         address: state.address,
         description: state.description,
-        urgency: state.kind === "need" ? "urgent" : "normal",
+        // Default to "normal" — the board hosts both emergencies and
+        // everyday asks, and the Telegram flow doesn't prompt for
+        // urgency. Critical situations go through /sos, which sets
+        // urgency based on the situation + crisis-mode signals.
+        urgency: "normal",
         contactPhone: state.contactPhone,
         contactName: state.contactName,
       },
@@ -249,7 +260,7 @@ async function submitHelp(
           lng: state.lng,
           address: state.address,
           description: state.description,
-          urgency: state.kind === "need" ? "urgent" : "normal",
+          urgency: "normal",
           contactPhone: state.contactPhone,
           contactName: state.contactName,
           source: "telegram",

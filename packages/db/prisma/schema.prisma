@@ -56,6 +56,17 @@ enum HelpCategory {
   labor
   generator
   pump
+  // Everyday / non-emergency categories. Kunak started as a flood-crisis
+  // coordination tool, but the board is also the natural home for regular
+  // neighbourly asks — the same volunteer who drops off water during a
+  // flood might also be the person who can tutor your kid next week.
+  childcare
+  petcare
+  tutoring
+  errands
+  repair
+  giveaway
+  other
 }
 
 enum Urgency {

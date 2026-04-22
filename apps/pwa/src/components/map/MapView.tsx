@@ -730,6 +730,12 @@ export const MapView = memo(forwardRef<MapViewHandle, Props>(function MapView({
               ["==", ["get", "category"], "labor"], "kunak-icon-labor",
               ["==", ["get", "category"], "generator"], "kunak-icon-generator",
               ["==", ["get", "category"], "pump"], "kunak-icon-pump",
+              ["==", ["get", "category"], "childcare"], "kunak-icon-childcare",
+              ["==", ["get", "category"], "petcare"], "kunak-icon-petcare",
+              ["==", ["get", "category"], "tutoring"], "kunak-icon-tutoring",
+              ["==", ["get", "category"], "errands"], "kunak-icon-errands",
+              ["==", ["get", "category"], "repair"], "kunak-icon-repair",
+              ["==", ["get", "category"], "giveaway"], "kunak-icon-giveaway",
               "kunak-icon-other",
             ],
             // Icon-size multiplies against the 48 px SDF source. Chosen

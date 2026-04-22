@@ -1191,6 +1191,13 @@ select {
 .category-card-icon[data-category="labor"]     { background: #e0f2fe; color: #075985; }
 .category-card-icon[data-category="generator"] { background: #fef9c3; color: #854d0e; }
 .category-card-icon[data-category="pump"]      { background: #cffafe; color: #155e75; }
+.category-card-icon[data-category="childcare"] { background: #ffe4e6; color: #9f1239; }
+.category-card-icon[data-category="petcare"]   { background: #d1fae5; color: #065f46; }
+.category-card-icon[data-category="tutoring"]  { background: #ede9fe; color: #5b21b6; }
+.category-card-icon[data-category="errands"]   { background: #ccfbf1; color: #115e59; }
+.category-card-icon[data-category="repair"]    { background: #ffedd5; color: #9a3412; }
+.category-card-icon[data-category="giveaway"]  { background: #fae8ff; color: #86198f; }
+.category-card-icon[data-category="other"]     { background: #f1f5f9; color: #334155; }
 .category-card-label { font-size: 11px; font-weight: 600; color: #3f3f46; text-align: center; line-height: 1.2; }
 .category-card--selected .category-card-label { color: var(--color-primary); }
 
@@ -3191,6 +3198,13 @@ textarea.form-input { resize: vertical; min-height: 80px; }
 .help-card-icon[data-category="labor"]     { background: #e0f2fe; color: #075985; }
 .help-card-icon[data-category="generator"] { background: #fef9c3; color: #854d0e; }
 .help-card-icon[data-category="pump"]      { background: #cffafe; color: #155e75; }
+.help-card-icon[data-category="childcare"] { background: #ffe4e6; color: #9f1239; }
+.help-card-icon[data-category="petcare"]   { background: #d1fae5; color: #065f46; }
+.help-card-icon[data-category="tutoring"]  { background: #ede9fe; color: #5b21b6; }
+.help-card-icon[data-category="errands"]   { background: #ccfbf1; color: #115e59; }
+.help-card-icon[data-category="repair"]    { background: #ffedd5; color: #9a3412; }
+.help-card-icon[data-category="giveaway"]  { background: #fae8ff; color: #86198f; }
+.help-card-icon[data-category="other"]     { background: #f1f5f9; color: #334155; }
 /* Critical urgency: rescue icon pulses subtly */
 .help-card-icon[data-urgency="critical"][data-category="rescue"] {
   animation: help-icon-pulse 2s ease-in-out infinite;
@@ -10088,6 +10102,13 @@ a.tg-auth-fallback {
   .help-card-icon[data-category="labor"]       { background: rgba(14,165,233,0.18);  color: #7dd3fc; }
   .help-card-icon[data-category="generator"]   { background: rgba(234,179,8,0.18);   color: #fde68a; }
   .help-card-icon[data-category="pump"]        { background: rgba(6,182,212,0.18);   color: #67e8f9; }
+  .help-card-icon[data-category="childcare"]   { background: rgba(244,63,94,0.18);   color: #fda4af; }
+  .help-card-icon[data-category="petcare"]     { background: rgba(16,185,129,0.18);  color: #6ee7b7; }
+  .help-card-icon[data-category="tutoring"]    { background: rgba(139,92,246,0.18);  color: #c4b5fd; }
+  .help-card-icon[data-category="errands"]     { background: rgba(20,184,166,0.18);  color: #5eead4; }
+  .help-card-icon[data-category="repair"]      { background: rgba(249,115,22,0.18);  color: #fdba74; }
+  .help-card-icon[data-category="giveaway"]    { background: rgba(217,70,239,0.18);  color: #f0abfc; }
+  .help-card-icon[data-category="other"]       { background: rgba(148,163,184,0.18); color: #cbd5e1; }
   .help-card-phone { background: #3f3f46; border-color: #52525b; color: #e4e4e7; }
   .help-tab { color: #a1a1aa; }
   .help-tab--active { color: var(--color-primary); }
@@ -10281,6 +10302,13 @@ a.tg-auth-fallback {
   .category-card-icon[data-category="labor"]       { background: rgba(14,165,233,0.18);  color: #7dd3fc; }
   .category-card-icon[data-category="generator"]   { background: rgba(234,179,8,0.18);   color: #fde68a; }
   .category-card-icon[data-category="pump"]        { background: rgba(6,182,212,0.18);   color: #67e8f9; }
+  .category-card-icon[data-category="childcare"]   { background: rgba(244,63,94,0.18);   color: #fda4af; }
+  .category-card-icon[data-category="petcare"]     { background: rgba(16,185,129,0.18);  color: #6ee7b7; }
+  .category-card-icon[data-category="tutoring"]    { background: rgba(139,92,246,0.18);  color: #c4b5fd; }
+  .category-card-icon[data-category="errands"]     { background: rgba(20,184,166,0.18);  color: #5eead4; }
+  .category-card-icon[data-category="repair"]      { background: rgba(249,115,22,0.18);  color: #fdba74; }
+  .category-card-icon[data-category="giveaway"]    { background: rgba(217,70,239,0.18);  color: #f0abfc; }
+  .category-card-icon[data-category="other"]       { background: rgba(148,163,184,0.18); color: #cbd5e1; }
   .qf-description { background: #27272a; border-color: #3f3f46; color: #e4e4e7; }
   .qf-description:focus { background: #27272a; }
   .qf-description::placeholder { color: #71717a; }

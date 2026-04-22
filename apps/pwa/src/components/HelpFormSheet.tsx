@@ -2,7 +2,11 @@
 import { useState, useEffect, useRef, useCallback, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import type { HelpCategory } from "@samur/shared";
-import { HELP_CATEGORIES, HELP_CATEGORY_LABELS } from "@samur/shared";
+import {
+  HELP_CATEGORIES,
+  HELP_CATEGORY_LABELS,
+  isEmergencyHelpCategory,
+} from "@samur/shared";
 import { createHelpRequest, uploadPhotos } from "../services/api.js";
 import { useAuthStore } from "../store/auth.js";
 import { useUIStore, confirmAction } from "../store/ui.js";
@@ -20,9 +24,12 @@ function isValidPhone(phone: string): boolean {
   return digitsOnly(phone).length >= 7;
 }
 
+// Subtitles span both everyday and emergency timescales — "когда удобно"
+// works for "ищу репетитора", "сегодня-завтра" for "помогите с переездом",
+// and "нужна помощь сейчас" stays reserved for life-or-health situations.
 const URGENCY_OPTIONS = [
-  { value: "normal",   label: "Обычная",     sub: "в течение дня" },
-  { value: "urgent",   label: "Срочная",     sub: "в ближайший час" },
+  { value: "normal",   label: "Обычная",     sub: "когда удобно" },
+  { value: "urgent",   label: "Срочная",     sub: "сегодня-завтра" },
   { value: "critical", label: "Критическая", sub: "нужна помощь сейчас" },
 ] as const;
 
@@ -333,7 +340,7 @@ export function HelpFormSheet({ tab, onClose }: Props) {
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value.slice(0, DESC_MAX))}
-              placeholder={tab === "need" ? "Что случилось? Опишите кратко..." : "Чем можете помочь?"}
+              placeholder={tab === "need" ? "Опишите, что нужно — кратко и по делу" : "Чем можете помочь?"}
               maxLength={DESC_MAX}
             />
             {description.length > 0 && (
@@ -419,43 +426,64 @@ export function HelpFormSheet({ tab, onClose }: Props) {
           </div>
           {compressing && <div className="qf-hint">Сжатие фото...</div>}
 
-          {/* Address chip — required so rescuers have a street, not
-              just a district. Auto-filled from geolocation; user can
-              tap to edit or retype if the auto-value is too vague. */}
-          {address && !editingAddress ? (
-            <button
-              type="button"
-              className="qf-chip"
-              onClick={() => setEditingAddress(true)}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              <span className="qf-chip-text">{address}</span>
-              <svg className="qf-chip-edit" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 20h9" />
-                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />
-              </svg>
-            </button>
-          ) : (
-            <input
-              className={`qf-inline-input${!address.trim() ? " qf-inline-input--error" : ""}`}
-              value={address}
-              onChange={(e) => {
-                setAddress(e.target.value);
-                addressTouchedRef.current = true;
-              }}
-              placeholder="Адрес (улица, дом, район)"
-              onBlur={() => { if (address) setEditingAddress(false); }}
-              autoFocus={editingAddress}
-              aria-invalid={!address.trim() ? "true" : undefined}
-            />
-          )}
-          {!address.trim() && (
-            <div className="qf-hint qf-hint--muted">
-              Укажите адрес — без него спасатели или волонтёры не смогут приехать
-            </div>
-          )}
+          {/* Address chip. Hard-required only for the emergency block
+              (rescue / medicine / shelter / water / food) and for any
+              critical-urgency ask — everywhere else a neighbour can
+              coordinate details in chat, and forcing a street address
+              into "ищу репетитора" reads as absurd. Auto-fills from
+              geolocation when available. */}
+          {(() => {
+            const addressRequired = !!category && (isEmergencyHelpCategory(category) || urgency === "critical");
+            const addressBlank = !address.trim();
+            const addressShowError = addressRequired && addressBlank;
+            return (
+              <>
+                {address && !editingAddress ? (
+                  <button
+                    type="button"
+                    className="qf-chip"
+                    onClick={() => setEditingAddress(true)}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <span className="qf-chip-text">{address}</span>
+                    <svg className="qf-chip-edit" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />
+                    </svg>
+                  </button>
+                ) : (
+                  <input
+                    className={`qf-inline-input${addressShowError ? " qf-inline-input--error" : ""}`}
+                    value={address}
+                    onChange={(e) => {
+                      setAddress(e.target.value);
+                      addressTouchedRef.current = true;
+                    }}
+                    placeholder={addressRequired ? "Адрес (улица, дом, район)" : "Адрес — если нужен на месте"}
+                    onBlur={() => { if (address) setEditingAddress(false); }}
+                    autoFocus={editingAddress}
+                    aria-invalid={addressShowError ? "true" : undefined}
+                  />
+                )}
+                {addressShowError && (
+                  <div className="qf-hint qf-hint--muted">
+                    Укажите адрес — без него волонтёры не смогут приехать
+                  </div>
+                )}
+                {!addressRequired && addressBlank && (
+                  <div className="qf-hint qf-hint--muted">
+                    Адрес не обязателен — детали можно обсудить в чате
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
-          {/* Contact summary */}
+          {/* Contact summary. Phone stays hard-required for emergency
+              categories + any critical-urgency ask (a flooded family
+              can't chat-first when the signal is failing). For everyday
+              asks it's optional — the built-in chat already connects
+              both sides. */}
           {hasContactInfo && !editingContact ? (
             <button
               type="button"
@@ -469,42 +497,52 @@ export function HelpFormSheet({ tab, onClose }: Props) {
                 <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z" />
               </svg>
             </button>
-          ) : (
-            <>
-              <div className="qf-contact-row">
-                <input
-                  className="qf-inline-input"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  placeholder="Имя"
-                />
-                <input
-                  className={`qf-inline-input${contactPhone && !isValidPhone(contactPhone) ? " qf-inline-input--error" : ""}`}
-                  type="tel"
-                  value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
-                  placeholder="Телефон"
-                  onBlur={() => { if (contactName || contactPhone) setEditingContact(false); }}
-                  aria-invalid={contactPhone && !isValidPhone(contactPhone) ? "true" : undefined}
-                />
-              </div>
-              {contactPhone && !isValidPhone(contactPhone) && (
-                <div className="qf-field-error">Минимум 7 цифр</div>
-              )}
-              {!contactPhone.trim() && (
-                <div className="qf-field-error">
-                  Телефон обязателен — без него до вас не смогут дозвониться
+          ) : (() => {
+            const phoneRequired = !!category && (isEmergencyHelpCategory(category) || urgency === "critical");
+            return (
+              <>
+                <div className="qf-contact-row">
+                  <input
+                    className="qf-inline-input"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    placeholder="Имя"
+                  />
+                  <input
+                    className={`qf-inline-input${contactPhone && !isValidPhone(contactPhone) ? " qf-inline-input--error" : ""}`}
+                    type="tel"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder={phoneRequired ? "Телефон" : "Телефон (не обязателен)"}
+                    onBlur={() => { if (contactName || contactPhone) setEditingContact(false); }}
+                    aria-invalid={contactPhone && !isValidPhone(contactPhone) ? "true" : undefined}
+                  />
                 </div>
-              )}
-            </>
-          )}
+                {contactPhone && !isValidPhone(contactPhone) && (
+                  <div className="qf-field-error">Минимум 7 цифр</div>
+                )}
+                {phoneRequired && !contactPhone.trim() && (
+                  <div className="qf-field-error">
+                    Телефон обязателен — без него до вас не смогут дозвониться
+                  </div>
+                )}
+                {!phoneRequired && !contactPhone.trim() && (
+                  <div className="qf-hint qf-hint--muted">
+                    Без телефона — договоритесь в чате внутри заявки
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         <div className="sheet-form-footer">
           {(() => {
+            const emergencyCat = !!category && isEmergencyHelpCategory(category);
+            const requiresContact = emergencyCat || urgency === "critical";
             const phoneInvalid = !!contactPhone && !isValidPhone(contactPhone);
-            const phoneMissing = !contactPhone.trim();
-            const addressMissing = !address.trim();
+            const phoneMissing = requiresContact && !contactPhone.trim();
+            const addressMissing = requiresContact && !address.trim();
             const disabled =
               !category || submitting || phoneInvalid || phoneMissing || addressMissing;
             const primary = !!category && !phoneInvalid && !phoneMissing && !addressMissing;

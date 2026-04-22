@@ -65,6 +65,13 @@ export const HelpCategorySchema = z.enum([
   "labor",
   "generator",
   "pump",
+  "childcare",
+  "petcare",
+  "tutoring",
+  "errands",
+  "repair",
+  "giveaway",
+  "other",
 ]);
 
 export const UrgencySchema = z.enum(["normal", "urgent", "critical"]);

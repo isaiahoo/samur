@@ -94,6 +94,63 @@ export function CategoryIcon({ category, size = 20, ...rest }: Props) {
           <path d="M12 9a3 3 0 100 6 3 3 0 000-6z" />
         </svg>
       );
+    case "childcare":
+      // Parent holding child's hand — two heads + arc.
+      return (
+        <svg {...common}>
+          <circle cx="8" cy="7" r="2.5" />
+          <circle cx="16" cy="9" r="1.8" />
+          <path d="M8 10v5l-2 6M16 11v4l2 6" />
+          <path d="M8 15h8" />
+        </svg>
+      );
+    case "petcare":
+      // Paw print.
+      return (
+        <svg {...common}>
+          <circle cx="6" cy="11" r="1.8" />
+          <circle cx="10" cy="7" r="1.8" />
+          <circle cx="14" cy="7" r="1.8" />
+          <circle cx="18" cy="11" r="1.8" />
+          <path d="M8 17c0-2.5 1.8-4 4-4s4 1.5 4 4c0 2-1.5 3-4 3s-4-1-4-3z" />
+        </svg>
+      );
+    case "tutoring":
+      // Open book with bookmark.
+      return (
+        <svg {...common}>
+          <path d="M4 5a2 2 0 012-2h5v16H6a2 2 0 00-2 2V5z" />
+          <path d="M20 5a2 2 0 00-2-2h-5v16h5a2 2 0 012 2V5z" />
+        </svg>
+      );
+    case "errands":
+      // Shopping bag with check.
+      return (
+        <svg {...common}>
+          <path d="M5 8h14l-1 12a2 2 0 01-2 2H8a2 2 0 01-2-2L5 8z" />
+          <path d="M9 8V6a3 3 0 016 0v2" />
+          <path d="M9 14l2 2 4-4" />
+        </svg>
+      );
+    case "repair":
+      // Wrench + screwdriver crossed.
+      return (
+        <svg {...common}>
+          <path d="M14 4a4 4 0 014 4 4 4 0 01-4.5 4L5 20l-2-2 8-8.5A4 4 0 0114 4z" />
+          <path d="M20 14l-6 6" />
+        </svg>
+      );
+    case "giveaway":
+      // Gift / shared parcel.
+      return (
+        <svg {...common}>
+          <path d="M4 11h16v9a1 1 0 01-1 1H5a1 1 0 01-1-1v-9z" />
+          <path d="M2 7h20v4H2z" />
+          <path d="M12 21V7" />
+          <path d="M12 7s-2-4-4-4a2 2 0 000 4h4zM12 7s2-4 4-4a2 2 0 010 4h-4z" />
+        </svg>
+      );
+    case "other":
     default:
       return (
         <svg {...common}>

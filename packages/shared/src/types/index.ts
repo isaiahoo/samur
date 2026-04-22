@@ -31,7 +31,14 @@ export type HelpCategory =
   | "transport"
   | "labor"
   | "generator"
-  | "pump";
+  | "pump"
+  | "childcare"
+  | "petcare"
+  | "tutoring"
+  | "errands"
+  | "repair"
+  | "giveaway"
+  | "other";
 
 export type Urgency = "normal" | "urgent" | "critical";
 

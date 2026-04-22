@@ -25,6 +25,8 @@ const categoryIcons: Record<string, string> = {
   rescue: "🆘", shelter: "🏠", food: "🍞", water: "💧",
   medicine: "💊", equipment: "🔧", transport: "🚗", labor: "💪",
   generator: "⚡", pump: "🔄",
+  childcare: "👶", petcare: "🐾", tutoring: "📚", errands: "🛒",
+  repair: "🛠️", giveaway: "🎁", other: "📋",
 };
 
 interface Props {

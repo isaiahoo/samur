@@ -40,6 +40,13 @@ export const HELP_CATEGORY_LABELS: Record<string, string> = {
   labor: "Рабочая сила",
   generator: "Генератор",
   pump: "Насос",
+  childcare: "Дети",
+  petcare: "Питомцы",
+  tutoring: "Учёба",
+  errands: "Поручения",
+  repair: "Ремонт",
+  giveaway: "Отдам / возьму",
+  other: "Другое",
 };
 
 export const URGENCY_LABELS: Record<string, string> = {
@@ -135,17 +142,47 @@ export const INCIDENT_STATUSES = [
 export const HELP_REQUEST_TYPES = ["need", "offer"] as const;
 
 export const HELP_CATEGORIES = [
+  // Emergency block — surfaced first in pickers so a flood-crisis caller
+  // lands on the category they need without scrolling past everyday tags.
   "rescue",
-  "shelter",
-  "food",
-  "water",
   "medicine",
-  "equipment",
+  "shelter",
+  "water",
+  "food",
+  // Shared — useful for both emergency and everyday asks.
   "transport",
   "labor",
+  "equipment",
   "generator",
   "pump",
+  // Everyday — ordered by how often people actually ask for each.
+  "errands",
+  "repair",
+  "childcare",
+  "petcare",
+  "tutoring",
+  "giveaway",
+  "other",
 ] as const;
+
+/**
+ * Categories where a specific street address is load-bearing — a rescuer,
+ * nurse or water-drop volunteer needs a place to drive to, not a chat
+ * thread. Address + phone stay hard-required on the creation form for
+ * these; everything else falls back to "chat first, ask for details if
+ * you need them", which is closer to how neighbours actually coordinate.
+ */
+export const EMERGENCY_HELP_CATEGORIES: readonly string[] = [
+  "rescue",
+  "medicine",
+  "shelter",
+  "water",
+  "food",
+];
+
+export function isEmergencyHelpCategory(category: string): boolean {
+  return EMERGENCY_HELP_CATEGORIES.includes(category);
+}
 
 export const URGENCIES = ["normal", "urgent", "critical"] as const;
 
