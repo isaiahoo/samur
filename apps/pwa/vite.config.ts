@@ -42,10 +42,27 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
+        // Pin the heavy libs to their own named chunks. Without this
+        // the auto-chunker bundles maplibre-gl into MapPage (1 MB blob,
+        // worst possible for DPI mid-stream kill) instead of keeping
+        // it as a separately-fetchable file.
         manualChunks: {
           maplibre: ["maplibre-gl"],
           recharts: ["recharts"],
         },
+      },
+    },
+    // Vite's default modulepreload analysis flags every named chunk
+    // reachable from the entry as "preload eagerly", even when the only
+    // path to it is through a lazy() boundary. That negates the
+    // code-split. Filter the heavy libs out of the entry's preload list
+    // so they only download when the lazy chunk that actually needs
+    // them (MapPage / StatsDashboard) is loaded.
+    modulePreload: {
+      resolveDependencies(_filename, deps) {
+        return deps.filter(
+          (dep) => !/\b(maplibre|recharts)-/.test(dep),
+        );
       },
     },
   },
