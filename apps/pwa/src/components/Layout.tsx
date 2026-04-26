@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useUIStore, confirmAction } from "../store/ui.js";
 import { useAlertsStore, useUnreadCount } from "../store/alerts.js";
@@ -17,11 +17,17 @@ import { SOSButton } from "./SOSButton.js";
 import { ConsentGate } from "./ConsentGate.js";
 import { InstallPrompt } from "./InstallPrompt.js";
 import { AchievementUnlockModal } from "./AchievementUnlockModal.js";
-import { MapPage } from "../pages/MapPage.js";
-import { HelpPage } from "../pages/HelpPage.js";
-import { AlertsPage } from "../pages/AlertsPage.js";
-import { NewsPage } from "../pages/NewsPage.js";
-import { InfoPage } from "../pages/InfoPage.js";
+
+// Tab pages are lazy so the heavy stuff (maplibre-gl 803 KB + recharts 588 KB
+// via the GaugeChart on the map) only downloads when the user actually opens
+// the Map tab. Russian operator DPI tends to kill mid-stream on the largest
+// chunks; first paint loading only ~200 KB of shell + the active page makes
+// the connection finish reliably even under aggressive inspection.
+const MapPage = lazy(() => import("../pages/MapPage.js").then((m) => ({ default: m.MapPage })));
+const HelpPage = lazy(() => import("../pages/HelpPage.js").then((m) => ({ default: m.HelpPage })));
+const AlertsPage = lazy(() => import("../pages/AlertsPage.js").then((m) => ({ default: m.AlertsPage })));
+const NewsPage = lazy(() => import("../pages/NewsPage.js").then((m) => ({ default: m.NewsPage })));
+const InfoPage = lazy(() => import("../pages/InfoPage.js").then((m) => ({ default: m.InfoPage })));
 
 export function Layout() {
   const unread = useUnreadCount();
@@ -36,7 +42,11 @@ export function Layout() {
   const socketConnected = useUIStore((s) => s.socketConnected);
   const location = useLocation();
   const path = location.pathname;
-  const [visited, setVisited] = useState<Set<string>>(() => new Set(["/"]));
+  // Seed visited with the actual landing path so users who land on /help
+  // (or /alerts, /news, /info) don't drag MapPage's maplibre+recharts
+  // bundle into first paint. Tab-alive otherwise unchanged: any tab the
+  // user opens stays mounted so re-visits don't refetch.
+  const [visited, setVisited] = useState<Set<string>>(() => new Set([path]));
 
   useEffect(() => {
     setVisited((prev) => {
@@ -402,28 +412,43 @@ export function Layout() {
       )}
 
       <main className="app-main" id="app-main">
-        {/* All tab pages stay mounted once visited — no re-fetch on tab switch */}
-        <div className={path === "/" ? "tab-alive tab-alive--visible" : "tab-alive"}>
-          <MapPage />
-        </div>
+        {/* All tab pages stay mounted once visited — no re-fetch on tab switch.
+            Each lazy chunk is wrapped in its own Suspense so the fallback only
+            covers the active tab's area, not the whole app shell (header +
+            tabbar + sticky SOS button stay rendered while a tab loads). */}
+        {visited.has("/") && (
+          <div className={path === "/" ? "tab-alive tab-alive--visible" : "tab-alive"}>
+            <Suspense fallback={null}>
+              <MapPage />
+            </Suspense>
+          </div>
+        )}
         {visited.has("/help") && (
           <div className={path === "/help" ? "tab-alive tab-alive--visible" : "tab-alive"}>
-            <HelpPage />
+            <Suspense fallback={null}>
+              <HelpPage />
+            </Suspense>
           </div>
         )}
         {visited.has("/alerts") && (
           <div className={path === "/alerts" ? "tab-alive tab-alive--visible" : "tab-alive"}>
-            <AlertsPage />
+            <Suspense fallback={null}>
+              <AlertsPage />
+            </Suspense>
           </div>
         )}
         {visited.has("/news") && (
           <div className={path === "/news" ? "tab-alive tab-alive--visible" : "tab-alive"}>
-            <NewsPage />
+            <Suspense fallback={null}>
+              <NewsPage />
+            </Suspense>
           </div>
         )}
         {visited.has("/info") && (
           <div className={path === "/info" ? "tab-alive tab-alive--visible" : "tab-alive"}>
-            <InfoPage />
+            <Suspense fallback={null}>
+              <InfoPage />
+            </Suspense>
           </div>
         )}
       </main>
