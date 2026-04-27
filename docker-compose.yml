@@ -10,7 +10,13 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-samur_dev}
       POSTGRES_DB: ${POSTGRES_DB:-samur}
     ports:
-      - "5432:5432"
+      # Loopback-only — postgres is only reached via the docker network
+      # (hostname `postgres` from other containers). Binding to 127.0.0.1
+      # on the host keeps `psql` etc. usable for an admin SSH'd into the
+      # box, but stops the public internet from speaking to it. Without
+      # this prefix, Docker publishes 0.0.0.0:5432 — which exposes the DB
+      # to credential-stuffing scanners worldwide.
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -24,7 +30,10 @@ services:
     container_name: samur-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      # Loopback-only — see note on postgres above. Redis has no auth in
+      # this setup; keeping 6379 off the public IP is the only thing
+      # stopping the world from reading the cache + Socket.IO state.
+      - "127.0.0.1:6379:6379"
     volumes:
       - redisdata:/data
     healthcheck:
@@ -40,7 +49,13 @@ services:
     container_name: samur-api
     restart: unless-stopped
     ports:
-      - "${PORT:-3000}:3000"
+      # Loopback-only — the API should only be reachable via nginx (which
+      # runs in the same docker network and proxies via the `api` hostname).
+      # Publishing 3000 on the public IP would let clients bypass nginx
+      # entirely, including all the rate-limit / auth / TLS logic. Bind
+      # to 127.0.0.1 so an admin SSH'd into the box can still curl it for
+      # debugging, but the world cannot.
+      - "127.0.0.1:${PORT:-3000}:3000"
     environment:
       DATABASE_URL: "postgresql://${POSTGRES_USER:-samur}:${POSTGRES_PASSWORD:-samur_dev}@postgres:5432/${POSTGRES_DB:-samur}?schema=public"
       REDIS_URL: "redis://redis:6379"
@@ -119,7 +134,10 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin
       PGADMIN_CONFIG_SERVER_MODE: "False"
     ports:
-      - "5050:80"
+      # Loopback-only — the pgadmin UI defaults to weak credentials
+      # (admin/admin). Reach it via SSH tunnel from your local machine:
+      # `ssh -L 5050:127.0.0.1:5050 kunak@<host>`, then http://localhost:5050.
+      - "127.0.0.1:5050:80"
     depends_on:
       postgres:
         condition: service_healthy
